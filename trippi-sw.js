@@ -1,5 +1,5 @@
-const CACHE_NAME = 'trippi-personal-v2';
-const APP_FILES = ['./index.html', './trip-planner.html', './trippi.webmanifest', './trippi-icon.svg'];
+const CACHE_NAME = 'trippi-personal-v3';
+const APP_FILES = ['./index.html', './trip-planner.html', './trippi.webmanifest', './trippi-icon.svg', './backend/supabase-client.js', './lzstring.js'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_FILES)).then(() => self.skipWaiting()));
