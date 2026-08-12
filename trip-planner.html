@@ -175,13 +175,15 @@
   // ── Collaborative backend (P2) ─────────────────────────────
   async function ensureAuth(){
     if(colState.uid)return colState.uid;
-    const ok=await SB.init();
-    if(!ok){console.warn('[Trippi] backend unavailable');return null;}
-    colState.sb=SB.client;
-    const {data:{user}}=await colState.sb.auth.getUser();
-    if(!user){const {data}=await colState.sb.auth.signInAnonymously();colState.uid=data.user.id;}
-    else colState.uid=user.id;
-    return colState.uid;
+    try{
+      const ok=await SB.init();
+      if(!ok){console.warn('[Trippi] backend unavailable');return null;}
+      colState.sb=SB.client;
+      const {data:{user}}=await colState.sb.auth.getUser();
+      if(!user){const {data}=await colState.sb.auth.signInAnonymously();colState.uid=data.user.id;}
+      else colState.uid=user.id;
+      return colState.uid;
+    }catch(e){console.warn('[Trippi] auth failed, personal mode only:',e.message);return null;}
   }
   function askName(){
     let n=loadName();
@@ -190,7 +192,7 @@
   }
   function groupLink(id){return `${location.origin}${location.pathname}?group=${id}`;}
   async function createGroup(){
-    const uid=await ensureAuth();if(!uid)return;
+    const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti atau periksa koneksi.');return;}
     const name=askName();if(!name)return;
     const {data:g,error}=await colState.sb.from('groups').insert({name,created_by:uid}).select().single();
     if(error){alert('Gagal buat grup: '+error.message);return;}
@@ -198,7 +200,7 @@
     await openGroup(g.id,true);
   }
   async function joinGroup(id){
-    const uid=await ensureAuth();if(!uid)return;
+    const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti atau periksa koneksi.');return;}
     let name=loadName();if(!name){name=askName();if(!name)return;}
     const {data:existing}=await colState.sb.from('group_members').select('user_id').eq('group_id',id).eq('user_id',uid).maybeSingle();
     if(!existing)await colState.sb.from('group_members').insert({group_id:id,user_id:uid,display_name:name});
