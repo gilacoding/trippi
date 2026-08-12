@@ -1,0 +1,12 @@
+{
+  "name": "Trippi — Personal Travel Planner",
+  "short_name": "Trippi",
+  "start_url": "./trip-planner.html",
+  "display": "standalone",
+  "background_color": "#101219",
+  "theme_color": "#101219",
+  "description": "Personal travel planner untuk itinerary, To Go List, dan pengeluaran trip.",
+  "icons": [
+    { "src": "trippi-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
