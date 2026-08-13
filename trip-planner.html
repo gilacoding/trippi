@@ -109,18 +109,42 @@
     <div class="planner-head"><h1 id="groupName"></h1><div class="trip-meta" id="groupMeta"></div>
       <div class="planner-actions"><button class="btn secondary small" id="inviteGroupBtn">Bagikan grup</button><button class="btn secondary small" id="leaveGroupBtn">Keluar</button></div>
     </div>
-    <div class="notice" id="groupBanner"></div>
-    <section class="to-go"><div class="section-head"><div><h2>Daftar bersama</h2><div class="muted" style="font-size:13px;margin-top:4px">Tempat &amp; hal yang ingin dikerjakan bersama. Update tersimpan otomatis.</div></div><span class="count" id="sharedCount"></span></div>
-      <input class="to-go-search" id="sharedSearch" placeholder="Cari dalam daftar…">
-      <div class="to-go-list" id="sharedList"></div>
-      <details class="add-panel add-togo"><summary><span class="btn secondary wide">+ Tambah ke daftar bersama</span></summary><form class="form-card form-grid" id="sharedForm">
-        <div class="field"><label for="sharedTitle">Tempat atau kegiatan</label><input id="sharedTitle" required maxlength="100" placeholder="Contoh: Sate Klathak"></div>
-        <div class="field"><label for="sharedLink">Link referensi <span style="font-weight:400">(opsional)</span></label><input id="sharedLink" type="url" maxlength="500" placeholder="Paste Google Maps, Instagram, dll"></div>
-        <div class="field"><label for="sharedNote">Catatan</label><textarea id="sharedNote" maxlength="240" placeholder="Reservasi, alamat, atau detail penting."></textarea></div>
-        <div class="form-actions"><button type="button" class="btn secondary" id="cancelShared">Batal</button><button class="btn" type="submit">Tambah</button></div>
+    <div class="trip-stats" id="groupStats"></div>
+    <div class="day-tabs" id="groupDayTabs"></div>
+    <section class="itinerary"><div class="section-head"><div><h2 id="groupDayTitle">Itinerary</h2></div></div>
+      <div class="itinerary-list" id="groupItineraryList"></div>
+      <details class="add-panel"><summary><span class="btn secondary wide">+ Tambah agenda grup</span></summary><form class="form-card form-grid" id="groupAgendaForm">
+        <div class="field"><label for="groupAgendaTitle">Kegiatan</label><input id="groupAgendaTitle" required maxlength="100" placeholder="Contoh: Malioboro"></div>
+        <div class="field"><label for="groupAgendaTime">Jam</label><input id="groupAgendaTime" type="time"></div>
+        <div class="field"><label for="groupAgendaBudget">Estimasi biaya</label><input id="groupAgendaBudget" type="number" min="0" placeholder="0"></div>
+        <div class="field"><label for="groupAgendaLink">Link referensi</label><input id="groupAgendaLink" type="url" maxlength="500" placeholder="Paste Google Maps"></div>
+        <div class="field" style="grid-column:1/-1"><label for="groupAgendaNote">Catatan</label><textarea id="groupAgendaNote" maxlength="240" placeholder="Reservasi, alamat, detail"></textarea></div>
+        <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupAgenda">Batal</button><button class="btn" type="submit">Tambah</button></div>
       </form></details>
     </section>
-    <section class="expense"><div class="section-head"><h2>Anggota</h2></div><div class="to-go-list" id="memberList"></div></section>
+    <section class="expenses"><div class="section-head"><div><h2>Pengeluaran</h2></div></div>
+      <div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="groupDailyExpense">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="groupTripExpense">Rp0</b></div></div>
+      <div class="expense-list" id="groupExpenseList"></div>
+      <details class="add-panel"><summary><span class="btn secondary wide">+ Catat pengeluaran grup</span></summary><form class="form-card form-grid" id="groupExpenseForm">
+        <div class="field"><label for="groupExpenseName">Nama</label><input id="groupExpenseName" required maxlength="60" placeholder="Makan siang"></div>
+        <div class="field"><label for="groupExpenseAmount">Jumlah</label><input id="groupExpenseAmount" type="number" min="0" required placeholder="0"></div>
+        <div class="field"><label for="groupExpenseCategory">Kategori</label><select id="groupExpenseCategory"><option>Makan</option><option>Transport</option><option>Hotel</option><option>Tiket</option><option>Belanja</option><option>Lainnya</option></select></div>
+        <div class="field"><label for="groupExpenseNote">Catatan</label><input id="groupExpenseNote" maxlength="120" placeholder="Opsional"></div>
+        <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupExpense">Batal</button><button class="btn" type="submit">Catat</button></div>
+      </form></details>
+    </section>
+    <section class="to-go"><div class="section-head"><div><h2>Tempat ingin dikerjakan</h2><div class="muted" style="font-size:13px;margin-top:4px">Belum ditentukan hari, bareng rencanakan.</div></div></div>
+      <div class="to-go-list" id="groupWishList"></div>
+      <details class="add-panel add-togo"><summary><span class="btn secondary wide">+ Tambah ke wishlist</span></summary><form class="form-card form-grid" id="groupWishForm">
+        <div class="field"><label for="groupWishTitle">Tempat atau kegiatan</label><input id="groupWishTitle" required maxlength="100" placeholder="Sate Klathak"></div>
+        <div class="field"><label for="groupWishLink">Link referensi</label><input id="groupWishLink" type="url" maxlength="500" placeholder="Paste link"></div>
+        <div class="field" style="grid-column:1/-1"><label for="groupWishNote">Catatan</label><textarea id="groupWishNote" maxlength="240" placeholder="Detail"></textarea></div>
+        <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupWish">Batal</button><button class="btn" type="submit">Tambah</button></div>
+      </form></details>
+    </section>
+    <section class="members"><div class="section-head"><div><h2>Anggota <span class="count" id="groupMemberCount"></span></h2></div></div>
+      <div class="to-go-list" id="memberList"></div>
+    </section>
   </section>
 
 </main>
@@ -135,7 +159,7 @@
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
   const SB=window.TrippiBackend;
-  const colState={sb:null,uid:null,name:null,group:null,items:[],members:[],channel:null};
+  const colState={sb:null,uid:null,name:null,group:null,items:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null};
   const myGroups=()=>colState.groups||[];
   const loadName=()=>localStorage.getItem('trippi_display_name')||'';
   const saveName=n=>localStorage.setItem('trippi_display_name',n);
@@ -189,7 +213,7 @@
   async function makeGroupFromTrip(){
     const trip=getTrip();if(!trip)return;const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return;}
     const name=askName();if(!name)return;
-    const {data:g,error}=await colState.sb.from('groups').insert({name:trip.name,created_by:uid}).select().single();
+    const {data:g,error}=await colState.sb.from('groups').insert({name:trip.name,destination:trip.destination||'',start_date:trip.start,end_date:trip.end,created_by:uid}).select().single();
     if(error){alert('Gagal buat grup: '+error.message);return;}
     await colState.sb.from('group_members').insert({group_id:g.id,user_id:uid,display_name:name});
     await openGroup(g.id,true,trip);
@@ -207,42 +231,68 @@
     const uid=await ensureAuth();if(!uid)return;
     const {data:g}=await colState.sb.from('groups').select('*').eq('id',id).maybeSingle();
     if(!g){alert('Grup tidak ditemukan.');return;}
-    colState.group=g;
+    colState.group=g;colState.activeDate=null;colState.expenses=[];colState.nameMap={};
     show('groupView');
     $('groupName').textContent=g.name;
-    $('groupMeta').textContent='Daftar bersama · anggota';
     if(colState.channel)await colState.sb.removeChannel(colState.channel);
     const ch=colState.sb.channel('group:'+id);
     ch.on('postgres_changes',{event:'*',schema:'public',table:'shared_items',filter:'group_id=eq.'+id},()=>loadShared(id))
       .on('postgres_changes',{event:'*',schema:'public',table:'group_members',filter:'group_id=eq.'+id},()=>loadMembers(id))
+      .on('postgres_changes',{event:'*',schema:'public',table:'group_expenses',filter:'group_id=eq.'+id},()=>loadGroupExpenses(id))
       .subscribe();
     colState.channel=ch;
     if(fresh&&trip&&trip.items){
       const agenda=trip.items.filter(i=>i.title&&i.title.trim());
       if(agenda.length){
-        const rows=agenda.map(i=>({group_id:id,title:i.title.trim(),note:i.note||'',link:i.link||''}));
+        const rows=agenda.map(i=>({group_id:id,title:i.title.trim(),note:i.note||'',link:i.link||'',date:i.date||'',time:i.time||'',budget:Number(i.budget)||0}));
         const {error:ce}=await colState.sb.from('shared_items').insert(rows);
         if(ce)console.warn('[Trippi] copy agenda failed:',ce.message);
       }
     }
-    await loadShared(id);await loadMembers(id);
+    await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);renderGroupPlanner();
   }
-  async function loadShared(id){const {data}=await colState.sb.from('shared_items').select('*').eq('group_id',id).order('created_at');colState.items=data||[];renderShared();}
-  async function loadMembers(id){const {data}=await colState.sb.from('group_members').select('*').eq('group_id',id).order('joined_at');colState.members=data||[];renderMembers();}
-  function renderShared(){
-    const q=($('sharedSearch').value||'').trim().toLowerCase();
-    const list=q?colState.items.filter(i=>(i.title||'').toLowerCase().includes(q)||(i.note||'').toLowerCase().includes(q)):colState.items;
-    $('sharedCount').textContent=colState.items.length?`${colState.items.length} item`:'';
-    $('sharedList').innerHTML=list.length?list.map(item=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(item.title)} ${item.done?'✅':''}</div>${item.link?`<a class="to-go-source" href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.link)}</a>`:''}${item.note?`<div class="link-field">${esc(item.note)}</div>`:''}</div><div class="to-go-actions"><button class="btn small" data-toggle="${item.id}">${item.done?'Buka':'Selesai'}</button><button class="btn secondary small" data-rm="${item.id}" aria-label="Hapus">×</button></div></article>`).join(''):'<div class="empty"><strong>Daftar masih kosong.</strong>Tambahkan tempat atau hal yang ingin dikerjakan bersama.</div>';
-    document.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggleShared(b.dataset.toggle));
-    document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>removeShared(b.dataset.rm));
+  async function loadShared(id){const {data}=await colState.sb.from('shared_items').select('*').eq('group_id',id).order('created_at');colState.items=data||[];renderGroupPlanner();}
+  async function loadMembers(id){const {data}=await colState.sb.from('group_members').select('*').eq('group_id',id).order('joined_at');colState.members=data||[];colState.nameMap={};data.forEach(m=>colState.nameMap[m.user_id]=m.display_name);renderGroupPlanner();}
+  async function loadGroupExpenses(id){const {data}=await colState.sb.from('group_expenses').select('*').eq('group_id',id).order('created_at');colState.expenses=data||[];renderGroupExpenses();}
+  function nameOf(uid){return (colState.nameMap&&colState.nameMap[uid])||(uid===colState.uid?'kamu':(colState.members.find(m=>m.user_id===uid)||{}).display_name||'anggota');}
+  function renderGroupPlanner(){
+    const g=colState.group;if(!g)return;
+    const dates=daysBetween(g.start_date?String(g.start_date):'',g.end_date?String(g.end_date):'');
+    if(!colState.activeDate&&dates.length)colState.activeDate=dates[0];
+    $('groupName').textContent=g.name;
+    $('groupMeta').textContent=`${(g.destination||'')?g.destination+' · ':''}${g.start_date?dateText(String(g.start_date)):'?'}${g.end_date?' — '+dateText(String(g.end_date)):''}`;
+    $('groupStats').innerHTML=`<span>${colState.items.length} agenda</span><span>${dates.length} hari</span><span>${colState.members.length} anggota</span><span>Est. ${money(colState.items.reduce((s,i)=>s+(Number(i.budget)||0),0))}</span>`;
+    $('groupMemberCount').textContent=colState.members.length?colState.members.length+' orang':'';
+    $('groupDayTabs').innerHTML=dates.map((d,idx)=>`<button class="day-tab ${d===colState.activeDate?'active':''}" data-gday="${d}">Hari ${idx+1}<br><span style="font-weight:500;opacity:.8">${dateText(d).replace(/ \d{4}/,'')}</span></button>`).join('');
+    document.querySelectorAll('[data-gday]').forEach(b=>b.onclick=()=>{colState.activeDate=b.dataset.gday;renderGroupPlanner();});
+    const dayItems=colState.items.filter(i=>i.date===colState.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+    $('groupDayTitle').textContent=`Itinerary · ${colState.activeDate?dateText(colState.activeDate):'pilih hari'}`;
+    $('groupItineraryList').innerHTML=dayItems.length?dayItems.map(item=>`<article class="item"><div class="item-time" data-gtime="${item.id}" title="Klik ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'} · <span class="by">oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-gcost="${item.id}" title="Klik ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-gcost="${item.id}" title="Klik ubah biaya">biaya?</div>`}</div><button class="delete-item" data-gdel="${item.id}" aria-label="Hapus">×</button></article>`).join(''):'<div class="empty"><strong>Belum ada agenda hari ini.</strong>Tambah kegiatan bareng-bareng.</div>';
+    document.querySelectorAll('[data-gtime]').forEach(el=>el.onclick=()=>editGroupTime(el));
+    document.querySelectorAll('[data-gcost]').forEach(el=>el.onclick=()=>editGroupCost(el));
+    document.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>removeGroupItem(b.dataset.gdel));
+    const wish=colState.items.filter(i=>!i.date);
+    $('groupWishList').innerHTML=wish.length?wish.map(item=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(item.title)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="to-go-source" href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.link)}</a>`:''}${item.note?`<div class="link-field">${esc(item.note)}</div>`:''}</div><div class="to-go-actions"><button class="btn secondary small" data-gdel="${item.id}">×</button></div></article>`).join(''):'<div class="empty">Belum ada wishlist.</div>';
+    renderMembers();
+  }
+  function renderGroupExpenses(){
+    const dayExp=colState.expenses.filter(i=>i.date===colState.activeDate);
+    const sum=l=>l.reduce((s,i)=>s+(Number(i.amount)||0),0);
+    $('groupDailyExpense').textContent=money(sum(dayExp));
+    $('groupTripExpense').textContent=money(sum(colState.expenses));
+    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div><button class="expense-delete" data-gdelexp="${item.id}">×</button></article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
+    document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
   }
   function renderMembers(){
     $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}</div><div class="link-field">${m.user_id===colState.uid?'kamu':''}</div></div></article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
   }
-  async function addShared(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await colState.sb.from('shared_items').insert({group_id:g.id,title:$('sharedTitle').value.trim(),link:normalizeLink($('sharedLink').value),note:$('sharedNote').value.trim(),created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('sharedForm').reset();$('sharedForm').parentElement.open=false;await loadShared(g.id);}}
-  async function toggleShared(id){const it=colState.items.find(i=>i.id===id);if(!it)return;await colState.sb.from('shared_items').update({done:!it.done}).eq('id',id);}
-  async function removeShared(id){await colState.sb.from('shared_items').delete().eq('id',id);}
+  async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await colState.sb.from('shared_items').insert({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}
+  async function addGroupExpense(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await colState.sb.from('group_expenses').insert({group_id:g.id,name:$('groupExpenseName').value.trim(),amount:Number($('groupExpenseAmount').value)||0,category:$('groupExpenseCategory').value,note:$('groupExpenseNote').value.trim(),date:colState.activeDate||'',created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false;await loadGroupExpenses(g.id);}}
+  async function addGroupWish(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await colState.sb.from('shared_items').insert({group_id:g.id,title:$('groupWishTitle').value.trim(),link:normalizeLink($('groupWishLink').value),note:$('groupWishNote').value.trim(),created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupWishForm').reset();$('groupWishForm').parentElement.open=false;await loadShared(g.id);}}
+  async function editGroupTime(el){const id=el.dataset.gtime;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='time';input.className='inline-edit';input.value=it.time||'';el.replaceWith(input);input.focus();if(input.showPicker)input.showPicker();const commit=async()=>{const v=input.value.trim();await colState.sb.from('shared_items').update({time:v}).eq('id',id);await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
+  async function editGroupCost(el){const id=el.dataset.gcost;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='number';input.className='inline-edit';input.value=it.budget||0;el.replaceWith(input);input.focus();const commit=async()=>{const v=input.value.trim();await colState.sb.from('shared_items').update({budget:Number(v)||0}).eq('id',id);await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
+  async function removeGroupItem(id){await colState.sb.from('shared_items').delete().eq('id',id);}
+  async function removeGroupExpense(id){await colState.sb.from('group_expenses').delete().eq('id',id);}
   async function leaveGroup(){const g=colState.group;if(!g)return;if(colState.channel)await colState.sb.removeChannel(colState.channel);await colState.sb.from('group_members').delete().eq('group_id',g.id).eq('user_id',colState.uid);colState.group=null;renderHome();show('homeView');}
   async function renderGroups(){}
   function shareGroup(){const g=colState.group;if(!g)return;const url=groupLink(g.id);const note='Link grup Trippi disalin. Siapa saja yang membukanya langsung jadi anggota grup ini.';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(()=>alert(note),()=>prompt('Salin link ini:',url))}else{prompt('Salin link ini:',url)}}
@@ -254,9 +304,12 @@
   $('makeGroupBtn').onclick=()=>makeGroupFromTrip();
   $('inviteGroupBtn').onclick=shareGroup;
   $('leaveGroupBtn').onclick=()=>leaveGroup();
-  $('sharedForm').onsubmit=addShared;
-  $('cancelShared').onclick=()=>{$('sharedForm').reset();$('sharedForm').parentElement.open=false};
-  $('sharedSearch').oninput=renderShared;
+  $('groupAgendaForm').onsubmit=addGroupAgenda;
+  $('cancelGroupAgenda').onclick=()=>{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false};
+  $('groupExpenseForm').onsubmit=addGroupExpense;
+  $('cancelGroupExpense').onclick=()=>{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false};
+  $('groupWishForm').onsubmit=addGroupWish;
+  $('cancelGroupWish').onclick=()=>{$('groupWishForm').reset();$('groupWishForm').parentElement.open=false};
   // auto-join from ?group= share link
   (async()=>{const gid=new URLSearchParams(location.search).get('group');if(gid){await joinGroup(gid);}})();
   if('serviceWorker' in navigator)navigator.serviceWorker.register('trippi-sw.js').catch(()=>{});
