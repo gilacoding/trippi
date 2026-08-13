@@ -238,8 +238,9 @@
     const ch=colState.sb.channel('group:'+id);
     ch.on('postgres_changes',{event:'*',schema:'public',table:'shared_items',filter:'group_id=eq.'+id},()=>loadShared(id))
       .on('postgres_changes',{event:'*',schema:'public',table:'group_members',filter:'group_id=eq.'+id},()=>loadMembers(id))
-      .on('postgres_changes',{event:'*',schema:'public',table:'group_expenses',filter:'group_id=eq.'+id},()=>loadGroupExpenses(id))
-      .subscribe();
+      .on('postgres_changes',{event:'*',schema:'public',table:'group_expenses',filter:'group_id=eq.'+id},()=>loadGroupExpenses(id));
+    const st=await ch.subscribe();
+    console.log('[Trippi] realtime group:'+id+' status:',st);
     colState.channel=ch;
     if(fresh&&trip&&trip.items){
       const agenda=trip.items.filter(i=>i.title&&i.title.trim());
