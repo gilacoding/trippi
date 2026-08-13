@@ -190,7 +190,20 @@
   function addToGo(event){event.preventDefault();state.toGo.unshift({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$('toGoName').value.trim(),link:normalizeLink($('toGoLink').value),note:$('toGoNote').value.trim()});save();event.target.reset();$('toGoPanel').open=false;renderToGo()}
   function scheduleToGo(id){const item=state.toGo.find(x=>x.id===id);if(!item)return;state.editTripId=null;state.pendingToGoId=id;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';$('selectedToGo').innerHTML=`<strong>${esc(item.name)}</strong> akan ditambahkan ke agenda hari pertama setelah trip dibuat.`;$('selectedToGo').style.display='block';show('newTripView');$('tripName').focus()}
   function editTrip(){const trip=getTrip();if(!trip||state.readOnlyTrip)return;state.editTripId=trip.id;state.pendingToGoId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Edit trip';$('newTripLead').textContent='Perbarui tujuan atau rentang tanggal trip ini.';$('newTripSubmit').textContent='Simpan perubahan';$('tripName').value=trip.name;$('tripDestination').value=trip.destination;$('tripStart').value=trip.start;$('tripEnd').value=trip.end;$('tripNote').value=trip.note||'';show('newTripView');$('tripName').focus()}
-  function shareTrip(){const trip=getTrip();if(!trip)return;const compressed=LZString.compressToEncodedURIComponent(JSON.stringify(trip));const url=`${location.origin}${location.pathname}#t=${compressed}`;const note='Link trip (terkompresi) disalin. Bagikan ke siapa saja — mereka bisa lihat itinerary tanpa login.';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(()=>alert(note),()=>prompt('Salin link ini:',url))}else{prompt('Salin link ini:',url)}}
+  async function shareGroup(){
+    const trip=getTrip();if(!trip)return;
+    if(!trip.groupId){
+      const ok=confirm('Mulai kolaborasi?\n\nTrip ini akan dikonversi ke grup — setiap orang yang membuka link grup akan ikut otomatis dan melihat perubahan secara langsung (via realtime + polling 3 detik).');
+      if(!ok)return;
+      await makeGroupFromTrip(); // copy agenda + set trip.groupId + openGroup
+      if(!trip.groupId)return; // user cancelled / failed
+    }
+    let url=groupLink(trip.groupId);
+    const note='Link grup kolaboratif disalin. Siapa saja yang membuka link ini langsung jadi anggota grup ini.';
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(()=>alert(note),()=>prompt('Salin link ini:',url))}else{prompt('Salin link ini:',url)}
+  }
+  // back-compat: old #t= link still opens read-only snapshot (graceful)
+  const shareTrip=shareGroup;
   // ── Collaborative backend (P2) ─────────────────────────────
   async function ensureAuth(){
     if(colState.uid)return colState.uid;
@@ -212,12 +225,25 @@
   function groupLink(id){return `${location.origin}${location.pathname}?group=${id}`;}
   // Convert a shared (read-only) trip into a collaborative group.
   async function makeGroupFromTrip(){
-    const trip=getTrip();if(!trip)return;const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return;}
+    const trip=getTrip();if(!trip)return;
+    if(trip.groupId){await openGroup(trip.groupId,false,trip);return trip.groupId;}
+    const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return;}
     const name=askName();if(!name)return;
-    const {data:g,error}=await colState.sb.from('groups').insert({name:trip.name,destination:trip.destination||'',start_date:trip.start,end_date:trip.end,created_by:uid}).select().single();
+    const { data:g,error }=await colState.sb.from('groups').insert({name:trip.name,destination:trip.destination||\'',start_date:trip.start,end_date:trip.end,created_by:uid}).select().single();
     if(error){alert('Gagal buat grup: '+error.message);return;}
+    if(trip.items&&trip.items.length){
+      const rows=trip.items.map(i=>({group_id:g.id,title:i.title||\'',time:i.time||\'',date:i.date||colState.activeDate||\'',budget:Number(i.budget)||0,note:i.note||\'',link:i.link||\'',done:i.done||false,created_by:uid}));
+      await colState.sb.from('shared_items').insert(rows);
+    }
+    if(trip.expenses&&trip.expenses.length){
+      const rows=trip.expenses.map(x=>({group_id:g.id,name:x.name||\'',amount:Number(x.amount)||0,category:x.category||\'',note:x.note||\'',date:x.date||\'',created_by:uid}));
+      await colState.sb.from('group_expenses').insert(rows);
+    }
     await colState.sb.from('group_members').insert({group_id:g.id,user_id:uid,display_name:name});
+    trip.groupId=g.id;save();state.activeTripId=trip.id;
+    history.replaceState({},\',`?group=${g.id}`\');
     await openGroup(g.id,true,trip);
+    return g.id;
   }
   async function joinGroup(id){
     dbg('joinGroup: start id='+id);
@@ -328,6 +354,6 @@
   if('serviceWorker' in navigator)navigator.serviceWorker.register('trippi-sw.js').catch(()=>{});
   if(!openFromHash()){load();renderHome();}
 </script>
-</body>
+<body><!-- v14-forced --></body>
 <div id="debugEl" style="position:fixed;left:0;bottom:0;right:0;background:#1119;color:#ff6;padding:6px 8px;font:11px/1.4 monospace;z-index:99999;white-space:pre-wrap;display:none"></div>
 </html>
