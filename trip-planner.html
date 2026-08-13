@@ -156,6 +156,7 @@
   const LEGACY_STORE_KEY='trippi_personal_planner_v1';
   const state={trips:[],toGo:[],activeTripId:null,activeDate:null,pendingToGoId:null,editTripId:null,readOnlyTrip:null};
   const $=id=>document.getElementById(id);
+  const dbg=(msg)=>{const e=document.getElementById('debugEl');if(e){e.style.display='block';e.textContent+=(e.textContent?'\n':'')+msg+' ['+Date.now()+']';}try{console.log('[dbg]',msg)}catch{}};
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
   const SB=window.TrippiBackend;
@@ -219,12 +220,17 @@
     await openGroup(g.id,true,trip);
   }
   async function joinGroup(id){
-    const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti atau periksa koneksi.');return;}
+    dbg('joinGroup: start id='+id);
+    const uid=await ensureAuth();
+    if(!uid){dbg('joinGroup: ensureAuth FAILED (uid null)');alert('Layanan grup belum tersedia. Coba lagi nanti atau periksa koneksi.');return;}
+    dbg('joinGroup: uid='+uid);
     let name=loadName();if(!name){name=askName();if(!name)return;}
-    const {data:g}=await colState.sb.from('groups').select('*').eq('id',id).maybeSingle();
-    if(!g){alert('Grup tidak ditemukan.');return;}
-    const {data:existing}=await colState.sb.from('group_members').select('user_id').eq('group_id',id).eq('user_id',uid).maybeSingle();
-    if(!existing)await colState.sb.from('group_members').insert({group_id:id,user_id:uid,display_name:name});
+    const { data:g }=await colState.sb.from('groups').select('*').eq('id',id).maybeSingle();
+    if(!g){dbg('joinGroup: group not found in DB (RLS?)');alert('Grup tidak ditemukan.');return;}
+    dbg('joinGroup: group found '+g.name);
+    const { data:existing}=await colState.sb.from('group_members').select('user_id').eq('group_id',id).eq('user_id',uid).maybeSingle();
+    if(!existing){const {error:ee}=await colState.sb.from('group_members').insert({group_id:id,user_id:uid,display_name:name});dbg('joinGroup: insert member '+(!ee?'OK':'ERR '+ee.message));}
+    else dbg('joinGroup: already member');
     await openGroup(id,false);
   }
   async function openGroup(id,fresh,trip){
@@ -314,9 +320,14 @@
   $('groupWishForm').onsubmit=addGroupWish;
   $('cancelGroupWish').onclick=()=>{$('groupWishForm').reset();$('groupWishForm').parentElement.open=false};
   // auto-join from ?group= share link
-  (async()=>{const gid=new URLSearchParams(location.search).get('group');if(gid){await joinGroup(gid);}})();
+  (async()=>{
+    const gid=new URLSearchParams(location.search).get('group');
+    dbg('startup: group param = '+(gid||'none')+' search='+location.search);
+    if(gid){dbg('joinGroup invoked for '+gid);await joinGroup(gid);dbg('joinGroup resolved g='+JSON.stringify(colState.group?{id:colState.group.id,name:colState.group.name}:null));}
+  })();
   if('serviceWorker' in navigator)navigator.serviceWorker.register('trippi-sw.js').catch(()=>{});
   if(!openFromHash()){load();renderHome();}
 </script>
 </body>
+<div id="debugEl" style="position:fixed;left:0;bottom:0;right:0;background:#1119;color:#ff6;padding:6px 8px;font:11px/1.4 monospace;z-index:99999;white-space:pre-wrap;display:none"></div>
 </html>
