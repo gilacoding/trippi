@@ -192,6 +192,12 @@
     const {data:g,error}=await colState.sb.from('groups').insert({name:trip.name,created_by:uid}).select().single();
     if(error){alert('Gagal buat grup: '+error.message);return;}
     await colState.sb.from('group_members').insert({group_id:g.id,user_id:uid,display_name:name});
+    // copy trip agenda into the shared list so the group isn't empty
+    const agenda=(trip.items||[]).filter(i=>i.title&&i.title.trim());
+    if(agenda.length){
+      const rows=agenda.map(i=>({group_id:g.id,title:i.title.trim(),note:i.note||'',link:i.link||''}));
+      await colState.sb.from('shared_items').insert(rows);
+    }
     await openGroup(g.id,true);
   }
   async function joinGroup(id){
@@ -232,7 +238,7 @@
   function renderMembers(){
     $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}</div><div class="link-field">${m.user_id===colState.uid?'kamu':''}</div></div></article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
   }
-  async function addShared(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await colState.sb.from('shared_items').insert({group_id:g.id,title:$('sharedTitle').value.trim(),link:normalizeLink($('sharedLink').value),note:$('sharedNote').value.trim()});if(error)alert('Gagal: '+error.message);else{$('sharedForm').reset();$('sharedForm').parentElement.open=false;}}
+  async function addShared(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await colState.sb.from('shared_items').insert({group_id:g.id,title:$('sharedTitle').value.trim(),link:normalizeLink($('sharedLink').value),note:$('sharedNote').value.trim(),created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('sharedForm').reset();$('sharedForm').parentElement.open=false;await loadShared(g.id);}}
   async function toggleShared(id){const it=colState.items.find(i=>i.id===id);if(!it)return;await colState.sb.from('shared_items').update({done:!it.done}).eq('id',id);}
   async function removeShared(id){await colState.sb.from('shared_items').delete().eq('id',id);}
   async function leaveGroup(){const g=colState.group;if(!g)return;if(colState.channel)await colState.sb.removeChannel(colState.channel);await colState.sb.from('group_members').delete().eq('group_id',g.id).eq('user_id',colState.uid);colState.group=null;renderHome();show('homeView');}
