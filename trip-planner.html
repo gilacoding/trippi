@@ -159,7 +159,7 @@
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
   const SB=window.TrippiBackend;
-  const colState={sb:null,uid:null,name:null,group:null,items:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null};
+  const colState={sb:null,uid:null,name:null,group:null,items:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null,poll:null};
   const myGroups=()=>colState.groups||[];
   const loadName=()=>localStorage.getItem('trippi_display_name')||'';
   const saveName=n=>localStorage.setItem('trippi_display_name',n);
@@ -242,6 +242,8 @@
     const st=await ch.subscribe();
     console.log('[Trippi] realtime group:'+id+' status:',st);
     colState.channel=ch;
+    if(colState.poll)clearInterval(colState.poll);
+    colState.poll=setInterval(()=>{if(colState.group&&colState.group.id===id){loadShared(id);loadMembers(id);loadGroupExpenses(id);}},3000);
     if(fresh&&trip&&trip.items){
       const agenda=trip.items.filter(i=>i.title&&i.title.trim());
       if(agenda.length){
@@ -294,7 +296,7 @@
   async function editGroupCost(el){const id=el.dataset.gcost;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='number';input.className='inline-edit';input.value=it.budget||0;el.replaceWith(input);input.focus();const commit=async()=>{const v=input.value.trim();await colState.sb.from('shared_items').update({budget:Number(v)||0}).eq('id',id);await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
   async function removeGroupItem(id){await colState.sb.from('shared_items').delete().eq('id',id);}
   async function removeGroupExpense(id){await colState.sb.from('group_expenses').delete().eq('id',id);}
-  async function leaveGroup(){const g=colState.group;if(!g)return;if(colState.channel)await colState.sb.removeChannel(colState.channel);await colState.sb.from('group_members').delete().eq('group_id',g.id).eq('user_id',colState.uid);colState.group=null;renderHome();show('homeView');}
+  async function leaveGroup(){const g=colState.group;if(!g)return;if(colState.poll)clearInterval(colState.poll);if(colState.channel)await colState.sb.removeChannel(colState.channel);await colState.sb.from('group_members').delete().eq('group_id',g.id).eq('user_id',colState.uid);colState.group=null;renderHome();show('homeView');}
   async function renderGroups(){}
   function shareGroup(){const g=colState.group;if(!g)return;const url=groupLink(g.id);const note='Link grup Trippi disalin. Siapa saja yang membukanya langsung jadi anggota grup ini.';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(()=>alert(note),()=>prompt('Salin link ini:',url))}else{prompt('Salin link ini:',url)}}
   function openFromHash(){if(location.hash.startsWith('#t=')){try{const json=LZString.decompressFromEncodedURIComponent(location.hash.slice(3));const trip=JSON.parse(json);if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}if(location.hash.startsWith('#trip=')){try{const trip=JSON.parse(decodeURIComponent(location.hash.slice(6)));if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}return false}
