@@ -182,7 +182,8 @@
   async function addOrUpdateTrip(event){event.preventDefault();const start=$('tripStart').value,end=$('tripEnd').value;if(end<start){alert('Tanggal selesai harus sama atau setelah tanggal mulai.');return}
     if(state.editTripId){const trip=state.trips.find(t=>t.id===state.editTripId);if(!trip)return;trip.name=$('tripName').value.trim();trip.destination=$('tripDestination').value.trim();trip.start=start;trip.end=end;trip.note=$('tripNote').value.trim();state.editTripId=null;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';save();event.target.reset();openTrip(trip.id);return}
     await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId)}
-  async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await colState.sb.from('groups').insert({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid}).select().single();if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const { error:em }=await colState.sb.from('group_members').insert({group_id:g.id,user_id:uid,display_name:loadName()||'Guest'});if(em)console.warn('[createGroup] member insert:',em.message);colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();history.pushState({},'',groupLink(g.id));await joinGroup(g.id);if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await colState.sb.from('shared_items').insert({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}
+  async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await colState.sb.from('groups').insert({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid}).select().single();if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const { error:em }=await colState.sb.from('group_members').insert({group_id:g.id,user_id:uid,display_name:loadName()||'Guest'});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
+colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await joinGroup(g.id);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await colState.sb.from('shared_items').insert({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}
   function normalizeLink(value){const link=value.trim();if(!link)return '';return /^https?:\/\//i.test(link)?link:'https://'+link}
   function addAgenda(event){event.preventDefault();const trip=getTrip();trip.items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,title:$('agendaTitle').value.trim(),time:$('agendaTime').value,budget:$('agendaBudget').value,link:normalizeLink($('agendaLink').value),note:$('agendaNote').value.trim()});save();event.target.reset();$('addPanel').open=false;renderPlanner()}
   const categoryIcon=category=>({Makan:'🍜',Transport:'🚗',Hotel:'🛏️',Tiket:'🎟️',Belanja:'🛍️',Lainnya:'•'})[category]||'•';
@@ -242,10 +243,11 @@
       const rows=trip.expenses.map(x=>({group_id:g.id,name:x.name||'',amount:Number(x.amount)||0,category:x.category||'',note:x.note||'',date:x.date||'',created_by:uid}));
       await colState.sb.from('group_expenses').insert(rows);
     }
-    await colState.sb.from('group_members').insert({group_id:g.id,user_id:uid,display_name:name});
+    const { error:em }=await colState.sb.from('group_members').insert({group_id:g.id,user_id:uid,display_name:name});
+    if(em){console.error('[createGroup] group_members insert failed:',em);alert('Gagal membuat anggota grup: '+em.message);return null}
     trip.groupId=g.id;save();state.activeTripId=trip.id;
-    history.replaceState({}, '', `?group=${g.id}`);
     await openGroup(g.id,true,trip);
+    history.replaceState({}, '', `?group=${g.id}`);
     return g.id;
   }
   async function joinGroup(id){
@@ -354,7 +356,7 @@
   (async()=>{
     const gid=new URLSearchParams(location.search).get('group');
     dbg('startup: group param = '+(gid||'none')+' search='+location.search);
-    if(gid){dbg('joinGroup invoked for '+gid);await joinGroup(gid);dbg('joinGroup resolved g='+JSON.stringify(colState.group?{id:colState.group.id,name:colState.group.name}:null));}
+    if(gid){dbg('joinGroup invoked for '+gid);try{await joinGroup(gid);dbg('joinGroup resolved g='+JSON.stringify(colState.group?{id:colState.group.id,name:colState.group.name}:null));}catch(err){console.error('[startup] joinGroup error for '+gid+':',err);dbg('joinGroup error:'+err?.message);if(colState.group){openGroup(colState.group.id,false)}else{renderHome();show('homeView');alert('Trip tidak ditemukan. UUID '+gid+' tidak valid atau grup sudah dihapus.')}}}
   })();
   if('serviceWorker' in navigator)navigator.serviceWorker.register('trippi-sw.js').catch(()=>{});
   if(!openFromHash()){load();renderHome();}
