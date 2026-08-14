@@ -229,19 +229,19 @@
     if(trip.groupId){await openGroup(trip.groupId,false,trip);return trip.groupId;}
     const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return;}
     const name=askName();if(!name)return;
-    const { data:g,error }=await colState.sb.from('groups').insert({name:trip.name,destination:trip.destination||\'',start_date:trip.start,end_date:trip.end,created_by:uid}).select().single();
+    const { data:g,error }=await colState.sb.from('groups').insert({name:trip.name,destination:trip.destination||'',start_date:trip.start,end_date:trip.end,created_by:uid}).select().single();
     if(error){alert('Gagal buat grup: '+error.message);return;}
     if(trip.items&&trip.items.length){
-      const rows=trip.items.map(i=>({group_id:g.id,title:i.title||\'',time:i.time||\'',date:i.date||colState.activeDate||\'',budget:Number(i.budget)||0,note:i.note||\'',link:i.link||\'',done:i.done||false,created_by:uid}));
+      const rows=trip.items.map(i=>({group_id:g.id,title:i.title||'',time:i.time||'',date:i.date||colState.activeDate||'',budget:Number(i.budget)||0,note:i.note||'',link:i.link||'',done:i.done||false,created_by:uid}));
       await colState.sb.from('shared_items').insert(rows);
     }
     if(trip.expenses&&trip.expenses.length){
-      const rows=trip.expenses.map(x=>({group_id:g.id,name:x.name||\'',amount:Number(x.amount)||0,category:x.category||\'',note:x.note||\'',date:x.date||\'',created_by:uid}));
+      const rows=trip.expenses.map(x=>({group_id:g.id,name:x.name||'',amount:Number(x.amount)||0,category:x.category||'',note:x.note||'',date:x.date||'',created_by:uid}));
       await colState.sb.from('group_expenses').insert(rows);
     }
     await colState.sb.from('group_members').insert({group_id:g.id,user_id:uid,display_name:name});
     trip.groupId=g.id;save();state.activeTripId=trip.id;
-    history.replaceState({},\',`?group=${g.id}`\');
+    history.replaceState({}, '', `?group=${g.id}`);
     await openGroup(g.id,true,trip);
     return g.id;
   }
@@ -354,6 +354,6 @@
   if('serviceWorker' in navigator)navigator.serviceWorker.register('trippi-sw.js').catch(()=>{});
   if(!openFromHash()){load();renderHome();}
 </script>
-<body><!-- v14-forced --></body>
+</body>
 <div id="debugEl" style="position:fixed;left:0;bottom:0;right:0;background:#1119;color:#ff6;padding:6px 8px;font:11px/1.4 monospace;z-index:99999;white-space:pre-wrap;display:none"></div>
 </html>
