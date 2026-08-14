@@ -279,6 +279,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const st=await ch.subscribe();
     console.log('[Trippi] realtime group:'+id+' status:',st);
     colState.channel=ch;
+    await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);renderGroupPlanner();
     if(colState.poll)clearInterval(colState.poll);
     colState.poll=setInterval(()=>{if(colState.group&&colState.group.id===id){loadShared(id);loadMembers(id);loadGroupExpenses(id);}},3000);
     if(fresh&&trip&&trip.items){
@@ -289,7 +290,6 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         if(ce)console.warn('[Trippi] copy agenda failed:',ce.message);
       }
     }
-    await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);renderGroupPlanner();
   }
   async function loadShared(id){const {data}=await colState.sb.from('shared_items').select('*').eq('group_id',id).order('created_at');
   const ad=colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'';
