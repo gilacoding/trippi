@@ -286,7 +286,9 @@
     }
     await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);renderGroupPlanner();
   }
-  async function loadShared(id){const {data}=await colState.sb.from('shared_items').select('*').eq('group_id',id).order('created_at');colState.items=data||[];renderGroupPlanner();}
+  async function loadShared(id){const {data}=await colState.sb.from('shared_items').select('*').eq('group_id',id).order('created_at');
+  const ad=colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'';
+  colState.items=(data||[]).map(i=>i.date?i:{...i,date:ad});renderGroupPlanner();}
   async function loadMembers(id){const {data}=await colState.sb.from('group_members').select('*').eq('group_id',id).order('joined_at');colState.members=data||[];colState.nameMap={};data.forEach(m=>colState.nameMap[m.user_id]=m.display_name);renderGroupPlanner();}
   async function loadGroupExpenses(id){const {data}=await colState.sb.from('group_expenses').select('*').eq('group_id',id).order('created_at');colState.expenses=data||[];renderGroupExpenses();}
   function nameOf(uid){return (colState.nameMap&&colState.nameMap[uid])||(uid===colState.uid?'kamu':(colState.members.find(m=>m.user_id===uid)||{}).display_name||'anggota');}
