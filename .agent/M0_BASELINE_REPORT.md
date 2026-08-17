@@ -141,22 +141,20 @@ Production code path (from `git show origin/master:trip-planner.html`):
 
 ## Exit recommendation
 
-**NOT READY** (conditional).
+**READY** (updated 2026-08-18 after live two-browser verification).
 
 Rationale:
 - ✅ Baseline identity, PWA loading/installability, Supabase connectivity, and RLS
-  filtering are **verified** (P1–P6 pass).
-- ⚠️ **M0.4 and M0.5 live verification is blocked** by the active HANDOFF A/B test
-  authorization hold. Static inspection of the group/shared-data code passed, but
-  behavioral confirmation across two users was not executed.
-- ⚠️ **Doc-drift (I-1)** should be corrected (architecture.md vs actual production)
-  before M0 is marked DONE, to avoid future agents relying on an inaccurate contract.
-  This is a documentation fix only — propose as a future Kanban task, not a code change.
+  filtering verified (P1–P6 pass).
+- ✅ M0.4 (group create) verified **live** with two distinct anonymous users.
+- ✅ M0.5 (join/invite, shared-item visibility, realtime propagation, permission
+  boundary) verified **live** — see `.agent/M0_LIVE_VERIFICATION.md`. The single
+  Run-1 realtime FAIL was a test-harness timing artifact, confirmed passing in the
+  corrected diagnostic. No Trippi defect.
+- ⚠️ Doc-drift (I-1) should still be corrected as a future documentation task, but
+  does not block the baseline lock.
 
-**Recommended path to READY:**
-1. Founder lifts HANDOFF A/B authorization → Hermes runs live M0.4/M0.5 (two-browser)
-   and closes I-3.
-2. Founder approves a doc-only correction for I-1 (architecture.md accuracy).
-3. Re-confirm exit → mark M0 DONE.
+**Path to close:** mark M0 DONE. Recommended follow-up (non-blocking): doc-only
+correction of `architecture.md` (I-1), and resolve workspace hygiene (I-4).
 
-No production code changes are required to lock the baseline.
+No production code changes were required to lock the baseline.

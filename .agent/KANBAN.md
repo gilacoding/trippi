@@ -56,19 +56,20 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 ## M0 — Production Baseline Lock
 **Goal:** Establish and document the current stable baseline.
 **Exit criteria:** Baseline production confirmed and documented.
-**State:** IN PROGRESS → see `.agent/M0_BASELINE_REPORT.md`
-**Exit recommendation (Hermes):** NOT READY — live M0.4/M0.5 verification blocked by HANDOFF A/B authorization gate; doc-drift risk recorded (non-blocking).
+**State:** DONE (exit recommendation: **READY** — verified live 2026-08-18)
+**Deliverables:** `.agent/M0_BASELINE_REPORT.md` · `.agent/M0_LIVE_VERIFICATION.md`
 
 - [x] M0.1 Verify v0.1-group-first-stable tag `fdc6651` · risk: LOW · state: DONE
 - [x] M0.2 Verify production PWA loads & is installable · risk: LOW · state: DONE
 - [x] M0.3 Verify Supabase connectivity (anon key, RLS) read-only · risk: LOW · state: DONE
-- [~] M0.4 Verify group creation/join flow · risk: MEDIUM · state: IN PROGRESS (code-inspected; LIVE execution gated by HANDOFF — not executed)
-- [~] M0.5 Verify shared data flow between two users · risk: MEDIUM · state: IN PROGRESS (code-inspected; LIVE two-user test gated by HANDOFF)
-- [ ] M0.6 Record known issues (document, no fix) · risk: LOW · state: IN PROGRESS
-- [ ] M0.7 Establish regression checklist · risk: LOW · state: IN PROGRESS
+- [x] M0.4 Verify group creation/join flow · risk: MEDIUM · state: DONE (live A/B verified)
+- [x] M0.5 Verify shared data flow between two users · risk: MEDIUM · state: DONE (live A/B verified, realtime PASS)
+- [x] M0.6 Record known issues (document, no fix) · risk: LOW · state: DONE
+- [x] M0.7 Establish regression checklist · risk: LOW · state: DONE
 
-> M0 is observation-only (inspector/validator/documenter). No source, schema, RLS,
-> auth, realtime, or config was modified. No Auditor call (no change proposed).
+> M0 was observation/documentation only (inspector/validator/documenter). No source,
+> schema, RLS, auth, realtime, or config was modified. Live two-browser verification
+> created only self-owned test data, then cleaned it up. No Auditor call (no change).
 
 ---
 
@@ -133,6 +134,23 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 - [ ] M4.7 Empty states · risk: LOW · state: BACKLOG
 - [ ] M4.8 Browser compatibility · risk: LOW · state: BACKLOG
 - [ ] M4.9 Regression testing · risk: LOW · state: BACKLOG
+
+---
+
+## M0 Follow-up (documentation only — NOT a code change)
+
+These were discovered during M0 inspection and are tracked here so they are not lost.
+They do NOT block M0 closing and must not be fixed inside M0.
+
+- [ ] M0.F1 Correct `architecture.md` doc-drift (I-1): it claims production has
+  "zero direct `.from()` calls" and routes through `backend/trippi-api.js`; production
+  actually uses ~22 direct `sb.from()` calls and does not load `trippi-api.js`.
+  · risk: LOW · state: BACKLOG
+- [ ] M0.F2 Decide deployment status of `backend/trippi-api.js` (RPC migration) — is it
+  intended for production? Currently local-only. · risk: MEDIUM · state: BACKLOG
+- [ ] M0.F3 Resolve pre-existing uncommitted workspace edits (trip-planner.html,
+  trippi-sw.js, .agent/*.md) — confirm ownership/intent before any commit.
+  · risk: LOW · state: BACKLOG
 
 ---
 
