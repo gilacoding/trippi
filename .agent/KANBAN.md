@@ -56,15 +56,19 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 ## M0 — Production Baseline Lock
 **Goal:** Establish and document the current stable baseline.
 **Exit criteria:** Baseline production confirmed and documented.
-**State:** BACKLOG
+**State:** IN PROGRESS → see `.agent/M0_BASELINE_REPORT.md`
+**Exit recommendation (Hermes):** NOT READY — live M0.4/M0.5 verification blocked by HANDOFF A/B authorization gate; doc-drift risk recorded (non-blocking).
 
-- [ ] M0.1 Verify v0.1-group-first-stable tag `fdc6651` · risk: LOW · state: BACKLOG
-- [ ] M0.2 Verify production PWA loads & is installable · risk: LOW · state: BACKLOG
-- [ ] M0.3 Verify Supabase connectivity (anon key, RLS works) · risk: LOW · state: BACKLOG
-- [ ] M0.4 Verify group creation/join flow end-to-end · risk: MEDIUM · state: BACKLOG
-- [ ] M0.5 Verify shared data flow between two users · risk: MEDIUM · state: BACKLOG
-- [ ] M0.6 Record known issues (document, no fix) · risk: LOW · state: BACKLOG
-- [ ] M0.7 Establish regression checklist · risk: LOW · state: BACKLOG
+- [x] M0.1 Verify v0.1-group-first-stable tag `fdc6651` · risk: LOW · state: DONE
+- [x] M0.2 Verify production PWA loads & is installable · risk: LOW · state: DONE
+- [x] M0.3 Verify Supabase connectivity (anon key, RLS) read-only · risk: LOW · state: DONE
+- [~] M0.4 Verify group creation/join flow · risk: MEDIUM · state: IN PROGRESS (code-inspected; LIVE execution gated by HANDOFF — not executed)
+- [~] M0.5 Verify shared data flow between two users · risk: MEDIUM · state: IN PROGRESS (code-inspected; LIVE two-user test gated by HANDOFF)
+- [ ] M0.6 Record known issues (document, no fix) · risk: LOW · state: IN PROGRESS
+- [ ] M0.7 Establish regression checklist · risk: LOW · state: IN PROGRESS
+
+> M0 is observation-only (inspector/validator/documenter). No source, schema, RLS,
+> auth, realtime, or config was modified. No Auditor call (no change proposed).
 
 ---
 
