@@ -46,7 +46,26 @@
 </head>
 <body>
 <main class="app">
-  <header class="topbar"><div class="brand"><span class="dot"></span>Trippi</div><span class="offline">Tersimpan di perangkat</span></header>
+  <header class="topbar"><div class="brand"><span class="dot"></span>Trippi</div><span class="offline">Tersimpan di perangkat</span><button class="btn secondary small" id="logoutBtn" style="display:none">Keluar</button></header>
+
+  <!-- Auth modal: login / signup (email + password) -->
+  <div class="auth-modal" id="authModal" style="display:none">
+    <div class="auth-card">
+      <h2 id="authTitle">Masuk</h2>
+      <p class="muted" id="authLead">Masuk untuk membuat dan bergabung dengan grup perjalanan.</p>
+      <form class="form-card form-grid" id="authForm" style="border:0;padding:0;background:none">
+        <div class="field"><label for="authEmail">Email</label><input id="authEmail" type="email" required maxlength="200" placeholder="you@example.com" autocomplete="email"></div>
+        <div class="field"><label for="authPassword">Password</label><input id="authPassword" type="password" required minlength="6" maxlength="100" placeholder="••••••••" autocomplete="current-password"></div>
+        <div class="auth-error" id="authError"></div>
+        <div class="form-actions">
+          <button type="button" class="btn secondary" id="authCancel">Batal</button>
+          <button type="submit" class="btn" id="authSubmit">Masuk</button>
+        </div>
+      </form>
+      <p class="auth-switch muted" id="authSwitch">Belum punya akun? <a href="#" id="authToggle">Daftar</a></p>
+      <p class="auth-note muted" id="authNote" style="display:none"></p>
+    </div>
+  </div>
 
   <section class="view active" id="homeView">
     <h1>Rencanakan trip-mu,<br><span style="color:var(--accent2)">tanpa lupa detailnya.</span></h1>
@@ -150,6 +169,7 @@
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="backend/supabase-client.js"></script>
+<script src="backend/trippi-api.js"></script>
 <script src="lzstring.js"></script>
 <script>
   const STORE_KEY='trippi_personal_planner_v2';
@@ -159,9 +179,8 @@
   const dbg=(msg)=>{const e=document.getElementById('debugEl');if(e){e.style.display='block';e.textContent+=(e.textContent?'\n':'')+msg+' ['+Date.now()+']';}try{console.log('[dbg]',msg)}catch{}};
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
-  const SB=window.TrippiBackend;
-  const colState={sb:null,uid:null,name:null,group:null,items:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null,poll:null};
-  const myGroups=()=>colState.groups||[];
+  const API=window.TrippiAPI;
+  const colState={uid:null,name:null,group:null,items:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null,poll:null};
   const loadName=()=>localStorage.getItem('trippi_display_name')||'';
   const saveName=n=>localStorage.setItem('trippi_display_name',n);
   const money=value=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(value)||0);
@@ -182,8 +201,8 @@
   async function addOrUpdateTrip(event){event.preventDefault();const start=$('tripStart').value,end=$('tripEnd').value;if(end<start){alert('Tanggal selesai harus sama atau setelah tanggal mulai.');return}
     if(state.editTripId){const trip=state.trips.find(t=>t.id===state.editTripId);if(!trip)return;trip.name=$('tripName').value.trim();trip.destination=$('tripDestination').value.trim();trip.start=start;trip.end=end;trip.note=$('tripNote').value.trim();state.editTripId=null;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';save();event.target.reset();openTrip(trip.id);return}
     await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId)}
-  async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await colState.sb.from('groups').insert({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid}).select().single();if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const { error:em }=await colState.sb.from('group_members').insert({group_id:g.id,user_id:uid,display_name:loadName()||'Guest'});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
-colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await joinGroup(g.id);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await colState.sb.from('shared_items').insert({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}
+  async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:loadName()||'Guest'});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
+colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await joinGroup(g.id);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}
   function normalizeLink(value){const link=value.trim();if(!link)return '';return /^https?:\/\//i.test(link)?link:'https://'+link}
   function addAgenda(event){event.preventDefault();const trip=getTrip();trip.items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,title:$('agendaTitle').value.trim(),time:$('agendaTime').value,budget:$('agendaBudget').value,link:normalizeLink($('agendaLink').value),note:$('agendaNote').value.trim()});save();event.target.reset();$('addPanel').open=false;renderPlanner()}
   const categoryIcon=category=>({Makan:'🍜',Transport:'🚗',Hotel:'🛏️',Tiket:'🎟️',Belanja:'🛍️',Lainnya:'•'})[category]||'•';
@@ -195,14 +214,20 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   function scheduleToGo(id){const item=state.toGo.find(x=>x.id===id);if(!item)return;state.editTripId=null;state.pendingToGoId=id;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';$('selectedToGo').innerHTML=`<strong>${esc(item.name)}</strong> akan ditambahkan ke agenda hari pertama setelah trip dibuat.`;$('selectedToGo').style.display='block';show('newTripView');$('tripName').focus()}
   function editTrip(){const trip=getTrip();if(!trip||state.readOnlyTrip)return;state.editTripId=trip.id;state.pendingToGoId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Edit trip';$('newTripLead').textContent='Perbarui tujuan atau rentang tanggal trip ini.';$('newTripSubmit').textContent='Simpan perubahan';$('tripName').value=trip.name;$('tripDestination').value=trip.destination;$('tripStart').value=trip.start;$('tripEnd').value=trip.end;$('tripNote').value=trip.note||'';show('newTripView');$('tripName').focus()}
   async function shareGroup(){
-    const trip=getTrip();if(!trip)return;
-    if(!trip.groupId){
+    const gid=colState.group?colState.group.id:(getTrip()&&getTrip().groupId);
+    if(!gid){
       const ok=confirm('Mulai kolaborasi?\n\nTrip ini akan dikonversi ke grup — setiap orang yang membuka link grup akan ikut otomatis dan melihat perubahan secara langsung (via realtime + polling 3 detik).');
       if(!ok)return;
       await makeGroupFromTrip(); // copy agenda + set trip.groupId + openGroup
-      if(!trip.groupId)return; // user cancelled / failed
+      const gid2=colState.group?colState.group.id:(getTrip()&&getTrip().groupId);
+      if(!gid2)return; // user cancelled / failed
+      copyGroupLink(gid2);
+      return;
     }
-    let url=groupLink(trip.groupId);
+    copyGroupLink(gid);
+  }
+  function copyGroupLink(id){
+    let url=groupLink(id);
     const note='Link grup kolaboratif disalin. Siapa saja yang membuka link ini langsung jadi anggota grup ini.';
     if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(()=>alert(note),()=>prompt('Salin link ini:',url))}else{prompt('Salin link ini:',url)}
   }
@@ -211,15 +236,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   // ── Collaborative backend (P2) ─────────────────────────────
   async function ensureAuth(){
     if(colState.uid)return colState.uid;
-    try{
-      const ok=await SB.init();
-      if(!ok){console.warn('[Trippi] backend unavailable');return null;}
-      colState.sb=SB.client;
-      const {data:{user}}=await colState.sb.auth.getUser();
-      if(!user){const {data}=await colState.sb.auth.signInAnonymously();colState.uid=data.user.id;}
-      else colState.uid=user.id;
-      return colState.uid;
-    }catch(e){console.warn('[Trippi] auth failed, personal mode only:',e.message);return null;}
+    const uid=await API.ensureAuth();
+    if(uid)colState.uid=uid;
+    return colState.uid;
   }
   function askName(){
     let n=loadName();
@@ -231,19 +250,19 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   async function makeGroupFromTrip(){
     const trip=getTrip();if(!trip)return;
     if(trip.groupId){await openGroup(trip.groupId,false,trip);return trip.groupId;}
-    const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return;}
+    const uid=await ensureAuth();if(!uid){pendingAction='makeGroup';openAuth('login');return;}
     const name=askName();if(!name)return;
-    const { data:g,error }=await colState.sb.from('groups').insert({name:trip.name,destination:trip.destination||'',start_date:trip.start,end_date:trip.end,created_by:uid}).select().single();
+    const { data:g,error }=await API.createGroup({name:trip.name,destination:trip.destination||'',start_date:trip.start,end_date:trip.end,created_by:uid});
     if(error){alert('Gagal buat grup: '+error.message);return;}
     if(trip.items&&trip.items.length){
       const rows=trip.items.map(i=>({group_id:g.id,title:i.title||'',time:i.time||'',date:i.date||colState.activeDate||'',budget:Number(i.budget)||0,note:i.note||'',link:i.link||'',done:i.done||false,created_by:uid}));
-      await colState.sb.from('shared_items').insert(rows);
+      await API.addItemsBatch(rows);
     }
     if(trip.expenses&&trip.expenses.length){
       const rows=trip.expenses.map(x=>({group_id:g.id,name:x.name||'',amount:Number(x.amount)||0,category:x.category||'',note:x.note||'',date:x.date||'',created_by:uid}));
-      await colState.sb.from('group_expenses').insert(rows);
+      await API.addExpensesBatch(rows);
     }
-    const { error:em }=await colState.sb.from('group_members').insert({group_id:g.id,user_id:uid,display_name:name});
+    const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:name});
     if(em){console.error('[createGroup] group_members insert failed:',em);alert('Gagal membuat anggota grup: '+em.message);return null}
     trip.groupId=g.id;save();state.activeTripId=trip.id;
     await openGroup(g.id,true,trip);
@@ -253,49 +272,55 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   async function joinGroup(id){
     dbg('joinGroup: start id='+id);
     const uid=await ensureAuth();
-    if(!uid){dbg('joinGroup: ensureAuth FAILED (uid null)');alert('Layanan grup belum tersedia. Coba lagi nanti atau periksa koneksi.');return;}
+    if(!uid){dbg('joinGroup: ensureAuth FAILED (uid null)');pendingAction=()=>joinGroup(id);openAuth('login');return;}
     dbg('joinGroup: uid='+uid);
     let name=loadName();if(!name){name=askName();if(!name)return;}
-    const { data:g }=await colState.sb.from('groups').select('*').eq('id',id).maybeSingle();
+    const { data:g }=await API.getGroup(id);
     if(!g){dbg('joinGroup: group not found in DB (RLS?)');alert('Grup tidak ditemukan.');return;}
     dbg('joinGroup: group found '+g.name);
-    const { data:existing}=await colState.sb.from('group_members').select('user_id').eq('group_id',id).eq('user_id',uid).maybeSingle();
-    if(!existing){const {error:ee}=await colState.sb.from('group_members').insert({group_id:id,user_id:uid,display_name:name});dbg('joinGroup: insert member '+(!ee?'OK':'ERR '+ee.message));}
+    const { data:existing}=await API.isMember(id,uid);
+    if(!existing){const {error:ee}=await API.joinGroup({group_id:id,user_id:uid,display_name:name});dbg('joinGroup: insert member '+(!ee?'OK':'ERR '+ee.message));}
     else dbg('joinGroup: already member');
     await openGroup(id,false);
   }
   async function openGroup(id,fresh,trip){
     const uid=await ensureAuth();if(!uid)return;
-    const {data:g}=await colState.sb.from('groups').select('*').eq('id',id).maybeSingle();
+    const {data:g}=await API.getGroup(id);
     if(!g){alert('Grup tidak ditemukan.');return;}
     colState.group=g;colState.activeDate=null;colState.expenses=[];colState.nameMap={};
     show('groupView');
     $('groupName').textContent=g.name;
-    if(colState.channel)await colState.sb.removeChannel(colState.channel);
-    const ch=colState.sb.channel('group:'+id);
+    if(colState.channel)await API._getSb().removeChannel(colState.channel);
+    const ch=API._getSb().channel('group:'+id);
     ch.on('postgres_changes',{event:'*',schema:'public',table:'shared_items',filter:'group_id=eq.'+id},()=>loadShared(id))
       .on('postgres_changes',{event:'*',schema:'public',table:'group_members',filter:'group_id=eq.'+id},()=>loadMembers(id))
       .on('postgres_changes',{event:'*',schema:'public',table:'group_expenses',filter:'group_id=eq.'+id},()=>loadGroupExpenses(id));
-    const st=await ch.subscribe();
+    const st=await new Promise((resolve)=>{
+      const timer=setTimeout(()=>resolve('TIMED_OUT'),8000);
+      const unsub=ch.subscribe((status)=>{
+        if(status==='SUBSCRIBED'){clearTimeout(timer);resolve('SUBSCRIBED')}
+        else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)){clearTimeout(timer);resolve(status)}
+      });
+    });
     console.log('[Trippi] realtime group:'+id+' status:',st);
     colState.channel=ch;
-    await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);renderGroupPlanner();
     if(colState.poll)clearInterval(colState.poll);
     colState.poll=setInterval(()=>{if(colState.group&&colState.group.id===id){loadShared(id);loadMembers(id);loadGroupExpenses(id);}},3000);
     if(fresh&&trip&&trip.items){
       const agenda=trip.items.filter(i=>i.title&&i.title.trim());
       if(agenda.length){
         const rows=agenda.map(i=>({group_id:id,title:i.title.trim(),note:i.note||'',link:i.link||'',date:i.date||'',time:i.time||'',budget:Number(i.budget)||0}));
-        const {error:ce}=await colState.sb.from('shared_items').insert(rows);
+        const {error:ce}=await API.addItemsBatch(rows);
         if(ce)console.warn('[Trippi] copy agenda failed:',ce.message);
       }
     }
+    await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);renderGroupPlanner();
   }
-  async function loadShared(id){const {data}=await colState.sb.from('shared_items').select('*').eq('group_id',id).order('created_at');
+  async function loadShared(id){const { data }=await API.getItems(id);
   const ad=colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'';
   colState.items=(data||[]).map(i=>i.date?i:{...i,date:ad});renderGroupPlanner();}
-  async function loadMembers(id){const {data}=await colState.sb.from('group_members').select('*').eq('group_id',id).order('joined_at');colState.members=data||[];colState.nameMap={};data.forEach(m=>colState.nameMap[m.user_id]=m.display_name);renderGroupPlanner();}
-  async function loadGroupExpenses(id){const {data}=await colState.sb.from('group_expenses').select('*').eq('group_id',id).order('created_at');colState.expenses=data||[];renderGroupExpenses();}
+  async function loadMembers(id){const { data }=await API.getMembers(id);colState.members=data||[];colState.nameMap={};data.forEach(m=>colState.nameMap[m.user_id]=m.display_name);renderGroupPlanner();}
+  async function loadGroupExpenses(id){const { data }=await API.getExpenses(id);colState.expenses=data||[];renderGroupExpenses();}
   function nameOf(uid){return (colState.nameMap&&colState.nameMap[uid])||(uid===colState.uid?'kamu':(colState.members.find(m=>m.user_id===uid)||{}).display_name||'anggota');}
   function renderGroupPlanner(){
     const g=colState.group;if(!g)return;
@@ -328,16 +353,15 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   function renderMembers(){
     $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}</div><div class="link-field">${m.user_id===colState.uid?'kamu':''}</div></div></article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
   }
-  async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await colState.sb.from('shared_items').insert({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}
-  async function addGroupExpense(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await colState.sb.from('group_expenses').insert({group_id:g.id,name:$('groupExpenseName').value.trim(),amount:Number($('groupExpenseAmount').value)||0,category:$('groupExpenseCategory').value,note:$('groupExpenseNote').value.trim(),date:colState.activeDate||'',created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false;await loadGroupExpenses(g.id);}}
-  async function addGroupWish(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await colState.sb.from('shared_items').insert({group_id:g.id,title:$('groupWishTitle').value.trim(),link:normalizeLink($('groupWishLink').value),note:$('groupWishNote').value.trim(),created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupWishForm').reset();$('groupWishForm').parentElement.open=false;await loadShared(g.id);}}
-  async function editGroupTime(el){const id=el.dataset.gtime;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='time';input.className='inline-edit';input.value=it.time||'';el.replaceWith(input);input.focus();if(input.showPicker)input.showPicker();const commit=async()=>{const v=input.value.trim();await colState.sb.from('shared_items').update({time:v}).eq('id',id);await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
-  async function editGroupCost(el){const id=el.dataset.gcost;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='number';input.className='inline-edit';input.value=it.budget||0;el.replaceWith(input);input.focus();const commit=async()=>{const v=input.value.trim();await colState.sb.from('shared_items').update({budget:Number(v)||0}).eq('id',id);await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
-  async function removeGroupItem(id){await colState.sb.from('shared_items').delete().eq('id',id);}
-  async function removeGroupExpense(id){await colState.sb.from('group_expenses').delete().eq('id',id);}
-  async function leaveGroup(){const g=colState.group;if(!g)return;if(colState.poll)clearInterval(colState.poll);if(colState.channel)await colState.sb.removeChannel(colState.channel);await colState.sb.from('group_members').delete().eq('group_id',g.id).eq('user_id',colState.uid);colState.group=null;renderHome();show('homeView');}
-  async function renderGroups(){}
-  function shareGroup(){const g=colState.group;if(!g)return;const url=groupLink(g.id);const note='Link grup Trippi disalin. Siapa saja yang membukanya langsung jadi anggota grup ini.';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(()=>alert(note),()=>prompt('Salin link ini:',url))}else{prompt('Salin link ini:',url)}}
+  async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}
+  async function addGroupExpense(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addExpense({group_id:g.id,name:$('groupExpenseName').value.trim(),amount:Number($('groupExpenseAmount').value)||0,category:$('groupExpenseCategory').value,note:$('groupExpenseNote').value.trim(),date:colState.activeDate||'',created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false;await loadGroupExpenses(g.id);}}
+  async function addGroupWish(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupWishTitle').value.trim(),link:normalizeLink($('groupWishLink').value),note:$('groupWishNote').value.trim(),created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupWishForm').reset();$('groupWishForm').parentElement.open=false;await loadShared(g.id);}}
+  async function editGroupTime(el){const id=el.dataset.gtime;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='time';input.className='inline-edit';input.value=it.time||'';el.replaceWith(input);input.focus();if(input.showPicker)input.showPicker();const commit=async()=>{const v=input.value.trim();await API.updateItem(id,{time:v});await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
+  async function editGroupCost(el){const id=el.dataset.gcost;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='number';input.className='inline-edit';input.value=it.budget||0;el.replaceWith(input);input.focus();const commit=async()=>{const v=input.value.trim();await API.updateItem(id,{budget:Number(v)||0});await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
+  async function removeGroupItem(id){await API.deleteItem(id);}
+  async function removeGroupExpense(id){await API.deleteExpense(id);}
+  async function leaveGroup(){const g=colState.group;if(!g)return;if(colState.poll)clearInterval(colState.poll);if(colState.channel)await API._getSb().removeChannel(colState.channel);await API.leaveGroup(g.id,colState.uid);colState.group=null;renderHome();show('homeView');}
+
   function openFromHash(){if(location.hash.startsWith('#t=')){try{const json=LZString.decompressFromEncodedURIComponent(location.hash.slice(3));const trip=JSON.parse(json);if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}if(location.hash.startsWith('#trip=')){try{const trip=JSON.parse(decodeURIComponent(location.hash.slice(6)));if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}return false}
   function exportBackup(){const backup={app:'Trippi',version:1,exportedAt:new Date().toISOString(),trips:state.trips,toGo:state.toGo};const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`trippi-backup-${new Date().toISOString().slice(0,10)}.json`;link.click();URL.revokeObjectURL(url)}
   function importBackup(file){const reader=new FileReader();reader.onload=()=>{try{const backup=JSON.parse(reader.result);if(!Array.isArray(backup.trips)||!Array.isArray(backup.toGo))throw new Error('invalid');if(!confirm(`Pulihkan ${backup.trips.length} trip dan ${backup.toGo.length} tempat? Data Trippi saat ini akan diganti.`))return;state.trips=backup.trips;state.toGo=backup.toGo;state.activeTripId=null;state.activeDate=null;save();renderHome();show('homeView');alert('Data Trippi berhasil dipulihkan.')}catch{alert('File backup tidak valid. Pilih file JSON hasil Backup data dari Trippi.')}};reader.readAsText(file)}
@@ -360,6 +384,96 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   })();
   if('serviceWorker' in navigator)navigator.serviceWorker.register('trippi-sw.js').catch(()=>{});
   if(!openFromHash()){load();renderHome();}
+</script>
+<script>
+/* === Auth UX (email + password). Conforms to existing RLS — no auth/RLS change. === */
+(function(){
+  // modal CSS (injected once; avoids editing the main <style> block)
+  var css=document.createElement('style');
+  css.textContent='.auth-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(8,10,15,.72);padding:18px}.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}.auth-card h2{margin:0 0 4px}.auth-card .muted{font-size:13px;margin:0 0 16px}.auth-error{color:var(--danger);font-size:13px;min-height:18px;margin:2px 0 4px;font-weight:650}.auth-switch{font-size:13px;margin:14px 0 0}.auth-switch a{color:var(--accent2);font-weight:750}.auth-note{font-size:12px;line-height:1.5;margin:12px 0 0;padding:10px 12px;background:rgba(255,179,92,.08);border:1px solid rgba(255,179,92,.18);border-radius:11px}';
+  document.head.appendChild(css);
+
+  var pendingAction=null;          // action to run after successful login
+  var mode='login';                // 'login' | 'signup'
+  var modal=document.getElementById('authModal');
+  var form=document.getElementById('authForm');
+  var errEl=document.getElementById('authError');
+  var noteEl=document.getElementById('authNote');
+  var titleEl=document.getElementById('authTitle');
+  var leadEl=document.getElementById('authLead');
+  var submitBtn=document.getElementById('authSubmit');
+  var switchEl=document.getElementById('authSwitch');
+
+  function openAuth(m){ mode=m||'login'; renderMode(); errEl.textContent=''; noteEl.style.display='none';
+    document.getElementById('authEmail').value=''; document.getElementById('authPassword').value='';
+    modal.style.display='flex'; document.getElementById('authEmail').focus(); }
+  function closeAuth(){ modal.style.display='none'; }
+  function renderMode(){
+    if(mode==='login'){ titleEl.textContent='Masuk'; leadEl.textContent='Masuk untuk membuat dan bergabung dengan grup perjalanan.'; submitBtn.textContent='Masuk'; switchEl.innerHTML='Belum punya akun? <a href="#" id="authToggle">Daftar</a>'; }
+    else { titleEl.textContent='Daftar'; leadEl.textContent='Buat akun untuk mulai merencanakan trip bersama.'; submitBtn.textContent='Daftar'; switchEl.innerHTML='Sudah punya akun? <a href="#" id="authToggle">Masuk</a>'; }
+    var t=document.getElementById('authToggle'); if(t) t.onclick=function(e){e.preventDefault();mode=mode==='login'?'signup':'login';renderMode();};
+  }
+
+  form.onsubmit=async function(e){
+    e.preventDefault(); errEl.textContent=''; noteEl.style.display='none';
+    var email=document.getElementById('authEmail').value.trim();
+    var pw=document.getElementById('authPassword').value;
+    if(!email||pw.length<6){ errEl.textContent='Email valid dan password minimal 6 karakter.'; return; }
+    submitBtn.disabled=true;
+    if(mode==='login'){
+      var r=await API.signInWithEmail(email,pw);
+      if(r.error){ errEl.textContent=humanErr(r.error); submitBtn.disabled=false; return; }
+      // SIGNED_IN handled by onAuthChange
+    } else {
+      var s=await API.signUpWithEmail(email,pw);
+      if(s.error){ errEl.textContent=humanErr(s.error); submitBtn.disabled=false; return; }
+      // If a session is returned, user is signed in (mailer_autoconfirm). Otherwise needs email confirmation.
+      if(!s.data || !s.data.session){
+        noteEl.style.display='block';
+        noteEl.textContent='Pendaftaran berhasil. Silakan cek email '+email+' untuk konfirmasi, lalu masuk. (Konfirmasi email wajib di proyek ini.)';
+        submitBtn.disabled=false; closeAuth(); return;
+      }
+      // else SIGNED_IN handled by onAuthChange
+    }
+    submitBtn.disabled=false;
+  };
+  document.getElementById('authCancel').onclick=closeAuth;
+
+  document.getElementById('logoutBtn').onclick=async function(){
+    await API.signOut(); // onAuthChange SIGNED_OUT will update UI
+  };
+
+  function humanErr(e){
+    var m=(e&&e.message)||'';
+    if(/invalid login/i.test(m)||/email or password/i.test(m)) return 'Email atau password salah.';
+    if(/user already registered/i.test(m)) return 'Email sudah terdaftar. Coba masuk.';
+    if(/password should be/i.test(m)) return 'Password minimal 6 karakter.';
+    if(/unable to validate email/i.test(m)) return 'Format email tidak valid.';
+    return m||'Terjadi kesalahan. Coba lagi.';
+  }
+
+  // Auth-state listener (acceptance #5/#6)
+  API.onAuthChange(function(event,session){
+    var uid=session&&session.user?session.user.id:null;
+    if(event==='SIGNED_IN'||(session&&uid)){
+      colState.uid=uid;
+      document.getElementById('logoutBtn').style.display='';
+      closeAuth();
+      if(pendingAction){ var a=pendingAction; pendingAction=null; if(typeof a==='function') a(); else if(a==='makeGroup') makeGroupFromTrip(); }
+    } else if(event==='SIGNED_OUT'||(!session)){
+      colState.uid=null;
+      document.getElementById('logoutBtn').style.display='none';
+      // redirect to login if currently inside a group view
+      location.search=''; renderHome(); show('homeView'); openAuth('login');
+    }
+  });
+
+  // gate primary group-creation entry
+  var mg=document.getElementById('makeGroupBtn');
+  if(mg) mg.onclick=async function(){ var s=await API.getSession(); if(!(s.data&&s.data.session)){ pendingAction='makeGroup'; openAuth('login'); return; } makeGroupFromTrip(); };
+
+  // clear error message for invalid/expired group links (startup catch already shows one)
+})();
 </script>
 </body>
 <div id="debugEl" style="position:fixed;left:0;bottom:0;right:0;background:#1119;color:#ff6;padding:6px 8px;font:11px/1.4 monospace;z-index:99999;white-space:pre-wrap;display:none"></div>
