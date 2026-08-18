@@ -463,8 +463,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     } else if(event==='SIGNED_OUT'||(!session)){
       colState.uid=null;
       document.getElementById('logoutBtn').style.display='none';
-      // redirect to login if currently inside a group view
-      location.search=''; renderHome(); show('homeView'); openAuth('login');
+      // signed-out: update UI in place (no navigation — avoids reload loop)
+      renderHome(); show('homeView'); openAuth('login');
     }
   });
 
