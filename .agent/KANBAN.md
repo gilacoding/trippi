@@ -711,3 +711,23 @@ Markicab = "OS for group journeys" (NOT a motorcycle app; riders = initial wedge
 → **Remaining: owner/member logged-in browser E2E (required completion test).**
 
 **Next (M4):** live journey, map layer, offline mode, group movement, trip memories.
+
+## M3.5 — Google OAuth login (2026-08-19)
+
+**Why:** reduce onboarding friction; a shared-trip recipient should "Tap Google → I'm in" instead of creating a password. Does NOT replace email/password — adds an auth PATH. Per founder: keep M1/M2 identity model (auth.uid() unchanged) → RLS/ownership/permissions untouched.
+
+**Code (additive, no schema/RLS change):**
+- Backend: `API.signInWithOAuth(provider, redirectTo)` → `client.auth.signInWithOAuth({provider, options:{redirectTo}})`. Exposed in exports.
+- Frontend: "Lanjut dengan Google" button + divider in auth modal (`#googleBtn`). On SIGNED_IN: captures OAuth `full_name` → `trippi_display_name` (no re-prompt); **soft-converts a `?gt=` guest viewer into a real member** via `redeem_invitation` (guest link = acquisition channel, per founder).
+- Styles: `.btn.google`, `.auth-divider`.
+- Commit `e414e0c`.
+
+**Manual step required (founder only — needs Google Cloud credentials, not fabricatable):**
+1. Google Cloud Console → APIs & Services → Credentials → Create OAuth Client ID (Web application).
+2. Authorized redirect URI: `https://ishflkcsdzlhhxtanhxf.supabase.co/auth/v1/callback`
+3. Copy Client ID + Secret.
+4. Supabase dashboard → Authentication → Providers → Google → enable, paste ID/Secret, save.
+5. (site_url already `https://marki.cab/`; redirect back to app is `window.location.href` in code.)
+- Until enabled, the button shows an error ("provider not enabled"); email/password still works.
+
+**Apple OAuth:** defer to native-iOS planning (App Store requirement). Same pattern, later.
