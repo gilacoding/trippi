@@ -55,7 +55,7 @@
       <p class="muted" id="authLead">Masuk untuk membuat dan bergabung dengan grup perjalanan.</p>
       <form class="form-card form-grid" id="authForm" style="border:0;padding:0;background:none">
         <div class="field"><label for="authEmail">Email</label><input id="authEmail" type="email" required maxlength="200" placeholder="you@example.com" autocomplete="email"></div>
-        <div class="field"><label for="authPassword">Password</label><input id="authPassword" type="password" required minlength="6" maxlength="100" placeholder="••••••••" autocomplete="current-password"></div>
+        <div class="field"><label for="authPassword">Password</label><input id="authPassword" type="password" required minlength="6" maxlength="100" placeholder="••••••••" autocomplete="current-password"><label class="show-pw"><input type="checkbox" id="showPw"> Tampilkan sandi</label></div>
         <div class="auth-error" id="authError"></div>
         <div class="form-actions">
           <button type="button" class="btn secondary" id="authCancel">Batal</button>
@@ -505,7 +505,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 (function(){
   // modal CSS (injected once; avoids editing the main <style> block)
   var css=document.createElement('style');
-  css.textContent='.auth-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(8,10,15,.72);padding:18px}.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}.auth-card h2{margin:0 0 4px}.auth-card .muted{font-size:13px;margin:0 0 16px}.auth-error{color:var(--danger);font-size:13px;min-height:18px;margin:2px 0 4px;font-weight:650}.auth-switch{font-size:13px;margin:14px 0 0}.auth-switch a{color:var(--accent2);font-weight:750}.auth-note{font-size:12px;line-height:1.5;margin:12px 0 0;padding:10px 12px;background:rgba(255,179,92,.08);border:1px solid rgba(255,179,92,.18);border-radius:11px}';
+  css.textContent='.auth-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(8,10,15,.72);padding:18px}.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}.auth-card h2{margin:0 0 4px}.auth-card .muted{font-size:13px;margin:0 0 16px}.auth-error{color:var(--danger);font-size:13px;min-height:18px;margin:2px 0 4px;font-weight:650}.auth-switch{font-size:13px;margin:14px 0 0}.auth-switch a{color:var(--accent2);font-weight:750}.auth-note{font-size:12px;line-height:1.5;margin:12px 0 0;padding:10px 12px;background:rgba(255,179,92,.08);border:1px solid rgba(255,179,92,.18);border-radius:11px}.show-pw{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted);margin-top:8px;cursor:pointer;user-select:none}.show-pw input{width:auto;margin:0;accent-color:var(--accent2);cursor:pointer}';
   document.head.appendChild(css);
 
   var pendingAction=null;          // action to run after successful login
@@ -553,6 +553,13 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     submitBtn.disabled=false;
   };
   document.getElementById('authCancel').onclick=closeAuth;
+
+  // Show/hide password (login + daftar)
+  var showPwEl=document.getElementById('showPw');
+  if(showPwEl) showPwEl.onchange=function(){ document.getElementById('authPassword').type = showPwEl.checked ? 'text' : 'password'; };
+  // reset toggle whenever the auth modal opens (don't stay revealed across modes)
+  var _openAuth=openAuth;
+  openAuth=function(m){ var el=document.getElementById('showPw'); if(el){ el.checked=false; var p=document.getElementById('authPassword'); if(p) p.type='password'; } _openAuth(m); };
 
   document.getElementById('logoutBtn').onclick=async function(){
     await API.signOut(); // onAuthChange SIGNED_OUT will update UI
