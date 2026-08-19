@@ -656,3 +656,36 @@ Markicab = "OS for group journeys" (NOT a motorcycle app; riders = initial wedge
 - **Frontend:** `shareGroup` now creator-only (UI hides + server enforces); produces `?gt={token}` link. `?gt=` startup path opens read-only guest view; make-group/share/leave hidden for guests.
 - **Migration file:** `.agent/migrations/M2_guest_access.sql`.
 - **✅ LIVE VERIFIED (2026-08-19):** PostgREST cache reloaded via SQL Editor NOTIFY. Guest URL `?gt={token}` opens read-only trip view (name/meta/itinerary render), `inviteGroupBtn`+`leaveGroupBtn` hidden, **no login modal forced** (frictionless join). Root-cause bug found + fixed: guest RPCs called `cachedClient.rpc` before the anon client initialized (`cachedClient` null) → routed through `getClient()`. Commits: `666ecfa` (schema+frontend), `9e8cf82` (getClient fix), `171529c` (suppress login modal for guests). All 5 RPCs now REST-live.
+
+## M3 Phase 1 — Membership roles + permission skeleton (2026-08-19)
+
+**Goal:** lock the ownership/permission backbone before Trip Core UX (per founder direction: permissions are the foundation for live-location, gallery, sharing, social layer).
+
+**DB (additive, reversible, server-side enforced):**
+- `group_members.role` column: `owner | member` (check constraint; future: co-host/guide/viewer). No over-engineering.
+- Backfill: creator (`user_id = groups.created_by`) → `owner`; rest → `member` (58 owners / 24 members across 59 groups).
+- Trigger `trg_group_members_role` **blocks direct role escalation** (member cannot `UPDATE` own row to `owner` via `gm_update_self` RLS) — role only set at INSERT by SECURITY DEFINER RPCs.
+- `create_group` / `create_group_from_trip` insert creator as `owner`; `join_group` / `redeem_invitation` insert as `member`.
+- `trip_permissions(p_group_id)` → **permission matrix as code** (is_member/is_owner/can_view/can_edit/can_add_expense/can_delete/can_invite/can_manage_members). Single source of truth.
+- `remove_member(p_group_id, p_user_id)` — owner-only, cannot remove owner.
+- `delete_group(p_group_id)` — owner-only (cascade).
+- `leave_group` guard — owners cannot leave (must delete).
+
+**Security verified via SQL-impersonation (9/9 PASS):**
+- owner: can_invite/can_delete/can_manage_members = true ✅
+- member: can_invite/can_delete/can_manage_members = false; can_edit = true ✅
+- member role-escalation via UPDATE → blocked by trigger (P0001) ✅
+- member `delete_group` / `remove_member(owner)` → denied (P0001) ✅
+- owner `remove_member(member)` / `delete_group` → success ✅
+- Matrix matches founder spec exactly.
+
+**Frontend (lock skeleton, minimal UX):**
+- `getTripPermissions` on group open → `applyPermsUI()` gates `inviteGroupBtn` + `shareTrip` on `can_invite` (owner-only sharing — privacy principle).
+- Owner badge ("Pemilik") in member list; owners see a remove-member (×) button (owner-only).
+- `leaveGroupBtn` → "Hapus trip" for owner (calls `delete_group`), "Keluar" for member (calls `leave_group`).
+- API wrappers: `getTripPermissions`, `removeMember`, `deleteGroup`.
+- Migration: `.agent/migrations/M3_phase1_roles.sql`. Commit `3f77800`.
+
+**Note:** full logged-in owner/member *browser* E2E still pending (needs two confirmed accounts → email-confirm step, same as M2 closeout). DB enforcement + matrix proven at SQL level; CDN-deployed frontend confirmed live.
+
+**M3 Phase 2 (NEXT): Trip Core UX** — Trip identity (title/cover/destination/dates/creator/members/visibility), Agenda as operating-plan (DAY n, route, stops), Expenses (who-paid/amount/category/linked-item). Avoid M5+ scope (feed, likes, discovery, followers, AI, booking, marketplace).
