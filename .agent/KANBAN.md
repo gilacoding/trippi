@@ -627,14 +627,14 @@ Markicab = "OS for group journeys" (NOT a motorcycle app; riders = initial wedge
 | Milestone | Goal | Status |
 |---|---|---|
 | **M1 — AUTH FOUNDATION** | email/password auth usable + safe | ✅ **CLOSED** (P-AUTHLOOP fixed, SMTP verified, PostgREST 10/10, browser signup E2E, anon disabled, pw min-10). AUTH-E2E cards CLOSED — do not reopen w/o new evidence. |
-| **M2 — DATA FOUNDATION** | Supabase authoritative; audit localStorage; sync-ready model; offline prep; clean trip/group/member/item/expense rels | 🟢 **IMPLEMENTED** (additive tables + RLS live; dual-write sync layer deployed; idempotent backfill verified; local-draft-before-login preserved) |
+| **M2 — DATA FOUNDATION** | Supabase authoritative; audit localStorage; sync-ready model; offline prep; clean trip/group/member/item/expense rels | ✅ **CLOSED** (additive tables + RLS live; dual-write sync layer deployed; idempotent backfill verified; local-draft-before-login preserved; **manual E2E PASS 2026-08-19: signup → email confirm → login → create personal trip → reload → persistence verified**) |
 | **M3 — TRIP CORE** | interactive maps, routes, POIs, collaborative itinerary, group/member mgmt, shared expenses/items, cross-device persistence, clean refresh/relogin | ⚪ BACKLOG |
 | **M4 — JOURNEY MODE** | live group location (GENERIC, not rider-only), last-seen/moving/stopped, offline, sync queue, location gallery, photos, replay, shareable links, WhatsApp share | ⚪ BACKLOG |
 | **M5 — SOCIAL LAYER** | public trips, discovery, profiles, communities, events, follow, inspiration, recommendations | ⚪ BACKLOG |
 
 **Legacy Trippi M0–M7 scheme (historical, pre-rebrand) is retained earlier in this file for traceability but is superseded by the Markicab map above.**
 
-> Note: the legacy M-scheme labels (M1 Core Trip Planning, M2 Group Collaboration, etc.) MUST NOT be confused with the Markicab M1–M5 above. Under Markicab: M1=AUTH (CLOSED), M2=DATA FOUNDATION (ACTIVE). Phase 5 = M2.
+> Note: the legacy M-scheme labels (M1 Core Trip Planning, M2 Group Collaboration, etc.) MUST NOT be confused with the Markicab M1–M5 above. Under Markicab: M1=AUTH (CLOSED), M2=DATA FOUNDATION (**CLOSED 2026-08-19**), M3=TRIP CORE (ACTIVE — current focus). Phase 5 = M2.
 
 ---
 
