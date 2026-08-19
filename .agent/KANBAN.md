@@ -686,6 +686,28 @@ Markicab = "OS for group journeys" (NOT a motorcycle app; riders = initial wedge
 - API wrappers: `getTripPermissions`, `removeMember`, `deleteGroup`.
 - Migration: `.agent/migrations/M3_phase1_roles.sql`. Commit `3f77800`.
 
-**Note:** full logged-in owner/member *browser* E2E still pending (needs two confirmed accounts → email-confirm step, same as M2 closeout). DB enforcement + matrix proven at SQL level; CDN-deployed frontend confirmed live.
+**Note:** full logged-in owner/member *browser* E2E still pending (needs two confirmed accounts → email-confirm step, same as M2 closeout). DB enforcement + matrix proven at SQL level; CDN-deployed frontend confirmed live. **This is a REQUIRED M3 completion test — do not forget.**
 
-**M3 Phase 2 (NEXT): Trip Core UX** — Trip identity (title/cover/destination/dates/creator/members/visibility), Agenda as operating-plan (DAY n, route, stops), Expenses (who-paid/amount/category/linked-item). Avoid M5+ scope (feed, likes, discovery, followers, AI, booking, marketplace).
+## M3 Phase 2 — Trip Core UX (2026-08-19)
+
+**Goal:** make the trip object the clean container everything hangs off (per founder: identity first, then agenda as operating-plan, then expenses — tight scope, no social fields, no auth-rule changes).
+
+**DB (additive, no RLS/permission change):**
+- `group_expenses.paid_by` (uuid, nullable) — records WHO PAID (data-quality foundation for future "settle balance").
+- Backfilled: 14/14 existing rows → `paid_by = created_by`.
+- `create_expense` accepts `p_paid_by` (defaults to the logging user inside the RPC).
+- `create_group_from_trip` sets `paid_by` on batch-inserted expenses too.
+- Fix applied (two bugs found during verification): (1) `CREATE OR REPLACE` had created a stale 6-arg overload → dropped; (2) `create_expense` OUT-param `id` made `where id = p_group_id` ambiguous (42702) → qualified `groups.id`; (3) `date` OUT param typed `date` but column is `text` (42804) → typed `text`. Verified: member logs expense `paid_by=owner` recorded; default → logger. ✅
+- Migrations: `M3_phase2_expenses.sql`, `M3_phase2_expenses_cleanup.sql`, `M3_phase2_expenses_fix.sql`. Commits `29ee78e` + `0c5e667`.
+
+**Frontend:**
+- **Trip Identity (container):** group meta now shows `Pembuat <creator>` (owner name from members). Stats unchanged (agenda / hari / anggota / est). No social fields added.
+- **Agenda as operating-plan:** day title shows stop count (`Hari N · {date} · {k} titik`); items with a map link render a 📍 location pin (prep for M4 maps / live-location / meeting points). Time-sorted timeline preserved.
+- **Expenses — payer:** expense form gets "Dibayar oleh" select (member list; "— saya —" default = you); list shows payer name when payer ≠ logger. Backend `addExpense` passes `paid_by`.
+- No auth/RLS/permission rule changed (Phase 1 matrix intact).
+
+## M3 completion criteria (founder spec)
+1. Create a trip ✅ 2. Invite members ✅ 3. Members join ✅ 4. See owner/member roles ✅ (Phase 1) 5. Build structured itinerary ✅ (operating-plan) 6. Add expenses ✅ (with payer) 7. Modify collaboratively ✅ 8. Reload/re-login retain data ✅ 9. Delete/leave per permissions ✅ (Phase 1)
+→ **Remaining: owner/member logged-in browser E2E (required completion test).**
+
+**Next (M4):** live journey, map layer, offline mode, group movement, trip memories.
