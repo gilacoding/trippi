@@ -488,6 +488,26 @@
         return client.rpc('list_my_invitations', { p_group_id: groupId });
       });
     },
+    // M3 Phase 1: permission matrix (owner/member) — single source of truth
+    getTripPermissions: function (groupId) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('trip_permissions', { p_group_id: groupId });
+      });
+    },
+    // M3 Phase 1: owner-only member management
+    removeMember: function (groupId, userId) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('remove_member', { p_group_id: groupId, p_user_id: userId });
+      });
+    },
+    deleteGroup: function (groupId) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('delete_group', { p_group_id: groupId });
+      });
+    },
 
     // ── Realtime ────────────────────────────────────────────────────
     // The frontend creates a Supabase Realtime channel and manages its

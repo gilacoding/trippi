@@ -427,6 +427,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       }
     }
     await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);renderGroupPlanner();
+    // M3 Phase 1: load permission matrix and apply to UI
+    const permsRes=await API.getTripPermissions(id);
+    colState.perms=(permsRes&&permsRes.data)||null;
+    applyPermsUI();
   }
   async function loadShared(id){const { data }=await API.getItems(id);
   const ad=colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'';
@@ -463,7 +467,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
   }
   function renderMembers(){
-    $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}</div><div class="link-field">${m.user_id===colState.uid?'kamu':''}</div></div></article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
+    $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Pemilik</span>':''}</div><div class="link-field">${m.user_id===colState.uid?'kamu':''}</div></div>${m.user_id!==colState.uid&&colState.perms&&colState.perms.can_manage_members?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
+    document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>removeMemberFromTrip(b.dataset.rm));
   }
   async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}
   async function addGroupExpense(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addExpense({group_id:g.id,name:$('groupExpenseName').value.trim(),amount:Number($('groupExpenseAmount').value)||0,category:$('groupExpenseCategory').value,note:$('groupExpenseNote').value.trim(),date:colState.activeDate||'',created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false;await loadGroupExpenses(g.id);}}
@@ -472,7 +477,33 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   async function editGroupCost(el){const id=el.dataset.gcost;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='number';input.className='inline-edit';input.value=it.budget||0;el.replaceWith(input);input.focus();const commit=async()=>{const v=input.value.trim();await API.updateItem(id,{budget:Number(v)||0});await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
   async function removeGroupItem(id){await API.deleteItem(id);}
   async function removeGroupExpense(id){await API.deleteExpense(id);}
-  async function leaveGroup(){const g=colState.group;if(!g)return;if(colState.poll)clearInterval(colState.poll);if(colState.channel)await API._getSb().removeChannel(colState.channel);await API.leaveGroup(g.id,colState.uid);colState.group=null;renderHome();show('homeView');}
+  async function leaveGroup(){
+    if(colState.perms&&colState.perms.is_owner){
+      if(!confirm('Hapus trip ini secara permanen? Tindakan tidak bisa dibatalkan.')) return;
+      const { error }=await API.deleteGroup(colState.group.id);
+      if(error){ alert('Gagal: '+humanErr(error)); return; }
+    } else {
+      if(!confirm('Keluar dari trip ini?')) return;
+      const { error }=await API.leaveGroup(colState.group.id, colState.uid);
+      if(error){ alert('Gagal: '+humanErr(error)); return; }
+    }
+    if(colState.poll)clearInterval(colState.poll);
+    if(colState.channel)await API._getSb().removeChannel(colState.channel);
+    colState.group=null; renderHome(); show('homeView');
+  }
+  // M3 Phase 1: apply owner/member permission matrix to the group UI
+  function applyPermsUI(){
+    const p=colState.perms||{};
+    const ig=document.getElementById('inviteGroupBtn'); if(ig) ig.style.display = p.can_invite ? '' : 'none';
+    const st=document.getElementById('shareTrip'); if(st) st.style.display = p.can_invite ? '' : 'none';
+    const lb=document.getElementById('leaveGroupBtn'); if(lb) lb.textContent = p.is_owner ? 'Hapus trip' : 'Keluar';
+  }
+  async function removeMemberFromTrip(userId){
+    if(!confirm('Hapus anggota ini dari trip?')) return;
+    const { error }=await API.removeMember(colState.group.id, userId);
+    if(error){ alert('Gagal: '+humanErr(error)); return; }
+    await loadMembers(colState.group.id);
+  }
 
   function openFromHash(){if(location.hash.startsWith('#t=')){try{const json=LZString.decompressFromEncodedURIComponent(location.hash.slice(3));const trip=JSON.parse(json);if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}if(location.hash.startsWith('#trip=')){try{const trip=JSON.parse(decodeURIComponent(location.hash.slice(6)));if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}return false}
   function exportBackup(){const backup={app:'Trippi',version:1,exportedAt:new Date().toISOString(),trips:state.trips,toGo:state.toGo};const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`trippi-backup-${new Date().toISOString().slice(0,10)}.json`;link.click();URL.revokeObjectURL(url)}
@@ -508,7 +539,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 (function(){
   // modal CSS (injected once; avoids editing the main <style> block)
   var css=document.createElement('style');
-  css.textContent='.auth-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(8,10,15,.72);padding:18px}.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}.auth-card h2{margin:0 0 4px}.auth-card .muted{font-size:13px;margin:0 0 16px}.auth-error{color:var(--danger);font-size:13px;min-height:18px;margin:2px 0 4px;font-weight:650}.auth-switch{font-size:13px;margin:14px 0 0}.auth-switch a{color:var(--accent2);font-weight:750}.auth-note{font-size:12px;line-height:1.5;margin:12px 0 0;padding:10px 12px;background:rgba(255,179,92,.08);border:1px solid rgba(255,179,92,.18);border-radius:11px}.show-pw{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted);margin-top:8px;cursor:pointer;user-select:none}.show-pw input{width:auto;margin:0;accent-color:var(--accent2);cursor:pointer}';
+  css.textContent='.auth-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(8,10,15,.72);padding:18px}.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}.auth-card h2{margin:0 0 4px}.auth-card .muted{font-size:13px;margin:0 0 16px}.auth-error{color:var(--danger);font-size:13px;min-height:18px;margin:2px 0 4px;font-weight:650}.auth-switch{font-size:13px;margin:14px 0 0}.auth-switch a{color:var(--accent2);font-weight:750}.auth-note{font-size:12px;line-height:1.5;margin:12px 0 0;padding:10px 12px;background:rgba(255,179,92,.08);border:1px solid rgba(255,179,92,.18);border-radius:11px}.show-pw{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted);margin-top:8px;cursor:pointer;user-select:none}.show-pw input{width:auto;margin:0;accent-color:var(--accent2);cursor:pointer}.role-badge{display:inline-block;font-size:11px;font-weight:700;color:var(--accent2);background:rgba(255,179,92,.12);border:1px solid rgba(255,179,92,.3);border-radius:8px;padding:1px 7px;margin-left:4px;vertical-align:middle}';
   document.head.appendChild(css);
 
   var pendingAction=null;          // action to run after successful login
