@@ -635,3 +635,24 @@ Markicab = "OS for group journeys" (NOT a motorcycle app; riders = initial wedge
 **Legacy Trippi M0–M7 scheme (historical, pre-rebrand) is retained earlier in this file for traceability but is superseded by the Markicab map above.**
 
 > Note: the legacy M-scheme labels (M1 Core Trip Planning, M2 Group Collaboration, etc.) MUST NOT be confused with the Markicab M1–M5 above. Under Markicab: M1=AUTH (CLOSED), M2=DATA FOUNDATION (ACTIVE). Phase 5 = M2.
+
+---
+
+## PERMANENT SECURITY PRINCIPLE (Markicab guest access + trip sharing)
+
+> Trip access is scoped and non-transitive by default. Membership does not grant sharing privileges. Only the trip creator may share a trip. Guest access is allowed for invited trips but guests cannot create or share trips. Live-location visibility is separately permissioned and consent-based. Security rules must be enforced server-side.
+
+### Guest access + creator-only sharing — IMPLEMENTED (M2 security patch, 2026-08-18)
+- **No existing guest/invite system before** — "share" was a raw `?group={uuid}` link; `join_group` let any authenticated user join any group by id. Closed via token-scoped invitations.
+- **DB changes (additive, no existing table/RPC/RLS modified):** new `invitations` table (RLS enabled, NO policies → all direct access denied) + 5 SECURITY DEFINER RPCs: `create_invitation`, `redeem_invitation`, `get_guest_trip`, `revoke_invitation`, `list_my_invitations`, plus a `guest_payload(uuid)` helper (EXECUTE revoked from public).
+- **Server-side enforcement (all verified via SQL-impersonation):**
+  - `create_invitation` / `revoke_invitation` / `list_my_invitations` → raise `P0001: only the trip creator can share this trip` unless `groups.created_by = auth.uid()`. (Non-creator attempt → `P0001` CONFIRMED.)
+  - `get_guest_trip(p_token)` / `redeem_invitation(p_token)` take **only the token** (never a group_id) → always trip-scoped; invalid/revoked/expired tokens → denied.
+  - `guest_payload` revoked from public → anon direct call denied (status 400 CONFIRMED).
+  - Anon direct `invitations` table read → 401 (RLS).
+- **Guest model:** open `?gt={token}` → `get_guest_trip` (anon, no login/download/password) → read-only trip view. Guest CANNOT create trip, CANNOT share/invite, CANNOT access other trips (token-only API). Live-location for guests deferred (v1 = read-only; `locations` RLS already member-scoped — broadening left for a future consent-gated extension).
+- **Anonymous Auth stays DISABLED** (unchanged). Guests use the anon *API key* (publishable) to call token-scoped RPCs — NOT Supabase Anonymous Auth.
+- **AUTH-E2E NOT reopened.** Existing 10/10 RPCs regression: `create_group_from_trip` 200, `update_shared_item` still enforced (404/400) — unchanged.
+- **Frontend:** `shareGroup` now creator-only (UI hides + server enforces); produces `?gt={token}` link. `?gt=` startup path opens read-only guest view; make-group/share/leave hidden for guests.
+- **Migration file:** `.agent/migrations/M2_guest_access.sql`.
+- **Deploy step pending:** PostgREST schema cache must be reloaded (`NOTIFY pgrst, 'reload schema';` in SQL Editor) so the new RPCs are callable over REST — same gap as AUTH-E2E. DB functions verified correct; only REST exposure needs the reload. After reload, run live guest-flow browser test.

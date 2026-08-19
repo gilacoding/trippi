@@ -447,6 +447,31 @@
       return cachedClient.from('trips').delete().eq('id', sbId);
     },
 
+    // ── Guest Access + Creator-only Sharing (M2 security patch) ──
+    // Guests use the anon *API key* (publishable) — NOT Supabase Anonymous Auth
+    // (that provider stays disabled). All enforcement is server-side in the RPCs.
+    // Guests cannot create/share trips; only the trip creator can share.
+    createInvitation: function (groupId, displayName) {
+      // CREATOR ONLY (enforced server-side)
+      return cachedClient.rpc('create_invitation', { p_group_id: groupId, p_display_name: displayName || null });
+    },
+    redeemInvitation: function (token, displayName) {
+      // guest (anon or authenticated) joins + gets trip payload
+      return cachedClient.rpc('redeem_invitation', { p_token: token, p_display_name: displayName || null });
+    },
+    getGuestTrip: function (token) {
+      // anon-safe read by token only (trip-scoped)
+      return cachedClient.rpc('get_guest_trip', { p_token: token });
+    },
+    revokeInvitation: function (token) {
+      // CREATOR ONLY (enforced server-side)
+      return cachedClient.rpc('revoke_invitation', { p_token: token });
+    },
+    listMyInvitations: function (groupId) {
+      // CREATOR ONLY (enforced server-side)
+      return cachedClient.rpc('list_my_invitations', { p_group_id: groupId });
+    },
+
     // ── Realtime ────────────────────────────────────────────────────
     // The frontend creates a Supabase Realtime channel and manages its
     // lifecycle. We expose the underlying client so the channel API

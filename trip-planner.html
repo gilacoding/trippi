@@ -196,6 +196,46 @@
   const save=()=>{ localStorage.setItem(STORE_KEY,JSON.stringify({trips:state.trips,toGo:state.toGo})); scheduleSync(); };
   function load(){try{const current=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(current){state.trips=current.trips||[];state.toGo=current.toGo||[]}else{state.trips=JSON.parse(localStorage.getItem(LEGACY_STORE_KEY)||'[]');state.toGo=[];save()}}catch{state.trips=[];state.toGo=[]}}
 
+  // ── Guest session (M2 security patch) ──
+  // Guests open an invited trip via ?gt={token}. They CANNOT create/share trips.
+  // Only the trip creator can share. Guest access is read-only + scoped to the token's trip.
+  let guestSession = null; // { token, trip: {...payload} } or null
+  function isGuest(){ return !!guestSession; }
+
+  async function openGuestTrip(token){
+    try{
+      const { data, error } = await API.getGuestTrip(token);
+      if(error){ alert('Undangan tidak valid, kedaluwarsa, atau sudah dibatalkan.'); renderHome(); show('homeView'); return; }
+      if(!data){ alert('Undangan tidak valid.'); renderHome(); show('homeView'); return; }
+      guestSession = { token, trip: data };
+      renderGuestTrip(data);
+      show('groupView'); // reuse group view for read-only rendering
+    }catch(e){ console.error('[guest] open failed', e); alert('Gagal membuka undangan.'); renderHome(); show('homeView'); }
+  }
+
+  function renderGuestTrip(t){
+    $('groupName').textContent = t.name || 'Trip';
+    $('groupMeta').textContent = [t.destination, t.start_date||'', t.end_date||''].filter(Boolean).join(' · ');
+    $('groupStats').innerHTML = '';
+    // guest: NO make-group / NO share / NO leave (read-only). Hide those controls.
+    const ig = document.getElementById('inviteGroupBtn'); if(ig) ig.style.display='none';
+    const lg = document.getElementById('leaveGroupBtn'); if(lg) lg.style.display='none';
+    // render itinerary from payload
+    const list = (t.items||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    $('groupItineraryList').innerHTML = list.length
+      ? list.map(i=>`<article class="agenda-item"><div class="agenda-when">${esc(i.date||'')} ${esc(i.time||'')}</div><div class="agenda-body"><div class="agenda-title">${esc(i.title)}</div>${i.note?`<div class="agenda-note">${esc(i.note)}</div>`:''}${i.link?`<a class="agenda-link" href="${esc(i.link)}" target="_blank" rel="noopener">${esc(i.link)}</a>`:''}${i.budget?`<div class="agenda-budget">${money(i.budget)}</div>`:''}</div></article>`).join('')
+      : '<div class="empty">Belum ada agenda.</div>';
+    // expenses
+    const exp = t.expenses||[];
+    $('groupExpenseList').innerHTML = exp.length
+      ? exp.map(x=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(x.category)}</span><div class="expense-copy"><div class="expense-name">${esc(x.name)}</div><div class="expense-meta">${esc(x.category||'')}</div></div><div class="expense-amount">${money(x.amount)}</div></article>`).join('')
+      : '<div class="empty">Belum ada pengeluaran.</div>';
+    // members
+    $('memberList').innerHTML = (t.members||[]).map(m=>`<div class="member">${esc(m.display_name||'Anggota')}</div>`).join('') || '<div class="empty">Belum ada anggota.</div>';
+    // disable add forms for guests (read-only)
+    document.querySelectorAll('#groupView details').forEach(d=>d.style.display='none');
+  }
+
   // ── M2 Sync layer (Supabase = source of truth; localStorage = cache/draft) ──
   // Guardrails: idempotent (local_id upsert), per-trip failure isolation,
   // never clears localStorage, keeps trippi_personal_planner_v2 until promoted.
@@ -270,13 +310,28 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(!gid){
       const ok=confirm('Mulai kolaborasi?\n\nTrip ini akan dikonversi ke grup — setiap orang yang membuka link grup akan ikut otomatis dan melihat perubahan secara langsung (via realtime + polling 3 detik).');
       if(!ok)return;
-      await makeGroupFromTrip(); // copy agenda + set trip.groupId + openGroup
+      await makeGroupFromTrip();
       const gid2=colState.group?colState.group.id:(getTrip()&&getTrip().groupId);
-      if(!gid2)return; // user cancelled / failed
+      if(!gid2)return;
       copyGroupLink(gid2);
       return;
     }
-    copyGroupLink(gid);
+    // M2 security patch: ONLY the trip creator may generate a share/invite link.
+    // Server enforces this (create_invitation raises for non-creators); UI also hides it.
+    const isCreator = !!(colState.group && colState.group.created_by && colState.uid && colState.group.created_by === colState.uid);
+    if(!isCreator){
+      alert('Hanya pembuat trip yang dapat membuat tautan undangan.');
+      return;
+    }
+    try{
+      const { data, error } = await API.createInvitation(gid, colState.name);
+      if(error){ alert('Gagal membuat undangan: '+(error.message||'error')); return; }
+      const token = data && data[0] && data[0].token;
+      if(!token){ alert('Gagal membuat undangan.'); return; }
+      const url = location.origin + location.pathname + '?gt=' + token;
+      const note='Tautan undangan tamu disalin. Siapa saja yang membukanya bisa melihat trip ini tanpa login (baca-saja). Hanya pembuat trip yang dapat membagikan.';
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(()=>alert(note),()=>prompt('Salin tautan ini:',url))}else{prompt('Salin tautan ini:',url)}
+    }catch(e){ console.error('[share] invite failed', e); alert('Gagal membuat undangan.'); }
   }
   function copyGroupLink(id){
     let url=groupLink(id);
@@ -428,6 +483,12 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   $('cancelGroupExpense').onclick=()=>{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false};
   $('groupWishForm').onsubmit=addGroupWish;
   $('cancelGroupWish').onclick=()=>{$('groupWishForm').reset();$('groupWishForm').parentElement.open=false};
+  // auto-open guest trip from ?gt={token} (M2 security patch: guest, no login)
+  (async()=>{
+    const gt=new URLSearchParams(location.search).get('gt');
+    if(gt){ dbg('startup: guest token = '+gt.slice(0,8)+'…'); await openGuestTrip(gt); return; }
+  })();
+
   // auto-join from ?group= share link
   (async()=>{
     const gid=new URLSearchParams(location.search).get('group');
