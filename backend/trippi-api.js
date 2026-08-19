@@ -451,25 +451,42 @@
     // Guests use the anon *API key* (publishable) — NOT Supabase Anonymous Auth
     // (that provider stays disabled). All enforcement is server-side in the RPCs.
     // Guests cannot create/share trips; only the trip creator can share.
+    // NOTE: must route through getClient() so cachedClient is initialized (anon client
+    // is created lazily on first use; calling cachedClient directly throws if null).
     createInvitation: function (groupId, displayName) {
       // CREATOR ONLY (enforced server-side)
-      return cachedClient.rpc('create_invitation', { p_group_id: groupId, p_display_name: displayName || null });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('create_invitation', { p_group_id: groupId, p_display_name: displayName || null });
+      });
     },
     redeemInvitation: function (token, displayName) {
       // guest (anon or authenticated) joins + gets trip payload
-      return cachedClient.rpc('redeem_invitation', { p_token: token, p_display_name: displayName || null });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('redeem_invitation', { p_token: token, p_display_name: displayName || null });
+      });
     },
     getGuestTrip: function (token) {
       // anon-safe read by token only (trip-scoped)
-      return cachedClient.rpc('get_guest_trip', { p_token: token });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('get_guest_trip', { p_token: token });
+      });
     },
     revokeInvitation: function (token) {
       // CREATOR ONLY (enforced server-side)
-      return cachedClient.rpc('revoke_invitation', { p_token: token });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('revoke_invitation', { p_token: token });
+      });
     },
     listMyInvitations: function (groupId) {
       // CREATOR ONLY (enforced server-side)
-      return cachedClient.rpc('list_my_invitations', { p_group_id: groupId });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('list_my_invitations', { p_group_id: groupId });
+      });
     },
 
     // ── Realtime ────────────────────────────────────────────────────
