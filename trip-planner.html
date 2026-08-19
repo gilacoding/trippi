@@ -234,6 +234,8 @@
     $('memberList').innerHTML = (t.members||[]).map(m=>`<div class="member">${esc(m.display_name||'Anggota')}</div>`).join('') || '<div class="empty">Belum ada anggota.</div>';
     // disable add forms for guests (read-only)
     document.querySelectorAll('#groupView details').forEach(d=>d.style.display='none');
+    // guests never authenticate: ensure no login modal is forced over the read-only view
+    const am = document.getElementById('authModal'); if(am) am.style.display='none';
   }
 
   // ── M2 Sync layer (Supabase = source of truth; localStorage = cache/draft) ──
@@ -578,6 +580,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       colState.uid=null;
       document.getElementById('logoutBtn').style.display='none';
       // signed-out: update UI in place (no navigation — avoids reload loop)
+      // Guests (?gt=) must NOT be forced into the login modal — they view read-only.
+      if(isGuest()){ return; }
       renderHome(); show('homeView'); openAuth('login');
     }
   });
