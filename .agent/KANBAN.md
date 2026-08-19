@@ -698,6 +698,7 @@ Markicab = "OS for group journeys" (NOT a motorcycle app; riders = initial wedge
 - `create_expense` accepts `p_paid_by` (defaults to the logging user inside the RPC).
 - `create_group_from_trip` sets `paid_by` on batch-inserted expenses too.
 - Fix applied (two bugs found during verification): (1) `CREATE OR REPLACE` had created a stale 6-arg overload → dropped; (2) `create_expense` OUT-param `id` made `where id = p_group_id` ambiguous (42702) → qualified `groups.id`; (3) `date` OUT param typed `date` but column is `text` (42804) → typed `text`. Verified: member logs expense `paid_by=owner` recorded; default → logger. ✅
+- **Regression (M3 browser-E2E prep):** discovered a SECOND overload conflict — stale `create_expense(date)` + canonical `create_expense(text)` → PostgREST ambiguous-function error on expense create. Dropped stale `date` overload (`M3_phase2_drop_stale_overload.sql`). Verified: exactly ONE `create_expense` overload remains (text-typed, matching the column) → ambiguity resolved. ⚠️ The SQL-level functional regression could not complete because `create_group` FK → `auth.users` requires real confirmed accounts; the browser E2E (2 accounts) is the remaining gate.
 - Migrations: `M3_phase2_expenses.sql`, `M3_phase2_expenses_cleanup.sql`, `M3_phase2_expenses_fix.sql`. Commits `29ee78e` + `0c5e667`.
 
 **Frontend:**
