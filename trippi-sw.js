@@ -14,7 +14,10 @@ const CORE_FILES = [
 ];
 
 // Files that must always reflect the latest deployed version (never stale-cached).
+// HTML shells are network-first so deploys propagate immediately (offline falls back to cache).
 const NETWORK_FIRST = [
+  /trip-planner\.html(\?|$)/,
+  /index\.html(\?|$)/,
   /\/backend\/trippi-api\.js(\?|$)/,
   /\/backend\/supabase-client\.js(\?|$)/
 ];
