@@ -607,12 +607,15 @@ Supabase = single source of truth for trip data (personal + shared); localStorag
 2. **Switch (Phase B):** after count-verified backfill, flip reads to Supabase; localStorage = cache.
 3. **Cleanup (Phase C):** remove legacy v1; demote v2 to cache.
 
-### Decision needed from founder (no DB change made yet)
-- Approve creating 3 new tables + RLS (additive, no existing change)?
-- Approve dual-write-then-switch (vs hard cutover)?
-- Personal trips require login — acceptable, or keep local "draft before login" mode?
-
-**No code/database changes have been made for Phase 5. Analysis + design only.**
+### Execution status (2026-08-18, founder approved)
+- ✅ **Approved + applied:** 3 additive tables (`trips`/`agenda_items`/`expenses`) + owner-only RLS + `updated_at` trigger via `apply_migration` (commit `e03878f`). No existing table/RPC/RLS touched.
+- ✅ **Dual-write-then-switch implemented:** `save()` schedules `syncActiveTrip`; `onSessionReady(uid)` → `backfillAndSync()` on SIGNED_IN. LocalStorage stays cache; `trippi_personal_planner_v2` NOT removed.
+- ✅ **Local draft before login preserved:** trip mutations work without auth; backfill only runs when `colState.uid` present.
+- ✅ **Idempotent backfill:** `local_id` unique constraints on `trips(user_id,local_id)` + `agenda_items(trip_id,local_id)` + `expenses(trip_id,local_id)`. Upsert-twice test → 1 row.
+- ✅ **Per-trip failure isolation, verify step, migration-version local key, rollback path (local intact) all in code.**
+- ✅ **Verified:** schema+RLS+idempotency via SQL-level test (PASS); anon REST read → 401 (RLS blocks); deployed app loads with no console errors; local-draft-before-login persists.
+- ⚠️ **One gap (not a defect):** live browser backfill with a *confirmed* session was not executed in automation because the Mgmt API user-create/confirm endpoints are unavailable on this project (404) and no Brevo key is in env to read the confirmation email. All underlying components (schema, RLS, idempotent upsert, client wiring, deployed code) are proven; the only un-automated step is the email-confirm gate, which the earlier visual click-through already showed works (signup succeeds + email delivered). Recommend a manual confirm: sign up in a browser, confirm email, log in, create a trip, reload, verify it persists cross-session.
+- Migrations: `.agent/migrations/M2_personal_trips.sql`. Design: `.agent/PHASE5_MIGRATION.md`.
 
 ---
 
@@ -624,7 +627,7 @@ Markicab = "OS for group journeys" (NOT a motorcycle app; riders = initial wedge
 | Milestone | Goal | Status |
 |---|---|---|
 | **M1 — AUTH FOUNDATION** | email/password auth usable + safe | ✅ **CLOSED** (P-AUTHLOOP fixed, SMTP verified, PostgREST 10/10, browser signup E2E, anon disabled, pw min-10). AUTH-E2E cards CLOSED — do not reopen w/o new evidence. |
-| **M2 — DATA FOUNDATION** | Supabase authoritative; audit localStorage; sync-ready model; offline prep; clean trip/group/member/item/expense rels | 🟡 **ACTIVE** (audit done; schema design pending approval — see PHASE5_MIGRATION.md) |
+| **M2 — DATA FOUNDATION** | Supabase authoritative; audit localStorage; sync-ready model; offline prep; clean trip/group/member/item/expense rels | 🟢 **IMPLEMENTED** (additive tables + RLS live; dual-write sync layer deployed; idempotent backfill verified; local-draft-before-login preserved) |
 | **M3 — TRIP CORE** | interactive maps, routes, POIs, collaborative itinerary, group/member mgmt, shared expenses/items, cross-device persistence, clean refresh/relogin | ⚪ BACKLOG |
 | **M4 — JOURNEY MODE** | live group location (GENERIC, not rider-only), last-seen/moving/stopped, offline, sync queue, location gallery, photos, replay, shareable links, WhatsApp share | ⚪ BACKLOG |
 | **M5 — SOCIAL LAYER** | public trips, discovery, profiles, communities, events, follow, inspiration, recommendations | ⚪ BACKLOG |
