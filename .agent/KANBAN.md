@@ -762,3 +762,32 @@ Because the Auth UX `<script>` block never parsed, the auth modal wiring, sessio
 **Verified live:** launched Chrome (9222), loaded `https://marki.cab/trip-planner.html` → **NO JS syntax errors** (only the expected `[dbg] startup` log). Deployed file confirmed fixed (`content:""` present, broken dot gone). Commit `b06156f`.
 
 **Lesson (add to quality gate):** run `node --check` on every inline `<script>` block after any frontend edit — would have caught this immediately.
+
+## M3 COMPLETION — BROWSER E2E CLOSED (2026-08-19)
+
+**Two real gaps found in founder's manual E2E, both fixed + verified:**
+
+1. **Persistence failure** — after logout/login the creator's trip disappeared.
+   - Root cause: `loadServerGroups()` called `list_my_groups()` RPC, which declared `start_date/end_date` as `text` but the `groups` table columns are `date` → PostgREST `42804: structure of query does not match function result type`. The function threw silently, so the trip never hydrated.
+   - Fix: `M3_phase2_list_my_groups_fix.sql` — declare columns as `date`. Commit `5f2b0d3`.
+   - Verified (browser, hard reload = fresh session): trip reappears in "Trip mendatang".
+
+2. **Guest soft-convert** — `?gt=` opened read-only but had no join path.
+   - Fix: `renderGuestTrip` now renders "Bergabung sebagai anggota" / "Masuk / Daftar untuk bergabung" CTA → `redeemInvitation(token)` on click.
+   - Verified (browser): invite link shows the CTA; trip content renders.
+
+**Full M3 completion checklist — ALL PASS:**
+- Creator: signup/login ✅ | create trip ✅ | owner badge ✅ | invite visible ✅
+- Persistence: logout → login → trip reappears ✅ (was the failing item)
+- Member via `?gt=`: join CTA ✅ | redeem → member record ✅ | role=member ✅
+- Member perms: `can_edit=true, can_delete=false, can_invite=false` ✅ (gating correct)
+- Member: no delete/share ✅ | can add agenda/expense ✅
+- Owner: remove_member ✅ | delete_group ✅ | list_my_groups returns trip ✅
+
+**M3 COLLAB FOUNDATION = CLOSED.** Next: M4 (map foundation + route/waypoint model).
+
+**M4 preview (production-grade, NOT Emergent-style):**
+```
+Trip → Route → Waypoints → Stops → Member location permission → Journey mode
+```
+Foundations for: live rider location, offline mode, GPX route, safety, trip memories.
