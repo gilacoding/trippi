@@ -78,6 +78,23 @@
     });
   }
 
+  // M3.5: Social login (Google first; Apple later). Adds an auth PATH,
+  // does NOT replace email/password. auth.uid() stays the identity, so
+  // ownership/RLS/permissions are untouched. No schema change.
+  function signInWithOAuth(provider, redirectTo) {
+    return getClient().then(function (client) {
+      if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+      return client.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          // Return to the same page so Supabase-js can pick up the session
+          // from the URL hash and fire SIGNED_IN through onAuthChange.
+          redirectTo: redirectTo || window.location.href
+        }
+      });
+    });
+  }
+
   function signOut() {
     cachedUid = null; authReady = false;
     return getClient().then(function (client) {
@@ -116,6 +133,7 @@
     ensureAuth: ensureAuth,
     signUpWithEmail: signUpWithEmail,
     signInWithEmail: signInWithEmail,
+    signInWithOAuth: signInWithOAuth,
     signOut: signOut,
     onAuthChange: onAuthChange,
     getSession: getSession,

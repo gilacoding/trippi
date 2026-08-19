@@ -53,6 +53,10 @@
     <div class="auth-card">
       <h2 id="authTitle">Masuk</h2>
       <p class="muted" id="authLead">Masuk untuk membuat dan bergabung dengan grup perjalanan.</p>
+      <div class="auth-social">
+        <button type="button" class="btn google" id="googleBtn"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Lanjut dengan Google</button>
+        <div class="auth-divider"><span>atau</span></div>
+      </div>
       <form class="form-card form-grid" id="authForm" style="border:0;padding:0;background:none">
         <div class="field"><label for="authEmail">Email</label><input id="authEmail" type="email" required maxlength="200" placeholder="you@example.com" autocomplete="email"></div>
         <div class="field" id="authNameField" style="display:none"><label for="authName">Nama</label><input id="authName" type="text" maxlength="40" placeholder="Nama lengkap / panggilan" autocomplete="name"></div>
@@ -531,10 +535,13 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   $('cancelGroupExpense').onclick=()=>{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false};
   $('groupWishForm').onsubmit=addGroupWish;
   $('cancelGroupWish').onclick=()=>{$('groupWishForm').reset();$('groupWishForm').parentElement.open=false};
+  // M3.5: capture pending guest token so a newly-authenticated user can be
+  // soft-converted into a real member of the trip they were viewing.
+  var pendingGuestToken=null;
   // auto-open guest trip from ?gt={token} (M2 security patch: guest, no login)
   (async()=>{
     const gt=new URLSearchParams(location.search).get('gt');
-    if(gt){ dbg('startup: guest token = '+gt.slice(0,8)+'…'); await openGuestTrip(gt); return; }
+    if(gt){ pendingGuestToken=gt; dbg('startup: guest token = '+gt.slice(0,8)+'…'); await openGuestTrip(gt); return; }
   })();
 
   // auto-join from ?group= share link
@@ -551,7 +558,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 (function(){
   // modal CSS (injected once; avoids editing the main <style> block)
   var css=document.createElement('style');
-  css.textContent='.auth-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(8,10,15,.72);padding:18px}.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}.auth-card h2{margin:0 0 4px}.auth-card .muted{font-size:13px;margin:0 0 16px}.auth-error{color:var(--danger);font-size:13px;min-height:18px;margin:2px 0 4px;font-weight:650}.auth-switch{font-size:13px;margin:14px 0 0}.auth-switch a{color:var(--accent2);font-weight:750}.auth-note{font-size:12px;line-height:1.5;margin:12px 0 0;padding:10px 12px;background:rgba(255,179,92,.08);border:1px solid rgba(255,179,92,.18);border-radius:11px}.show-pw{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted);margin-top:8px;cursor:pointer;user-select:none}.show-pw input{width:auto;margin:0;accent-color:var(--accent2);cursor:pointer}.role-badge{display:inline-block;font-size:11px;font-weight:700;color:var(--accent2);background:rgba(255,179,92,.12);border:1px solid rgba(255,179,92,.3);border-radius:8px;padding:1px 7px;margin-left:4px;vertical-align:middle}';
+  .css.textContent='.auth-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(8,10,15,.72);padding:18px}.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}.auth-card h2{margin:0 0 4px}.auth-card .muted{font-size:13px;margin:0 0 16px}.auth-social{margin-bottom:14px}.btn.google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f2330;font-weight:700;border:1px solid #d6dae2}.btn.google:hover{background:#f3f4f6}.auth-divider{display:flex;align-items:center;text-align:center;color:var(--muted);font-size:12px;margin:14px 0 4px}.auth-divider:before,.auth-divider:after{content:'';flex:1;height:1px;background:var(--line)}.auth-divider span{padding:0 12px}.auth-error{color:var(--danger);font-size:13px;min-height:18px;margin:2px 0 4px;font-weight:650}.auth-switch{font-size:13px;margin:14px 0 0}.auth-switch a{color:var(--accent2);font-weight:750}.auth-note{font-size:12px;line-height:1.5;margin:12px 0 0;padding:10px 12px;background:rgba(255,179,92,.08);border:1px solid rgba(255,179,92,.18);border-radius:11px}.show-pw{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted);margin-top:8px;cursor:pointer;user-select:none}.show-pw input{width:auto;margin:0;accent-color:var(--accent2);cursor:pointer}.role-badge{display:inline-block;font-size:11px;font-weight:700;color:var(--accent2);background:rgba(255,179,92,.12);border:1px solid rgba(255,179,92,.3);border-radius:8px;padding:1px 7px;margin-left:4px;vertical-align:middle}';
   document.head.appendChild(css);
 
   var pendingAction=null;          // action to run after successful login
@@ -616,6 +623,21 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     await API.signOut(); // onAuthChange SIGNED_OUT will update UI
   };
 
+  // M3.5: Google OAuth button (adds a login path; email/password stays).
+  // On success Supabase redirects to redirectTo; the returned session fires
+  // SIGNED_IN through onAuthChange, which runs onSessionReady + soft-converts
+  // a guest (?gt=) viewer into a member via redeem_invitation.
+  var googleBtn=document.getElementById('googleBtn');
+  if(googleBtn) googleBtn.onclick=async function(){
+    errEl.textContent='';
+    googleBtn.disabled=true;
+    var r=await API.signInWithOAuth('google');
+    if(r.error){ errEl.textContent=humanErr(r.error); googleBtn.disabled=false; return; }
+    // If a session is returned inline (no redirect, e.g. popup flows), handle it:
+    if(r.data&&r.data.session){ /* onAuthChange will fire */ }
+    // Otherwise the browser is redirecting to Google now — leave button disabled.
+  };
+
   function humanErr(e){
     var m=(e&&e.message)||'';
     if(/invalid login/i.test(m)||/email or password/i.test(m)) return 'Email atau password salah.';
@@ -631,6 +653,15 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(event==='SIGNED_IN'||(session&&uid)){
       colState.uid=uid;
       document.getElementById('logoutBtn').style.display='';
+      // M3.5: capture OAuth display name (Google/Apple) so it's available
+      // for trips/members without re-prompting. Falls back to existing.
+      var metaName=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.full_name||session.user.user_metadata&&session.user.user_metadata.name;
+      if(metaName&&typeof saveName==='function'){ saveName(String(metaName).slice(0,40)); colState.name=String(metaName).slice(0,40); }
+      // M3.5: soft-convert a guest (?gt=) viewer into a real member of the
+      // trip they were viewing. redeem_invitation accepts authenticated users.
+      if(pendingGuestToken){
+        (async()=>{ try{ const nm=(colState.name)||''; await API.redeemInvitation(pendingGuestToken, nm||null); pendingGuestToken=null; if(colState.group) openGroup(colState.group.id,false); }catch(e){ console.warn('soft-convert failed',e); } })();
+      }
       closeAuth();
       onSessionReady(uid); // M2: backfill local trips to Supabase (idempotent, non-blocking)
       if(pendingAction){ var a=pendingAction; pendingAction=null; if(typeof a==='function') a(); else if(a==='makeGroup') makeGroupFromTrip(); }
