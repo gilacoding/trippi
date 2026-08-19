@@ -376,6 +376,77 @@
         .order('created_at');
     },
 
+    // ── Personal Trips (M2: Supabase = source of truth) ───────────
+    // Direct table access; RLS (owner-only, authenticated) protects rows.
+    // These are for the LOGGED-IN user's own trips. LocalStorage remains
+    // cache/draft/offline; these methods back the dual-write sync layer.
+    // Idempotent backfill keyed on local_id (unique(user_id, local_id)).
+    upsertTrip: function (trip) {
+      // trip = { local_id, name, destination, start_date, end_date, note }
+      return cachedClient
+        .from('trips')
+        .upsert({
+          local_id:    trip.local_id,
+          name:        trip.name || '',
+          destination: trip.destination || '',
+          start_date:  trip.start || null,
+          end_date:    trip.end || null,
+          note:        trip.note || ''
+        }, { onConflict: 'user_id,local_id' })
+        .select('id, local_id').single();
+    },
+
+    // Insert agenda items for a trip, keyed by (trip_id, local_id) for idempotency.
+    upsertAgenda: function (tripSbId, items) {
+      if (!items || !items.length) return Promise.resolve({ data: [], error: null });
+      var rows = items.map(function (i) {
+        return {
+          trip_id: tripSbId,
+          local_id: i.id,
+          date: i.date || null,
+          title: i.title || '',
+          time: i.time || '',
+          budget: Number(i.budget) || 0,
+          link: i.link || '',
+          note: i.note || ''
+        };
+      });
+      return cachedClient.from('agenda_items').upsert(rows, { onConflict: 'trip_id,local_id' }).select('id');
+    },
+
+    upsertExpenses: function (tripSbId, expenses) {
+      if (!expenses || !expenses.length) return Promise.resolve({ data: [], error: null });
+      var rows = expenses.map(function (x) {
+        return {
+          trip_id: tripSbId,
+          local_id: x.id,
+          date: x.date || null,
+          name: x.name || '',
+          amount: Number(x.amount) || 0,
+          category: x.category || 'Lainnya',
+          note: x.note || ''
+        };
+      });
+      return cachedClient.from('expenses').upsert(rows, { onConflict: 'trip_id,local_id' }).select('id');
+    },
+
+    // Pull server trips (used only after verify, for the eventual read-switch).
+    listTrips: function () {
+      return cachedClient
+        .from('trips')
+        .select('id, local_id, name, destination, start_date, end_date, note, updated_at')
+        .order('updated_at', { ascending: false });
+    },
+
+    countTrips: function () {
+      return cachedClient.from('trips').select('*', { count: 'exact', head: true });
+    },
+
+    // Hard-delete a trip + children (used only in cleanup phase, never during dual-write).
+    deleteTrip: function (sbId) {
+      return cachedClient.from('trips').delete().eq('id', sbId);
+    },
+
     // ── Realtime ────────────────────────────────────────────────────
     // The frontend creates a Supabase Realtime channel and manages its
     // lifecycle. We expose the underlying client so the channel API

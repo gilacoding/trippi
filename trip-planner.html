@@ -185,8 +185,60 @@
   const saveName=n=>localStorage.setItem('trippi_display_name',n);
   const money=value=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(value)||0);
   const dateText=value=>new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(new Date(value+'T12:00:00'));
-  const save=()=>localStorage.setItem(STORE_KEY,JSON.stringify({trips:state.trips,toGo:state.toGo}));
+  const MIG_KEY='trippi_migration_v';
+  const SYNC_VERSION=1;
+  const getMig=()=>parseInt(localStorage.getItem(MIG_KEY)||'0',10)||0;
+  const setMig=v=>localStorage.setItem(MIG_KEY,String(v));
+  // Dual-write scheduler: localStorage write is synchronous + authoritative for render.
+  // Server sync is best-effort, non-blocking, failure-tolerant (never throws to UI).
+  let _syncTimer=null;
+  const scheduleSync=()=>{ if(_syncTimer)clearTimeout(_syncTimer); _syncTimer=setTimeout(syncActiveTrip,400); };
+  const save=()=>{ localStorage.setItem(STORE_KEY,JSON.stringify({trips:state.trips,toGo:state.toGo})); scheduleSync(); };
   function load(){try{const current=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(current){state.trips=current.trips||[];state.toGo=current.toGo||[]}else{state.trips=JSON.parse(localStorage.getItem(LEGACY_STORE_KEY)||'[]');state.toGo=[];save()}}catch{state.trips=[];state.toGo=[]}}
+
+  // ── M2 Sync layer (Supabase = source of truth; localStorage = cache/draft) ──
+  // Guardrails: idempotent (local_id upsert), per-trip failure isolation,
+  // never clears localStorage, keeps trippi_personal_planner_v2 until promoted.
+  async function syncTrip(trip){
+    if(!colState.uid||!trip)return;
+    try{
+      const sb=await API.upsertTrip({local_id:trip.id,name:trip.name,destination:trip.destination,start:trip.start,end:trip.end,note:trip.note});
+      if(sb.error){console.error('[sync] trip upsert failed',sb.error);return;}
+      const sbId=sb.data&&sb.data.id; if(!sbId)return;
+      trip.supabase_trip_id=sbId;
+      await API.upsertAgenda(sbId,trip.items||[]);
+      await API.upsertExpenses(sbId,trip.expenses||[]);
+      trip.synced_at=Date.now();
+      // persist the mapping locally (does not clear v2)
+      try{localStorage.setItem(STORE_KEY,JSON.stringify({trips:state.trips,toGo:state.toGo}));}catch{}
+    }catch(e){console.error('[sync] trip sync error',e);}
+  }
+  async function syncActiveTrip(){
+    if(!colState.uid)return;
+    const t=getTrip();
+    if(t&&!t.readOnlyTrip) await syncTrip(t);
+  }
+  // Backfill: push all local trips lacking a server id. Idempotent via local_id.
+  async function backfillAndSync(){
+    if(!colState.uid)return;
+    const localTrips=(state.trips||[]).filter(t=>!t.supabase_trip_id);
+    for(const t of localTrips){
+      try{ await syncTrip(t); }catch(e){ console.error('[sync] backfill trip failed (skipped, non-fatal):',e); }
+    }
+    if(localTrips.length) setMig(SYNC_VERSION);
+    await verifySync();
+  }
+  // Verify local(server-backed) vs Supabase counts; logs only (read-switch happens later).
+  async function verifySync(){
+    try{
+      const sb=await API.countTrips();
+      const sbCount=(sb.data&&typeof sb.data.count==='number')?sb.data.count:(sb.count||0);
+      const localCount=(state.trips||[]).filter(t=>t.supabase_trip_id).length;
+      console.log('[sync] verify local(server-backed)='+localCount+' server='+sbCount+(sbCount===localCount?' MATCH':' MISMATCH'));
+    }catch(e){ console.error('[sync] verify error',e); }
+  }
+  // Hook: when a session appears, backfill. Preserves local-draft-before-login (only runs if uid).
+  async function onSessionReady(uid){ if(uid){ colState.uid=uid; await backfillAndSync(); } }
   function daysBetween(start,end){const days=[];let d=new Date(start+'T12:00:00'), last=new Date(end+'T12:00:00');while(d<=last){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1)}return days}
   function tripStatus(trip){const today=new Date();today.setHours(0,0,0,0);const start=new Date(trip.start+'T00:00:00');start.setHours(0,0,0,0);const end=new Date(trip.end+'T00:00:00');end.setHours(0,0,0,0);if(today>end)return ['past','Selesai'];if(today>=start)return ['active','Berlangsung'];return ['upcoming','Mendatang']}
   function getTrip(){return state.readOnlyTrip||state.trips.find(t=>t.id===state.activeTripId)}
@@ -459,6 +511,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       colState.uid=uid;
       document.getElementById('logoutBtn').style.display='';
       closeAuth();
+      onSessionReady(uid); // M2: backfill local trips to Supabase (idempotent, non-blocking)
       if(pendingAction){ var a=pendingAction; pendingAction=null; if(typeof a==='function') a(); else if(a==='makeGroup') makeGroupFromTrip(); }
     } else if(event==='SIGNED_OUT'||(!session)){
       colState.uid=null;
