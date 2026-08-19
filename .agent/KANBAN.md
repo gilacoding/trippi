@@ -713,6 +713,12 @@ Markicab = "OS for group journeys" (NOT a motorcycle app; riders = initial wedge
 
 **Next (M4):** live journey, map layer, offline mode, group movement, trip memories.
 
+## M4 prep — Markicab Product Architecture doc (2026-08-19)
+- Written `.agent/markicab-architecture.md`, commit `4181f3d`.
+- Grounded in live state: staged M1→M6 roadmap, live system layers, identity/auth (email+Google; anon auth disabled), the **permission model (owner/member/guest matrix)** as source of truth, the **trip object as a clean container** (identity/people/plan/memories), agenda-as-operating-plan (DAY n · k stops · 📍 pins), small expenses model with `paid_by`, and the guest→soft-convert flow.
+- Flags stale `.agent/architecture.md` (old M0 "permissive RLS" doc; superseded).
+- M4 backlog: map foundation → route/waypoint model → offline cache → live location (consent, after map model exists) → trip memories.
+
 ## M3.5 — Google OAuth login (2026-08-19)
 
 **Why:** reduce onboarding friction; a shared-trip recipient should "Tap Google → I'm in" instead of creating a password. Does NOT replace email/password — adds an auth PATH. Per founder: keep M1/M2 identity model (auth.uid() unchanged) → RLS/ownership/permissions untouched.
