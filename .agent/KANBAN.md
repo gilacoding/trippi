@@ -739,3 +739,19 @@ Markicab = "OS for group journeys" (NOT a motorcycle app; riders = initial wedge
 - **OAuth account ownership/RLS**: unchanged by construction — Phase 1 matrix is `auth.uid()`-based, provider-agnostic. An OAuth user creates groups as `owner` exactly like email users. Guest→member soft-conversion on SIGNED_IN works for OAuth too.
 
 **Apple OAuth:** defer to native-iOS planning (App Store requirement). Same pattern, later.
+
+## CRITICAL FIX — trip-planner.html auth script syntax (2026-08-19)
+
+**Symptom reported by founder:** `trip-planner.html:561 Uncaught SyntaxError: Unexpected token '.'` → "Layanan grup belum tersedia" on group actions, login error on refresh. This was the REAL M3 blocker, not Supabase/RPC/DB.
+
+**Root cause (two bugs on line 561, both introduced in an earlier session, pre-existing):**
+1. Leading `.` → `.css.textContent=...` (illegal token).
+2. CSS string `content:''` (nested single quotes) terminated the JS single-quoted string early → SyntaxError.
+
+Because the Auth UX `<script>` block never parsed, the auth modal wiring, session init, and Google button were ALL dead. That explains the login/refresh failures.
+
+**Fix:** removed leading dot; changed `content:''` → `content:""`. All 3 inline script blocks now pass `node --check`.
+
+**Verified live:** launched Chrome (9222), loaded `https://marki.cab/trip-planner.html` → **NO JS syntax errors** (only the expected `[dbg] startup` log). Deployed file confirmed fixed (`content:""` present, broken dot gone). Commit `b06156f`.
+
+**Lesson (add to quality gate):** run `node --check` on every inline `<script>` block after any frontend edit — would have caught this immediately.
