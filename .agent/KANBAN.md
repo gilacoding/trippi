@@ -730,4 +730,12 @@ Markicab = "OS for group journeys" (NOT a motorcycle app; riders = initial wedge
 5. (site_url already `https://marki.cab/`; redirect back to app is `window.location.href` in code.)
 - Until enabled, the button shows an error ("provider not enabled"); email/password still works.
 
+**ENABLED 2026-08-19 (founder-provided Google creds via Mgmt API PATCH /config/auth):**
+- `external_google_enabled=true`, client_id + secret set.
+- Verified: `GET /auth/v1/authorize?provider=google&redirect_to=...` → 302 → `accounts.google.com/o/oauth2/v2/auth` with correct client_id. ✅
+- Google OAuth Client ID redirect_uri already `https://ishflkcsdzlhhxtanhxf.supabase.co/auth/v1/callback`; javascript_origins includes `https://marki.cab`. ✅
+- Frontend (`googleBtn`) + backend (`signInWithOAuth`) deployed & confirmed live at marki.cab.
+- **Security**: founder's `client_secret_*.json` MUST be deleted from disk (Hermes attachments) — live credential, now redundant since stored in Supabase.
+- **OAuth account ownership/RLS**: unchanged by construction — Phase 1 matrix is `auth.uid()`-based, provider-agnostic. An OAuth user creates groups as `owner` exactly like email users. Guest→member soft-conversion on SIGNED_IN works for OAuth too.
+
 **Apple OAuth:** defer to native-iOS planning (App Store requirement). Same pattern, later.
