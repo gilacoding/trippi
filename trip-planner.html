@@ -223,9 +223,22 @@
     $('groupName').textContent = t.name || 'Trip';
     $('groupMeta').textContent = [t.destination, t.start_date||'', t.end_date||''].filter(Boolean).join(' · ');
     $('groupStats').innerHTML = '';
-    // guest: NO make-group / NO share / NO leave (read-only). Hide those controls.
     const ig = document.getElementById('inviteGroupBtn'); if(ig) ig.style.display='none';
     const lg = document.getElementById('leaveGroupBtn'); if(lg) lg.style.display='none';
+    // M3.5: guest soft-convert CTA — "Bergabung sebagai anggota" / "Masuk / Daftar untuk bergabung"
+    const joinCta = colState.uid
+      ? `<button class="btn secondary small" id="guestJoinBtn" style="margin-top:8px">Bergabung sebagai anggota</button>`
+      : `<button class="btn secondary small" id="guestJoinBtn" style="margin-top:8px">Masuk / Daftar untuk bergabung</button>`;
+    const banner = document.getElementById('readOnlyBanner');
+    if(banner){ banner.innerHTML = `Mode lihat saja — trip ini dibuka dari link bagikan.${joinCta}`; banner.style.display='block'; }
+    const jb = document.getElementById('guestJoinBtn');
+    if(jb) jb.onclick = async ()=>{
+      if(!colState.uid){ openAuth('login'); return; }
+      const token = (state.readOnlyTrip && state.readOnlyTrip.guestToken) || null;
+      if(!token){ alert('Token undangan hilang. Minta pembuat trip mengirim ulang link.'); return; }
+      try{ await API.redeemInvitation(token, colState.name||null); alert('Kamu sekarang anggota trip ini.'); location.reload(); }
+      catch(e){ alert('Gagal bergabung: '+(e.message||e)); }
+    };
     // render itinerary from payload
     const list = (t.items||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     $('groupItineraryList').innerHTML = list.length
@@ -286,12 +299,34 @@
     }catch(e){ console.error('[sync] verify error',e); }
   }
   // Hook: when a session appears, backfill. Preserves local-draft-before-login (only runs if uid).
-  async function onSessionReady(uid){ if(uid){ colState.uid=uid; await backfillAndSync(); } }
+  async function onSessionReady(uid){ if(uid){ colState.uid=uid; await backfillAndSync(); await loadServerGroups(); } }
   function daysBetween(start,end){const days=[];let d=new Date(start+'T12:00:00'), last=new Date(end+'T12:00:00');while(d<=last){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1)}return days}
   function tripStatus(trip){const today=new Date();today.setHours(0,0,0,0);const start=new Date(trip.start+'T00:00:00');start.setHours(0,0,0,0);const end=new Date(trip.end+'T00:00:00');end.setHours(0,0,0,0);if(today>end)return ['past','Selesai'];if(today>=start)return ['active','Berlangsung'];return ['upcoming','Mendatang']}
   function getTrip(){return state.readOnlyTrip||state.trips.find(t=>t.id===state.activeTripId)}
   function show(view){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(view).classList.add('active')}
   function openSharedTrip(trip){state.readOnlyTrip=trip;state.activeTripId=null;state.editTripId=null;state.activeDate=trip.start;renderPlanner();show('plannerView')}
+  async function loadServerGroups(){
+    if(!colState.uid)return;
+    try{
+      const { data, error } = await API.listMyGroups();
+      if(error || !data || !data.length)return;
+      // Map server groups into local state.trips so renderHome shows them.
+      // Use server id as local id to avoid dupes; merge by id.
+      const now=[...state.trips];
+      data.forEach(g=>{
+        const existing=now.find(t=>t.id===g.id||t.serverId===g.id);
+        if(existing){
+          existing.name=g.name; existing.destination=g.destination||'';
+          existing.start=g.start_date||existing.start; existing.end=g.end_date||existing.end;
+          existing.serverId=g.id; existing.isGroup=true; existing.role=g.role;
+          existing._member_count=g.member_count; existing._item_count=g.item_count; existing._expense_total=g.expense_total;
+        }else{
+          now.push({id:g.id,serverId:g.id,name:g.name,destination:g.destination||'',start:g.start_date||'2026-01-01',end:g.end_date||'2026-01-01',items:[],expenses:[],isGroup:true,role:g.role,_member_count:g.member_count,_item_count:g.item_count,_expense_total:g.expense_total});
+        }
+      });
+      state.trips=now; save(); renderHome();
+    }catch(e){ console.warn('[groups] loadServerGroups failed',e); }
+  }
   function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));now.sort((a,b)=>a.start.localeCompare(b.start));past.sort((a,b)=>b.end.localeCompare(a.end));$('upcomingCount').textContent=now.length?`${now.length} trip`:'';$('historyCount').textContent=past.length?`${past.length} trip`:'';$('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class="empty"><strong>Belum ada trip yang direncanakan.</strong>Buat planner pertamamu untuk mulai menyusun perjalanan.</div>';$('historyTrips').innerHTML=past.length?past.map(t=>`<div class="history-card"><div><h3>${esc(t.name)}</h3><div class="trip-meta">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></div><button class="btn secondary small" data-open="${t.id}">Buka</button></div>`).join(''):'<div class="empty"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openTrip(b.dataset.open));renderToGo()}
   function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0);return `<button class="trip-card" data-open="${t.id}"><span class="state ${style}">${label}</span><h3>${esc(t.name)}</h3><div class="trip-meta">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div><div class="trip-summary"><span>${count} agenda</span><span>${daysBetween(t.start,t.end).length} hari</span><span>Keluar ${money(spent)}</span></div></button>`}
   function openTrip(id){state.activeTripId=id;state.readOnlyTrip=null;const trip=getTrip();state.activeDate=state.activeDate&&daysBetween(trip.start,trip.end).includes(state.activeDate)?state.activeDate:trip.start;renderPlanner();show('plannerView')}

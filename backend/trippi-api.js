@@ -508,6 +508,13 @@
         return client.rpc('list_my_invitations', { p_group_id: groupId });
       });
     },
+    // M3 Phase 2: list the logged-in user's groups (for home view persistence)
+    listMyGroups: function () {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('list_my_groups');
+      });
+    },
     // M3 Phase 1: permission matrix (owner/member) — single source of truth
     getTripPermissions: function (groupId) {
       return getClient().then(function (client) {
