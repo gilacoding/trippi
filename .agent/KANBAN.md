@@ -140,7 +140,21 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 - [x] Crew map placeholder + get_crew_locations read · state: DONE
 - [x] Browser geolocation + adaptive heartbeat upsert (after consent) · state: DONE
 - [ ] M4.5.6 Realtime subscription to member_locations · risk: LOW · state: DEFERRED
-- [ ] M4.5 Browser E2E (consent→geolocation→RPC→DB→map) · risk: MEDIUM · state: PENDING (NOT performed — source + REST verified only)
+- [ ] M4.5 Browser E2E (consent→geolocation→RPC→DB→map) · risk: MEDIUM · state: PENDING (manual 2-profile test)
+
+  Acceptance matrix (do NOT auto-revoke server consent on GPS denial — app consent ≠ device permission):
+  - Journey inactive → no location sharing
+  - Journey active + no consent → no GPS access
+  - Journey active + grant + GPS allowed → coordinates appear
+  - Grant + GPS denied → no coordinates; UI shows "Location blocked by browser"
+  - Stop sharing → server consent revoked (user action)
+  - Journey ended → location writes rejected
+  - Guest → no location UI
+  - Non-member → server rejection
+  - Member without consent → server rejection
+
+  FIX (post-E2E only): shareLocationHandler GPS-denied path shows clear UI state,
+  does NOT auto-revoke server consent. Then E2E passes → M4.5 CLOSED.
 
 - [ ] M4.5 Input validation · risk: MEDIUM · state: BACKLOG
 - [ ] M4.6 Loading states · risk: LOW · state: BACKLOG
