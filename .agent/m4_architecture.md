@@ -117,31 +117,76 @@ alter table public.shared_items
 
 ## 4. Phase M4.3 — Journey Mode (permission model FIRST, no GPS yet)
 
+**Scope rule (hard):** M4.3 establishes consent + authorization foundations ONLY. No GPS, no `watchPosition`, no geolocation stream, no `member_locations` writes. M4.4 introduces coordinates behind the gates defined here.
+
 ### 4.1 `journey_sessions`
 ```sql
 create table public.journey_sessions (
   id uuid primary key default gen_random_uuid(),
   group_id uuid not null references public.groups(id) on delete cascade,
-  enabled_by uuid references auth.users(id),
-  started_at timestamptz default now(),
-  ended_at timestamptz,
-  status text not null default 'planned' check (status in ('planned','active','completed','expired'))
+  enabled_by uuid references auth.users(id),       -- owner who started Journey Mode
+  started_at timestamptz,                          -- set when status -> active
+  ended_at   timestamptz,                          -- set when status -> completed
+  expires_at timestamptz,                          -- system-computed deadline (status -> expired)
+  status text not null default 'planned'
+       check (status in ('planned','active','completed','expired')),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  primary key (id)
 );
+create unique index uniq_active_journey_per_group
+  on public.journey_sessions (group_id) where (status = 'active');
 ```
-Owner-only: `create_journey_session` (status→active) / `end_journey_session` (status→completed) gated by `trip_permissions.can_manage_members` (owner).
-**Expiry fallback (system, no auto-delete):** a scheduled check (or `get_crew_locations` trigger) marks `active`→`expired` when `groups.end_date < current_date`. Forgotten sessions become `expired`, never silently deleted.
+- **Owner-only activation:** `start_journey_session(p_group_id)` gated by `trip_permissions(...).can_manage_members` (owner). Sets `status='active'`, `started_at=now()`, `expires_at = least(groups.end_date, now() + interval '24 hours')`.
+- **Owner-only end:** `end_journey_session(p_group_id)` → `status='completed'`, `ended_at=now()`.
+- **System expiry (no auto-delete):** a scheduled tick (or `get_crew_locations` admission check) marks `active`→`expired` when `now() > expires_at`. Forgotten sessions become `expired`, never silently deleted.
+- One active session per group (partial unique index on `status='active'`).
 
-### 4.2 `location_permissions`
+### 4.2 `location_permissions` (per-member consent ledger)
 ```sql
 create table public.location_permissions (
-  group_id uuid not null references public.groups(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  status text not null default 'denied' check (status in ('granted','denied')),
-  updated_at timestamptz default now(),
+  group_id    uuid not null references public.groups(id) on delete cascade,
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  permission  text not null default 'denied'
+       check (permission in ('granted','denied')),
+  granted_at  timestamptz,                         -- set when permission -> granted
+  revoked_at  timestamptz,                         -- set when permission -> denied (revoked)
+  updated_at  timestamptz default now(),
   primary key (group_id, user_id)
 );
 ```
-Flow: owner starts Journey Mode → each member gets a consent prompt (UI) → `grant_location_permission(p_group_id)` / `revoke_location_permission` → updates own row only (member can only write their own row; RLS: `user_id = auth.uid()`).
+- **Member writes OWN row only:** `grant_location_permission(p_group_id)` / `revoke_location_permission(p_group_id)` are SECURITY DEFINER functions that write **only** `user_id = auth.uid()`. The RLS row policy (`user_id = auth.uid()`) is a backstop — app-level enforcement is the authority.
+- **Owner cannot grant on behalf of another member:** there is NO `p_user_id` parameter. The function derives identity from `auth.uid()`. Attempting `rpc('grant_location_permission', {p_group_id, p_user_id: <other>})` → the extra param is rejected at signature level (`does not exist`), and even if present, is overwritten by `auth.uid()`. Owner starts the *session*; members opt in to *sharing their position*.
+- Default state `denied`: consent is opt-in, never opt-out. A row exists for every member (created by `join_group` default) so revocation is auditable.
+- `granted_at` / `revoked_at` timestamps form a consent ledger (updates flip the `permission` enum + the relevant timestamp). `updated_at = now()` on every write.
+
+### 4.3 Admission rule (the single privacy gate for M4.4)
+`get_crew_locations(p_group_id)` returns positions ONLY when ALL of:
+1. `journey_sessions`: a row exists with `status='active'` for the group (Journey Mode ON),
+2. the caller is a member (`is_group_member(group_id)`), AND
+3. the caller's `location_permissions.permission = 'granted'` for the group.
+
+**Guests (`?gt=` token: no `group_members` row) fail rules 1+2 — denied unconditionally.**
+
+### 4.4 Negative-case security contract (accepted before M4.4 ships)
+
+| # | Scenario | Expected | Enforced where |
+|---|---|---|---|
+| 1 | Guest (?gt=, no membership) requests location | DENIED | get_crew_locations: no session + no group_members row -> RLS reject |
+| 2 | Non-member authenticated user requests location | DENIED | get_crew_locations: is_group_member false -> RLS reject |
+| 3 | Member without consent requests location | DENIED | admission: location_permissions.permission='granted' false |
+| 4 | Member grants own consent | ALLOWED | grant_location_permission sets own row, permission='granted', granted_at=now() |
+| 5 | Member revokes own consent | DENIED (to others) | revoke_location_permission sets own row, permission='denied', revoked_at=now() |
+| 6 | Owner tries to grant member's consent | DENIED | no p_user_id param + RLS backstop user_id=auth.uid() |
+| 7 | No active Journey session | DENIED | get_crew_locations: no status='active' row -> 0 rows |
+| 8 | Active session + consent | ALLOWED | get_crew_locations returns rows where permission='granted' |
+
+**These 8 cases define the acceptance test for M4.4.** M4.4 must NOT alter them; it only adds the `member_locations` write path + the location *data* behind the existing gates.
+
+### 4.5 Consent UX (M4.3, no coordinates)
+- Owner: "Mulai Journey Mode" button (if can_manage_members). -> start_journey_session.
+- Member: upon active session, banner "Shared-location consent" -> "Share lokasiku" / "Jangan share". -> grant/revoke. State persisted in location_permissions.
+- No navigator.geolocation, no position stream, no map pin in M4.3.
 
 ---
 
@@ -162,7 +207,7 @@ create table public.member_locations (
 );
 ```
 - Write = `upsert_member_location` (member writes only their own row).
-- Read = `get_crew_locations(p_group_id)` → returns locations ONLY for members whose `location_permissions.status='granted'` AND a `journey_sessions` is `active`. This is the privacy gate.
+- Read = `get_crew_locations(p_group_id)` → returns locations ONLY for members whose `location_permissions.permission='granted'` (consent gate from 4.3) AND a `journey_sessions` is `active`. M4.4 adds coordinates behind these existing gates — it does NOT redefine consent/authorization.
 
 ### 5.2 Privacy rules (extends M3)
 | Role | Journey Mode | Location |
