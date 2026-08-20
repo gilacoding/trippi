@@ -814,7 +814,8 @@ double-joinGroup flow. Docs in commit `e545d8b`.
 
 ## M4 — MAP / JOURNEY FOUNDATION (implementation)
 
-### M4.3 Journey Permission — ✅ CLOSED (2026-08-20 — DB-level verified) (2026-08-20)
+### M4.3 Journey Permission — ✅ CLOSED (2026-08-20 — DB-level verified)
+### M4.4 Location Sharing — ✅ CLOSED (2026-08-20 — DB-level verified) (2026-08-20)
 **SQL-only** (no frontend code yet — no GPS, no map UI, no member_locations).
 Migration: `.agent/migrations/M4_phase2_journey.sql` (commit `b2c4a2f`).
 
