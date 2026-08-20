@@ -49,19 +49,19 @@ alter table public.journey_sessions enable row level security;
 alter table public.location_permissions enable row level security;
 
 -- journey_sessions: only members can see their group's sessions
-create policy "journey_select_members" on public.journey_sessions
+create policy if not exists "journey_select_members" on public.journey_sessions
   for select using (public.is_group_member(group_id));
 
 -- location_permissions: members can SELECT their group's rows (read own + view consent)
-create policy "locperm_select_members" on public.location_permissions
+create policy if not exists "locperm_select_members" on public.location_permissions
   for select using (public.is_group_member(group_id));
 
 -- location_permissions: member can INSERT only their OWN row (no p_user_id in RPCs)
-create policy "locperm_insert_self" on public.location_permissions
+create policy if not exists "locperm_insert_self" on public.location_permissions
   for insert with check (user_id = auth.uid());
 
 -- location_permissions: member can UPDATE only their OWN row
-create policy "locperm_update_self" on public.location_permissions
+create policy if not exists "locperm_update_self" on public.location_permissions
   for update using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
