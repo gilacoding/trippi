@@ -207,11 +207,12 @@
     },
 
     getGroup: function (id) {
-      return cachedClient
-        .from('groups')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
+      // Use list_my_groups RPC then filter — avoids REST .from('groups') RLS 403
+      return cachedClient.rpc('list_my_groups').then(function (r) {
+        var arr = (r && Array.isArray(r.data)) ? r.data : [];
+        var row = arr.find(function (g) { return g.id === id || g.group_id === id; }) || null;
+        return { data: row, error: r && r.error ? r.error : null };
+      });
     },
 
     // ── Group Members ───────────────────────────────────────────────
@@ -540,7 +541,13 @@
     getRoute: function (groupId) {
       return getClient().then(function (client) {
         if (!client) return { data: null, error: { message: 'Backend unavailable' } };
-        return client.rpc('get_route', { p_group_id: groupId });
+        return client.rpc('get_route', { p_group_id: groupId }).then(function (result) {
+          // get_route RPC returns jsonb; Supabase may pass it as a JSON string
+          if (result && result.data && typeof result.data === 'string') {
+            try { result.data = JSON.parse(result.data); } catch (e) { /* keep raw */ }
+          }
+          return result;
+        });
       });
     },
     createRoute: function (groupId, name) {

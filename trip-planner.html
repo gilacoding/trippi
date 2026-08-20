@@ -363,7 +363,7 @@
     if(state.editTripId){const trip=state.trips.find(t=>t.id===state.editTripId);if(!trip)return;trip.name=$('tripName').value.trim();trip.destination=$('tripDestination').value.trim();trip.start=start;trip.end=end;trip.note=$('tripNote').value.trim();state.editTripId=null;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';save();event.target.reset();openTrip(trip.id);return}
     await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId)}
   async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:loadName()||'Guest'});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
-colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await joinGroup(g.id);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}
+colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}
   function normalizeLink(value){const link=value.trim();if(!link)return '';return /^https?:\/\//i.test(link)?link:'https://'+link}
   function addAgenda(event){event.preventDefault();const trip=getTrip();trip.items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,title:$('agendaTitle').value.trim(),time:$('agendaTime').value,budget:$('agendaBudget').value,link:normalizeLink($('agendaLink').value),note:$('agendaNote').value.trim()});save();event.target.reset();$('addPanel').open=false;renderPlanner()}
   const categoryIcon=category=>({Makan:'🍜',Transport:'🚗',Hotel:'🛏️',Tiket:'🎟️',Belanja:'🛍️',Lainnya:'•'})[category]||'•';
@@ -574,6 +574,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(!groupId||!colState.group) return;
     const {data}=await API.getRoute(groupId);
     colState.route=(data&&data.data)||data||null;
+    if(colState.route && typeof colState.route.waypoints==='string'){
+      try{ colState.route.waypoints=JSON.parse(colState.route.waypoints); }catch(e){ colState.route.waypoints=[]; }
+    }
     renderRoute();
   }
   function renderRoute(){
@@ -601,7 +604,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       const cls=isFirst?'start':isLast?'end':'';
       const cat=(w.category||'').toUpperCase();
       const day=w.day_number?`Day ${w.day_number} · `:'';
-      const eta=w.estimated_arrival_time?`ETA ${dateText(w.estimated_arrival_time)} · `:'';
+      const eta=w.estimated_arrival_time?`ETA ${new Date(w.estimated_arrival_time).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})} · `:'';
       const note=w.notes?`<div class="route-meta">${esc(w.notes)}</div>`:'';
       const actions=canEdit?`<div class="route-actions"><button class="btn secondary small icon route-up" data-rid="${w.id}" ${isFirst?'disabled':''}>▲</button><button class="btn secondary small icon route-down" data-rid="${w.id}" ${isLast?'disabled':''}>▼</button><button class="btn secondary small icon route-del" data-rid="${w.id}">×</button></div>`:'';
       return `<article class="route-card"><div class="route-seq ${cls}">${String(w.sequence).padStart(2,'0')}</div><div class="route-copy"><div class="route-cat">${esc(cat)}</div><div class="route-name">${esc(w.name)}</div><div class="route-meta">${day}${eta}</div>${note}</div>${actions}</article>`;
@@ -691,7 +694,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     await loadRoute(colState.group.id);
     setTimeout(()=>openAddWaypoint(), 120);
   };
-  $('waypointForm').onsubmit=async(event=>{
+  $('waypointForm').onsubmit=async (event) => {
     event.preventDefault();
     const route=(colState.route&&colState.route.route)||null;
     if(!route){ alert('Buat route dulu.'); return; }
@@ -706,7 +709,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(error||!id){ alert('Gagal: '+(error&&error.message||'unknown')); return; }
     $('waypointForm').reset(); $('waypointForm').parentElement.open=false;
     await loadRoute(colState.group.id);
-  });
+  };
   $('cancelWaypoint').onclick=()=>{$('waypointForm').reset();$('waypointForm').parentElement.open=false};
   // M3.5: capture pending guest token so a newly-authenticated user can be
   // soft-converted into a real member of the trip they were viewing.
