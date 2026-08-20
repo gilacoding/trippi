@@ -791,3 +791,17 @@ Because the Auth UX `<script>` block never parsed, the auth modal wiring, sessio
 Trip → Route → Waypoints → Stops → Member location permission → Journey mode
 ```
 Foundations for: live rider location, offline mode, GPX route, safety, trip memories.
+
+## M4 — MAP / JOURNEY FOUNDATION (architecture: `.agent/m4_architecture.md`)
+
+**M4.1 Route Data Foundation — ✅ DEPLOYED + VERIFIED (2026-08-19)**
+- `group_routes` (one ACTIVE per group via `is_active` + partial unique index), `route_waypoints` (sequence-ordered, `category text`, `estimated_arrival_time`, `notes`).
+- RLS: 8 policies mirroring M3 `is_group_member()`.
+- RPCs (SECURITY DEFINER): `create_route`, `add_waypoint`, `reorder_waypoints`, `get_route`.
+- `shared_items.waypoint_id` FK added (M4.2 prep, backward-compatible).
+- Functional E2E: member-gated writes ✅ | non-member blocked ✅ | reorder ✅ | one-active rule ✅ | notes persisted ✅.
+- Migration: `.agent/migrations/M4_phase1_routes.sql` (commit `9e9fb72`).
+
+**Next:** M4.2 Route UI (route tab, waypoint display, reorder), then M4.3 Journey Permission, M4.4 Location Sharing.
+
+
