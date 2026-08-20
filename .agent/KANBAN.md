@@ -140,7 +140,7 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 - [x] Crew map placeholder + get_crew_locations read · state: DONE
 - [x] Browser geolocation + adaptive heartbeat upsert (after consent) · state: DONE
 - [ ] M4.5.6 Realtime subscription to member_locations · risk: LOW · state: DEFERRED
-- [ ] M4.5 Browser E2E (consent→geolocation→RPC→DB→map) · risk: MEDIUM · state: TODO
+- [ ] M4.5 Browser E2E (consent→geolocation→RPC→DB→map) · risk: MEDIUM · state: PENDING (NOT performed — source + REST verified only)
 
 - [ ] M4.5 Input validation · risk: MEDIUM · state: BACKLOG
 - [ ] M4.6 Loading states · risk: LOW · state: BACKLOG
