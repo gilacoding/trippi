@@ -133,6 +133,15 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 - [ ] M4.2 Supabase error handling · risk: MEDIUM · state: BACKLOG
 - [ ] M4.3 Authentication/session edge cases · risk: HIGH 🔒 REVIEW REQUIRED (auth) · state: BACKLOG
 - [ ] M4.4 RLS audit · risk: HIGH 🔒 REVIEW REQUIRED (RLS) · state: BACKLOG
+### M4.5 — Location Sharing UX (frontend layer behind M4.3/M4.4 gates)
+- [x] Journey Mode owner control (Start/End Journey buttons) · state: DONE
+- [x] Member consent banner (Share / Not now / Stop sharing) · state: DONE
+- [x] Guest isolation (?gt= hides location UI entirely) · state: DONE
+- [x] Crew map placeholder + get_crew_locations read · state: DONE
+- [x] Browser geolocation + adaptive heartbeat upsert (after consent) · state: DONE
+- [ ] M4.5.6 Realtime subscription to member_locations · risk: LOW · state: DEFERRED
+- [ ] M4.5 Browser E2E (consent→geolocation→RPC→DB→map) · risk: MEDIUM · state: TODO
+
 - [ ] M4.5 Input validation · risk: MEDIUM · state: BACKLOG
 - [ ] M4.6 Loading states · risk: LOW · state: BACKLOG
 - [ ] M4.7 Empty states · risk: LOW · state: BACKLOG
