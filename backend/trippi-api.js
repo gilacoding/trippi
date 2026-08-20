@@ -536,6 +536,57 @@
       });
     },
 
+    // ── M4.2 Route (wrappers over M4.1 SECURITY DEFINER RPCs) ───────
+    getRoute: function (groupId) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('get_route', { p_group_id: groupId });
+      });
+    },
+    createRoute: function (groupId, name) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('create_route', {
+          p_group_id: groupId,
+          p_name: name
+        });
+      });
+    },
+    addWaypoint: function (routeId, wp) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        wp = wp || {};
+        return client.rpc('add_waypoint', {
+          p_route_id: routeId,
+          p_name: wp.name,
+          p_sequence: wp.sequence != null ? wp.sequence : null,
+          p_latitude: wp.latitude != null ? wp.latitude : null,
+          p_longitude: wp.longitude != null ? wp.longitude : null,
+          p_day_number: wp.day_number ? wp.day_number : null,
+          p_category: wp.category || null,
+          p_arrival_time: wp.arrival_time || null,
+          p_departure_time: wp.departure_time || null,
+          p_estimated_arrival_time: wp.estimated_arrival_time || null,
+          p_notes: wp.notes || null
+        });
+      });
+    },
+    reorderWaypoints: function (routeId, orderedIds) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('reorder_waypoints', {
+          p_route_id: routeId,
+          p_ordered_ids: orderedIds
+        });
+      });
+    },
+    deleteWaypoint: function (waypointId) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.from('route_waypoints').delete().eq('id', waypointId);
+      });
+    },
+
     // ── Realtime ────────────────────────────────────────────────────
     // The frontend creates a Supabase Realtime channel and manages its
     // lifecycle. We expose the underlying client so the channel API
