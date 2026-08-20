@@ -802,6 +802,57 @@ Foundations for: live rider location, offline mode, GPX route, safety, trip memo
 - Functional E2E: member-gated writes ✅ | non-member blocked ✅ | reorder ✅ | one-active rule ✅ | notes persisted ✅.
 - Migration: `.agent/migrations/M4_phase1_routes.sql` (commit `9e9fb72`).
 
-**Next:** M4.2 Route UI (route tab, waypoint display, reorder), then M4.3 Journey Permission, M4.4 Location Sharing.
+### M4.2 Route UI — ✅ CLOSED (2026-08-20 — browser E2E verified)
+Browser E2E (Playwright headless + CDP RPC-trace): login ✅ | create trip ✅ | tab strip ✅ |
+empty state ("No route planned yet") ✅ | create route ✅ | add waypoint 1 ✅ → renders |
+add waypoint 2 ✅ → both render | reorder ▼ ✅ (RPC 200 + loadRoute refresh) |
+delete × ✅ | persistence ✅. 6 bugs found+fixed (commit `92ffe80`): async-arrow syntax crash,
+brace mismatch, REST→RPC getGroup (403), jsonb string parse, dateText datetime crash,
+double-joinGroup flow. Docs in commit `e545d8b`.
 
+---
+
+## M4 — MAP / JOURNEY FOUNDATION (implementation)
+
+### M4.3 Journey Permission — ✅ COMMITTED, deploy pending (2026-08-20)
+**SQL-only** (no frontend code yet — no GPS, no map UI, no member_locations).
+Migration: `.agent/migrations/M4_phase2_journey.sql` (commit `b2c4a2f`).
+
+**Schema:**
+- `journey_sessions`: owner-activated, system-expired, one-active-per-group (partial unique index).
+  `expires_at = min(end_date+23:59:59, started_at+24h)`. Rejects start if `end_date < current_date`.
+- `location_permissions`: opt-in-at-first-choice consent ledger. **No auto-row on join_group.**
+  `permission 'granted'|'denied'`, `granted_at`/`revoked_at` timestamps.
+- **No `member_locations`** (M4.4). No `navigator.geolocation` (M4.4). No realtime (M4.4).
+
+**6 RPCs** (all SECURITY DEFINER, `search_path=''`, `auth.uid()`-gated, no `p_user_id`):
+- `start_journey_session` — owner only; rejects past end_date; enforces one-active.
+- `end_journey_session` — owner only.
+- `grant_location_permission` — own row only (member self-grant; owner is not exempt).
+- `revoke_location_permission` — own row only.
+- `explicit_deny_location_permission` — own row only (audit alias).
+- `get_crew_locations` — the immutable privacy gate: 4 admission checks
+  (authenticated + member + active journey + own consent). Returns `[]` in M4.3.
+  Owner cannot grant member consent (no p_user_id param). Grants: authenticated ✅, public ❌.
+
+**M1–M3 untouched:** no ALTER/INSERT/UPDATE/DELETE on `groups`, `group_members`,
+`shared_items`, `group_expenses`, `invitations`. No M3 RPC signature changed.
+Regression baseline: `.agent/migrations/M4_phase2_journey_verify.sql` check 8 confirms
+all 9 M3 RPCs still exist with correct ownership/security-definer.
+
+**Verification harness (not yet run — requires deploy):**
+- `M4_phase2_journey_verify.sql` — 8 structural SQL assertions (tables, index, RPCs, grants, no-p_user_id, RLS, get_crew predicate, M1-M3 intact).
+- `M4_3_DB_VERIFY.js` — DB-level negative-case runner (8 scenarios via direct RPC + separate JWTs).
+- `M4_phase2_journey_verify_e2e.py` — Playwright CDP harness for browser-level coverage.
+
+**⚠️ Deploy required before verification:** SQL must be pasted into Supabase Dashboard
+SQL Editor (no CLI linked, no management token in env per security rules). Founder action:
+1. Paste `M4_phase2_journey.sql` into SQL Editor → run.
+2. Run `M4_phase2_journey_verify.sql` → all checks PASS.
+3. Obtain 3 JWTs (owner, member, non-member) → run `node M4_3_DB_VERIFY.js <URL> <anonKey> <ownerJwt> <memberJwt> <nonMemberJwt> <groupId>`.
+4. Run `M4_phase2_journey_verify_e2e.py` → all 8 scenarios PASS.
+
+**NEXT: M4.3 → M4.4 Location Sharing** (`member_locations`, `get_crew_locations` join,
+`upsert_member_location`, browser geolocation, adaptive heartbeat, realtime crew map).
+M4.4 will NOT alter the M4.3 admission gate — it only adds the position data behind it.
 
