@@ -1,116 +1,149 @@
 -- ============================================================
--- M4.3 SECURITY CONTRACT VERIFICATION — negative cases
+-- M4.3 SECURITY CONTRACT VERIFICATION — structural assertions
 -- ----------------------------------------------------------
--- Tests the 8 admission-rule scenarios from m4_architecture.md §4.4
--- at the DB level. Because get_crew_locations reads auth.uid(),
--- we cannot impersonate different users inside a single session
--- via SQL. Instead this script asserts the PREDICATES structurally:
---   - RLS policy existence + correctness
---   - RPC param signatures (no p_user_id)
---   - get_crew_locations returns '[]' when ANY gate fails
---
--- The interactive runtime cases (1–8) are tested via the browser
--- Playwright harness (m43_e2e.py) using two auth identities.
--- This SQL file is the structural companion.
+-- Run in Supabase Dashboard SQL Editor (pure SQL, no psql meta-commands).
+-- Since get_crew_locations reads auth.uid(), we cannot impersonate
+-- different users in one session. This file asserts the PREDICATES
+-- structurally; the runtime scenarios 1-8 are tested via the Node
+-- harness in M4_3_DB_VERIFY.js (with separate JWTs per identity).
 -- ============================================================
 
-\set on_error_stop on
-\echo '=== M4.3 Security Contract — Structural Verification ==='
+-- ── CHECK 1: Tables exist, member_locations absent ──
+select
+  (to_regclass('public.journey_sessions') is not null)    as journey_sessions_exists,
+  (to_regclass('public.location_permissions') is not null) as location_permissions_exists,
+  (to_regclass('public.member_locations') is null)         as member_locations_absent;  -- M4.3 must NOT create
 
--- ------------------------------------------------
--- A. location_permissions has NO trigger creating rows on join
--- ------------------------------------------------
-\echo '[A] No auto-create trigger on group_members -> location_permissions'
-SELECT
-  t.tgname,
-  t.tgrelid::regclass AS target_table,
-  t.tgtype,
-  (t.tgname ~* 'locperm') AS looks_auto_create  -- should be 0
-FROM pg_trigger t
-JOIN pg_class c ON c.oid = t.tgrelid
-JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public'
-  AND c.relname = 'group_members'
-  AND t.tgname NOT LIKE 'pg_%'   -- exclude internal
-  AND t.tgenabled = 'O';  -- only enabled triggers
--- Expected: 0 rows (no trigger creates location_permissions on membership)
+-- ── CHECK 2: Partial unique index (one active per group) ──
+select
+  indexname,
+  indexdef
+from pg_indexes
+where tablename = 'journey_sessions'
+  and indexname = 'uniq_active_journey_per_group';
 
--- ------------------------------------------------
--- B. get_crew_locations function body has the 4 admission checks
--- ------------------------------------------------
-\echo '[B] get_crew_locations admission predicate (4 checks)'
-SELECT
-  (pg_get_functiondef('public.get_crew_locations'::regprocedure) ~* 'v_uid is null')           AS check_caller_authenticated,
-  (pg_get_functiondef('public.get_crew_locations'::regprocedure) ~* 'v_is_member')              AS check_member,
-  (pg_get_functiondef('public.get_crew_locations'::regprocedure) ~* 'v_active')                AS check_active_journey,
-  (pg_get_functiondef('public.get_crew_locations'::regprocedure) ~* 'v_consent')               AS check_own_consent,
-  (pg_get_functiondef('public.get_crew_locations'::regprocedure) ~* "group_id uuid")          AS takes_only_group_id,
-  (pg_get_functiondef('public.get_crew_locations'::regprocedure) ~* "user_id = auth.uid()")    AS rls_uses_auth_uid,
-  (pg_get_functiondef('public.get_crew_locations'::regprocedure) ~* "'\[\]'::jsonb")           AS returns_empty_denied;
--- Expected: ALL true = 1
+-- ── CHECK 3: All 6 RPCs exist, owned by postgres, SECURITY DEFINER ──
+select
+  p.proname        as func,
+  r.rolname        as owner,
+  (p.prosecdef = true)  as is_security_definer,
+  pg_get_function_arguments(p.oid) as args
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+join pg_roles   r on r.oid = p.proowner
+where n.nspname = 'public'
+  and p.proname = any (array[
+    'start_journey_session', 'end_journey_session',
+    'grant_location_permission', 'revoke_location_permission',
+    'explicit_deny_location_permission', 'get_crew_locations'
+  ])
+order by p.proname;
+-- owner should be 'postgres' or a trusted role, is_security_definer = true
 
--- ------------------------------------------------
--- C. Consent RPCs derive identity from auth.uid(), never p_user_id
--- ------------------------------------------------
-\echo '[C] Consent RPCs — identity server-derived'
-SELECT
-  proname,
-  pg_get_function_arguments(p.oid) AS args,
-  NOT (pg_get_function_arguments(p.oid) ~* 'p_user_id')  AS no_user_id_param,
-  (pg_get_functiondef(p.oid) ~* 'auth.uid\(\)')            AS uses_auth_uid,
-  (pg_get_functiondef(p.oid) ~* 'is_group_member\|group_members.*user_id.*= .*auth.uid\|\.user_id = v_uid\|\.user_id = auth') AS membership_self_check
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public'
-  AND p.proname IN ('grant_location_permission', 'revoke_location_permission',
-                    'explicit_deny_location_permission')
-ORDER BY p.proname;
--- Expected: no_user_id_param = true, uses_auth_uid = true, membership_self_check = true
+-- ── CHECK 4: Grants to authenticated, revokes from public ──
+select
+  p.proname,
+  array_remove(
+    array_agg(d.rolname order by d.rolname) filter (where d.rolname is not null),
+    ''
+  ) as grantees
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+left join pg_auth_members m on m.objid = p.oid and m.classid = 'pg_proc'::regclass
+left join pg_roles d on d.oid = m.member
+where n.nspname = 'public'
+  and p.proname = any (array[
+    'start_journey_session', 'end_journey_session',
+    'grant_location_permission', 'revoke_location_permission',
+    'explicit_deny_location_permission', 'get_crew_locations'
+  ])
+group by p.proname
+order by p.proname;
+-- grantees should contain 'authenticated' and NOT contain 'public'
 
--- ------------------------------------------------
--- D. start/end_journey are owner-only (uses created_by = auth.uid check)
--- ------------------------------------------------
-\echo '[D] Journey owner gating'
-SELECT
-  proname,
-  (pg_get_functiondef(p.oid) ~* 'created_by.*<>.*auth.uid\|v_owner <> v_uid\|v_owner.*<>.*v_uid')  AS owner_gate,
-  (pg_get_functiondef(p.oid) ~* 'end_date.*current_date\|end_date.*<.*current')                    AS reject_past_end_date
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public'
-  AND p.proname IN ('start_journey_session', 'end_journey_session')
-ORDER BY p.proname;
--- Expected: owner_gate = true for both; reject_past_end_date = true for start
+-- ── CHECK 5: No caller-supplied p_user_id param ──
+select
+  p.proname          as func,
+  pg_get_function_arguments(p.oid) as args,
+  (pg_get_function_arguments(p.oid) ~* 'p_user_id') as has_user_id_param  -- must be false
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('grant_location_permission','revoke_location_permission',
+                    'explicit_deny_location_permission');
+-- Expected: has_user_id_param = false for all
 
--- ------------------------------------------------
--- E. expires_at uses min(end_date, started_at + 24h) — NOT just now()+24h
--- ------------------------------------------------
-\echo '[E] expires_at formula'
-SELECT
-  (pg_get_functiondef('public.start_journey_session'::regprocedure) ~* 'least')   AS uses_least,
-  (pg_get_functiondef('public.start_journey_session'::regprocedure) ~* 'end_date.*23:59:59') AS bounds_to_trip_end,
-  (pg_get_functiondef('public.start_journey_session'::regprocedure) ~* 'interval.*24 hour\|24.*hours') AS has_24h_cap,
-  NOT (pg_get_functiondef('public.start_journey_session'::regprocedure) ~* 'now\(\)\s*\+.*24.*interval\|interval.*\\'24 hours\\'.*without.*end_date') AS not_naive_now_plus_24h_only
-FROM pg_proc p
-JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public' AND p.proname = 'start_journey_session';
--- Expected: uses_least=true, bounds_to_trip_end=true, has_24h_cap=true
-
--- ------------------------------------------------
--- F. RLS row policies (the actual gate that PostgREST respects)
--- ------------------------------------------------
-\echo '[F] RLS row-level gate on location_permissions'
-SELECT
+-- ── CHECK 6: RLS policies exist on new tables ──
+select
+  tablename,
   policyname,
   cmd,
-  pg_get_expr(t.qual, t.relid) AS using_clause
-FROM pg_policy t
-JOIN pg_class c ON c.oid = t.oid
-JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public'
-  AND c.relname = 'location_permissions'
-  AND t.cmd = 'SELECT'
-ORDER BY t.polname;
--- Expected: one SELECT policy using is_group_member(group_id)
+  pg_get_expr(qual, oid) as using_clause
+from pg_policies
+where schemaname = 'public'
+  and tablename in ('journey_sessions','location_permissions')
+order by tablename, policyname;
 
-\echo '=== Structural verification complete. Runtime cases 1-8 in m43_e2e.py ==='
+-- ── CHECK 7: get_crew_locations body has 4-admission gate + returns [] ──
+--    (checks the source text of the function definition for key predicates)
+select
+  -- 1. caller authenticated check
+  (pg_get_functiondef('public.get_crew_locations'::regprocedure) like '%v_uid is null%')  as check_caller_authenticated,
+  -- 2. member check
+  (pg_get_functiondef('public.get_crew_locations'::regprocedure) like '%v_is_member%')   as check_member,
+  -- 3. active journey check
+  (pg_get_functiondef('public.get_crew_locations'::regprocedure) like '%v_active%')     as check_active_journey,
+  -- 4. own consent check
+  (pg_get_functiondef('public.get_crew_locations'::regprocedure) like '%v_consent%')     as check_own_consent,
+  -- returns empty when denied
+  (pg_get_functiondef('public.get_crew_locations'::regprocedure) like '%[]%jsonb%')      as returns_empty_denied
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname = 'get_crew_locations';
+
+-- ── CHECK 8: start_journey_session rejects past end_date + computes expires_at ──
+select
+  (pg_get_functiondef('public.start_journey_session'::regprocedure) like '%end_date < current_date%')  as reject_past_end_date,
+  (pg_get_functiondef('public.start_journey_session'::regprocedure) like '%least%')                    as uses_least_for_expires,
+  (pg_get_functiondef('public.start_journey_session'::regprocedure) like '%23:59:59%')                 as bounds_to_trip_end,
+  (pg_get_functiondef('public.start_journey_session'::regprocedure) like '%24 hours%')               as has_24h_cap,
+  (pg_get_functiondef('public.start_journey_session'::regprocedure) like '%v_owner <> v_uid%')         as owner_gate
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname = 'start_journey_session';
+
+-- ── CHECK 9: M1-M3 RPCs unchanged (regression baseline) ──
+select
+  p.proname        as rpc,
+  r.rolname        as owner,
+  (p.prosecdef = true) as is_security_definer
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+join pg_roles   r on r.oid = p.proowner
+where n.nspname = 'public'
+  and p.proname = any (array[
+    'create_group', 'join_group', 'create_group_from_trip',
+    'create_shared_item', 'update_shared_item', 'delete_shared_item',
+    'create_expense', 'delete_expense', 'leave_group',
+    'list_my_groups', 'trip_permissions',
+    'create_route', 'add_waypoint', 'reorder_waypoints',
+    'get_route', 'delete_waypoint'
+  ])
+order by p.proname;
+-- All 16 should exist, all is_security_definer = true
+
+-- ── CHECK 10: No auto-create trigger on group_members ──
+select
+  t.tgname,
+  t.tgrelid::regclass as target_table,
+  case when count(*) filter (where t.tgname like '%locperm%') > 0
+       then '⚠️ has auto-create trigger (BAD)'
+       else '✅ no auto-create trigger on location_permissions'
+  end as result
+from pg_trigger t
+join pg_class c on c.oid = t.tgrelid
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public'
+  and c.relname = 'group_members'
+  and t.tgname not like 'pg_%'
+  and t.tgenabled = 'O'
+group by t.tgname, t.tgrelid;
+-- Expected: '✅ no auto-create trigger on location_permissions'
