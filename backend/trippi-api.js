@@ -594,6 +594,79 @@
       });
     },
 
+    // ── M4.3 / M4.4 / M4.5: Journey Permission & Location Sharing ─────
+    // M4.5 is the FRONTEND layer built behind the M4.3/M4.4 backend gate.
+    // These methods are a 1:1 thin wrapper around the SECURITY DEFINER RPCs.
+    // No p_user_id param — identity is always auth.uid().
+
+    startJourney: function () {
+      var gid = colState.group && colState.group.id;
+      if (!gid) return Promise.resolve({ data: null, error: { message: 'No group context' } });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('start_journey_session', { p_group_id: gid });
+      });
+    },
+
+    endJourney: function () {
+      var gid = colState.group && colState.group.id;
+      if (!gid) return Promise.resolve({ data: null, error: { message: 'No group context' } });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('end_journey_session', { p_group_id: gid });
+      });
+    },
+
+    grantLocationConsent: function () {
+      var gid = colState.group && colState.group.id;
+      if (!gid) return Promise.resolve({ data: null, error: { message: 'No group context' } });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('grant_location_permission', { p_group_id: gid });
+      });
+    },
+
+    revokeLocationConsent: function () {
+      var gid = colState.group && colState.group.id;
+      if (!gid) return Promise.resolve({ data: null, error: { message: 'No group context' } });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('revoke_location_permission', { p_group_id: gid });
+      });
+    },
+
+    upsertMemberLocation: function (lat, lng, accuracy, heading, speed) {
+      var gid = colState.group && colState.group.id;
+      if (!gid) return Promise.resolve({ data: null, error: { message: 'No group context' } });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('upsert_member_location', {
+          p_group_id: gid,
+          p_lat: lat,
+          p_lng: lng,
+          p_accuracy_m: accuracy || 0,
+          p_heading_deg: heading || null,
+          p_speed_mps: speed || null
+        });
+      });
+    },
+
+    getCrewLocations: function () {
+      var gid = colState.group && colState.group.id;
+      if (!gid) return Promise.resolve({ data: null, error: { message: 'No group context' } });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('get_crew_locations', { p_group_id: gid });
+      });
+    },
+
+    // M4.5: getCrewLocations is the authoritative read path — it applies
+    // the same 4-gate admission check (auth.uid, is_group_member,
+    // active journey, consent=granted) and returns either positions
+    // or [] / error. Journey state is probed from its return shape
+    // (see renderJourneyView in trip-planner.html). No separate
+    // status RPC needed — avoids redundant side-effecting calls.
+
     // ── Realtime ────────────────────────────────────────────────────
     // The frontend creates a Supabase Realtime channel and manages its
     // lifecycle. We expose the underlying client so the channel API
