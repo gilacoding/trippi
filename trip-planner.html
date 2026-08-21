@@ -917,6 +917,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     }
     if(colState.poll)clearInterval(colState.poll);
     if(colState.channel)await API._getSb().removeChannel(colState.channel);
+    stopJourneyRealtime();  // M4.5.6: unsubscribe Realtime member_locations
     colState.group=null; renderHome(); show('homeView');
   }
 
