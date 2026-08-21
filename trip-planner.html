@@ -480,6 +480,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     show('groupView');
     $('groupName').textContent=g.name;
     if(colState.channel)await API._getSb().removeChannel(colState.channel);
+    stopJourneyRealtime();  // M4.5.6: cleanup previous group's location realtime
     const ch=API._getSb().channel('group:'+id);
     ch.on('postgres_changes',{event:'*',schema:'public',table:'shared_items',filter:'group_id=eq.'+id},()=>loadShared(id))
       .on('postgres_changes',{event:'*',schema:'public',table:'group_members',filter:'group_id=eq.'+id},()=>loadMembers(id))
