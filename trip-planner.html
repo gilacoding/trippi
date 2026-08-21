@@ -223,7 +223,7 @@
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
   const API=window.TrippiAPI;
-  const colState={uid:null,name:null,group:null,items:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null,poll:null};
+  const colState={uid:null,name:null,group:null,items:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null,poll:null,locationChannel:null};
   const loadName=()=>localStorage.getItem('trippi_display_name')||'';
   const saveName=n=>localStorage.setItem('trippi_display_name',n);
   const money=value=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(value)||0);
@@ -483,7 +483,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const ch=API._getSb().channel('group:'+id);
     ch.on('postgres_changes',{event:'*',schema:'public',table:'shared_items',filter:'group_id=eq.'+id},()=>loadShared(id))
       .on('postgres_changes',{event:'*',schema:'public',table:'group_members',filter:'group_id=eq.'+id},()=>loadMembers(id))
-      .on('postgres_changes',{event:'*',schema:'public',table:'group_expenses',filter:'group_id=eq.'+id},()=>loadGroupExpenses(id));
+      .on('postgres_changes',{event:'*',schema:'public',table:'group_expenses',filter:'group_id=eq.'+id},()=>loadGroupExpenses(id))
+      .on('postgres_changes',{event:'*',schema:'public',table:'member_locations',filter:'group_id=eq.'+id},()=>{ if(colState.journey && colState.journey.status === 'active') loadCrewMap(); });
     const st=await new Promise((resolve)=>{
       const timer=setTimeout(()=>resolve('TIMED_OUT'),8000);
       const unsub=ch.subscribe((status)=>{
@@ -603,12 +604,13 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(colState.journey.status === 'active'){
       loadCrewMap();
       startCrewRefresh();
-      // If owner/consENT, start location watch
+      initJourneyRealtime();  // M4.5.6
       if(colState.locationConsent === 'granted' && !colState.locationWatchId){
         startLocationWatch();
       }
     } else {
       stopCrewRefresh();
+      stopJourneyRealtime();  // M4.5.6
       stopLocationWatch();
     }
   }
@@ -676,6 +678,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     colState.journey = {status:'planned'};
     stopLocationWatch();
     stopCrewRefresh();
+    stopJourneyRealtime();  // M4.5.6
     hideCrewMap();
     renderJourneyView();
   }
@@ -825,7 +828,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     }
   }
 
-  // ── Adaptive refresh (no-realtime fallback) ─────────────
+  // ── Adaptive refresh (fallback; realtime M4.5.6 is primary) ─
   function startCrewRefresh(){
     if(_crewRefresh) clearInterval(_crewRefresh);
     _crewRefresh = setInterval(function(){
@@ -836,6 +839,51 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
   function stopCrewRefresh(){
     if(_crewRefresh){ clearInterval(_crewRefresh); _crewRefresh = null; }
+  }
+
+  // ── M4.5.6 Realtime subscription to member_locations ─────────
+  // Subscribes to INSERT/UPDATE on member_locations for this group.
+  // Fired only while Journey Mode is active + user has consent.
+  // Replaces 10s polling as the primary update path; polling remains as fallback.
+  async function initJourneyRealtime(){
+    var sb = API._getSb();
+    if(!sb || !colState.group) return;
+    // Remove any existing journey location subscription
+    if(colState.locationChannel){
+      await sb.removeChannel(colState.locationChannel);
+      colState.locationChannel = null;
+    }
+    var gid = colState.group.id;
+    var ch = sb.channel('member_locations:' + gid);
+    ch.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'member_locations',
+      filter: 'group_id=eq.' + gid
+    }, function(payload){
+      // Realtime update received — refresh crew map immediately
+      // (bypasses the 10s polling interval for instant UI updates)
+      if(colState.journey && colState.journey.status === 'active'){
+        loadCrewMap();
+      }
+    });
+    var st = await new Promise(function(resolve){
+      var timer = setTimeout(function(){ resolve('TIMED_OUT'); }, 5000);
+      ch.subscribe(function(status){
+        if(status === 'SUBSCRIBED'){ clearTimeout(timer); resolve('SUBSCRIBED'); }
+        else if(['CHANNEL_ERROR','CLOSED'].includes(status)){ clearTimeout(timer); resolve(status); }
+      });
+    });
+    console.log('[M4.5.6] realtime member_locations:' + gid + ' status:', st);
+    colState.locationChannel = ch;
+  }
+
+  async function stopJourneyRealtime(){
+    if(colState.locationChannel){
+      var sb = API._getSb();
+      if(sb){ await sb.removeChannel(colState.locationChannel); }
+      colState.locationChannel = null;
+    }
   }
 
   // ── Local consent state cache (server is authoritative) ──
