@@ -595,8 +595,13 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // - If get_crew_locations returns data (even []) with no error,
     //   the user passed the admission gates → journey is active.
     // - If it errors with "no active journey", journey is not active.
+    // - If it errors with "location permission not granted", the journey IS active
+    //   (gates 1-3 passed; only consent is missing) — member sees consent banner.
     if(locRes && locRes.error && locRes.error.message && locRes.error.message.includes('no active journey')){
       colState.journey = {status:'planned'};
+      colState.crewLocations = [];
+    } else if(locRes && locRes.error && locRes.error.message && locRes.error.message.includes('location permission not granted')){
+      colState.journey = {status:'active'};  // journey IS active — consent just not granted
       colState.crewLocations = [];
     } else if(locRes && locRes.data){
       colState.journey = {status:'active'};
