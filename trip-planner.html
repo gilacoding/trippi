@@ -724,18 +724,21 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // 2. Browser permission dialog
     navigator.geolocation.getCurrentPosition(
       async function(pos){
-        await API.upsertMemberLocation(
-          pos.coords.latitude, pos.coords.longitude,
-          pos.coords.accuracy || 0,
-          pos.coords.heading || null,
-          pos.coords.speed || null
-        );
-        startLocationWatch();
-        renderJourneyView();
+        try{
+          await API.upsertMemberLocation(
+            pos.coords.latitude, pos.coords.longitude,
+            pos.coords.accuracy || 0,
+            pos.coords.heading || null,
+            pos.coords.speed || null
+          );
+          startLocationWatch();
+          renderJourneyView();
+        } finally { freeBtn(btn); }
       },
       function(err){
         colState.locationConsent = 'denied';
         alert('Geolokasi ditolak: ' + err.message);
+        freeBtn(btn);
         renderJourneyView();
       },
       {enableHighAccuracy: true, timeout: 10000, maximumAge: 30000}
