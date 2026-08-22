@@ -980,72 +980,121 @@ M4.4 will NOT alter the M4.3 admission gate — it only adds the position data b
 
 ## P0 — Guest Trip Participation Model V2
 
-> **Architecture decision:** Use Supabase Anonymous Auth + existing `group_members`.
-> No custom JWT. No `trip_participants` table. No migration of `group_members.user_id`.
+> **Architecture decision (LOCKED):** Supabase Anonymous Auth + existing `group_members`.
+> No custom JWT. No `trip_participants` table. No `group_members` schema changes.
+> No nullable `user_id`. No dropping FK to `auth.users`.
 > Anonymous users get `auth.uid()` + JWT with `is_anonymous=true` claim.
 > Existing `auth.uid()` gates + RLS + Realtime work unchanged.
-> **Prerequisite:** Enable Anonymous Auth provider in Supabase Dashboard (currently disabled).
+> **Prerequisite:** Enable Anonymous Auth in Supabase Dashboard (currently disabled).
 
 - [ ] P0.2 Guest Trip Participation Model V2 (anonymous auth) · risk: HIGH · state: BACKLOG
 
-  **Scope:** Unauthenticated guest opens valid `?gt=` trip link → sees preview → clicks
-  "Gabung Trip" → enters name → `signInAnonymously()` → `auth.uid()` available →
-  `redeem_invitation()` → `group_members` row inserted → full read-only itinerary +
-  participant list + location opt-in + realtime updates. No MarkiCab account required.
+  **LOCKED acceptance criteria (do not expand scope during implementation):**
 
-  **Architecture:**
-  - Supabase Anonymous Auth: `signInAnonymously({ data: { display_name: "Budi" } })`
-  - `auth.uid()` available immediately after anonymous sign-in
-  - `group_members` table unchanged: `(group_id, user_id, display_name, role)`
-  - `redeem_invitation(p_token, p_display_name)` inserts `group_members` row for anonymous uid
-  - `is_anonymous` JWT claim used for permission differentiation (not `user_metadata`)
-  - `group_members.display_name` = snapshot per-trip name (authoritative, not user-editable)
-  - Capacity: `invitations.participant_limit` (per-invitation limit, checked atomically in RPC)
-  - Guest → User upgrade: link anonymous identity to permanent account (Supabase identity linking)
+  ### 1. Guest lifecycle (exact flow)
+  ```
+  Creator: create trip → set participant_limit → share invitation link
+  Guest: open ?gt= → preview → "Gabung Trip" → input nama → signInAnonymously()
+       → redeem_invitation() → group_members insert → full read-only itinerary
+       → participant list + location opt-in + realtime updates
+  ```
+  **FORBIDDEN flows:**
+  - Guest → Login/Register → Join (no email/password/OAuth gate)
+  - Guest auto-joins on link open (must click "Gabung Trip")
+  - Silent auto-join without name input
 
-  **Acceptance criteria:**
-  1. `?gt=` → guest sees preview (trip name, dates, destination, participant count, capacity)
-  2. "Gabung Trip" → lightweight name form (NOT login/signup)
-  3. `signInAnonymously()` creates auth identity (no email/password/PII)
-  4. `redeem_invitation()` inserts `group_members` row (server-authoritative)
-  5. Full read-only itinerary visible after join (agenda, dates, notes, links, budget)
-  6. Participant list visible (with `is_anonymous` flag for creator awareness)
-  7. Location opt-in available (explicit, NOT automatic on join)
-  8. Realtime trip updates work for anonymous participants
-  9. Capacity enforced server-side in `redeem_invitation` (not frontend)
-  10. `is_anonymous` claim differentiates guest from registered user in permission checks
-  11. Guest cannot edit itinerary/expenses/settings (read-only)
-  12. Guest cannot access other trips (scoped to invitation token)
-  13. Existing M4.5/M4.5.6 location security gates intact (4-gate: auth → member → journey → consent)
-  14. Existing authenticated member flow unchanged (zero regression)
-  15. Guest → User upgrade path: link anonymous identity without losing trip participation
+  ### 2. Permission matrix (enforced server-side + frontend)
+  | Action | Anonymous guest participant | Registered user |
+  |-|-|-|
+  | View joined trip itinerary | ✅ | ✅ |
+  | Receive itinerary realtime update | ✅ | ✅ |
+  | See participant count | ✅ | ✅ |
+  | Edit itinerary | ❌ | berdasarkan role |
+  | Add expense | ❌ | berdasarkan role |
+  | Share location | opt-in | opt-in |
+  | Create trip | ❌ | ✅ |
+  | Trip history | ❌ | ✅ |
+  | Follow creator | ❌ | ✅ |
+  | Public post | ❌ | ✅ |
+
+  ### 3. Database (MINIMAL changes only)
+  **Existing (DO NOT MODIFY schema):**
+  ```sql
+  group_members: id, group_id, user_id, display_name, role
+  ```
+  - DO NOT drop FK `user_id → auth.users(id)`
+  - DO NOT make `user_id` nullable
+  - DO NOT create `trip_participants` or any participant table
+  - DO NOT create custom JWT/participant token
+
+  **New behavior:**
+  - `redeem_invitation(p_token, p_display_name)`: accepts anonymous `auth.uid()` (from `signInAnonymously`)
+  - `invitations` table: add `participant_limit` column (per-invitation capacity)
+  - Capacity check: ATOMIC in RPC (count + insert in single transaction)
+  - `group_members.display_name` = per-trip snapshot (authoritative, not from user_metadata)
+
+  ### 4. Capacity handling
+  - Stored in `invitations.participant_limit` (NOT `groups` table)
+  - Enforced ATOMIC in `redeem_invitation` RPC:
+    ```
+    BEGIN
+      validate token
+      count current members
+      if count >= participant_limit: reject "Trip penuh"
+      insert member
+    COMMIT
+    ```
+  - NO frontend capacity check (trust server only)
+
+  ### 5. Anonymous upgrade path
+  - Anonymous user later links identity to permanent account via Supabase identity linking
+  - Same `auth.uid()` preserved
+  - All trip participation + location history retained
+  - NO duplicate membership creation
+
+  ### 6. Realtime (MANDATORY)
+  - Anonymous participants MUST receive itinerary updates without F5
+  - Uses existing Supabase Realtime + JWT auth (no special anonymous channel)
+  - Realtime cleanup preserved (group switching, trip leave, duplicate sub prevention)
+
+  ### 7. UX wording (locked)
+  **FORBIDDEN:**
+  - "Masuk / Daftar untuk bergabung"
+  - "Join MarkiCab"
+  - "Login untuk melihat trip"
+  - "Daftar untuk melihat itinerary"
+
+  **REQUIRED:**
+  - "Gabung Trip" (primary CTA)
+  - "Nama kamu" (name form label)
+  - "Tidak perlu akun MarkiCab" (subtitle on preview)
+  - "Daftar MarkiCab" (optional secondary CTA AFTER join)
+
+  ### 8. Supabase prerequisite (manual, founder action)
+  1. Supabase Dashboard → Authentication → Providers → Anonymous → Enable
+  2. Test: `await supabase.auth.signInAnonymously({ data: { display_name: "Budi" } })`
+  3. Expected: `user.id` exists, `session.access_token` exists, `user.is_anonymous = true`
+  4. Verify existing RLS policies allow anonymous users (role = `authenticated`)
+
+  ### 9. Verification (minimum)
+  - Browser E2E: anonymous guest → preview → name form → signInAnonymously → redeem → full itinerary → realtime → location opt-in
+  - Security: anonymous cannot access other trips / mutate data
+  - Regression: existing authenticated member flow + M4.5/M4.5.6 location gates intact
 
   **Dependencies:**
-  - Enable Anonymous Auth in Supabase Dashboard (currently disabled — `422 anonymous_provider_disabled`)
+  - Enable Anonymous Auth in Supabase Dashboard (currently `422 anonymous_provider_disabled`)
   - `redeem_invitation` RPC: add capacity check + anonymous uid support
-  - `invitations` table: add `participant_limit` column (or reuse existing capacity field)
-  - Frontend: `signInAnonymously()` in `openGuestTrip` join flow
-  - Frontend: `is_anonymous` check in permission rendering (show/hide edit controls)
+  - `invitations` table: add `participant_limit` column
+  - Frontend: `signInAnonymously()` in guest join flow
+  - Frontend: `is_anonymous` permission gate (hide edit/owner controls)
 
   **Known risks:**
-  - Anonymous auth disabled by default in Supabase — must be explicitly enabled by founder
-  - `is_anonymous` JWT claim must be validated server-side, not just client-side
-  - Anonymous users without email cannot recover account if session lost
-  - Capacity check must be atomic (race condition: two guests join simultaneously when 1 slot left)
-  - Supabase Anonymous Auth has rate limits — test under load before production
-  - Identity linking (guest → user) requires careful migration to avoid orphaned anonymous accounts
-
-  **Pre-implementation checklist:**
-  1. Enable Anonymous Auth in Supabase Dashboard → Auth → Providers → Anonymous
-  2. Test `signInAnonymously()` with current anon key (REST or JS client)
-  3. Verify `auth.uid()` + `is_anonymous` claim in JWT
-  4. Confirm existing RLS policies allow anonymous users (role = `authenticated`)
-  5. Add `participant_limit` to `invitations` table
-  6. Add capacity check to `redeem_invitation` RPC (atomic: count + insert in transaction)
-  7. Wire `signInAnonymously()` in frontend guest join flow
-  8. Add `is_anonymous` permission gate in frontend (hide edit/owner controls)
-  9. Browser E2E test: anonymous guest → join → full itinerary → realtime → location opt-in
-  10. Security test: anonymous user cannot access other trips / mutate data
+  - Anonymous auth disabled by default — must be enabled by founder
+  - `is_anonymous` JWT claim validated server-side only
+  - Anonymous users without email cannot recover lost session
+  - Capacity race condition: two guests join when 1 slot left (mitigated by atomic RPC)
+  - Supabase Anonymous Auth rate limits — test under load
+  - Identity linking (guest → user) must avoid orphaned anonymous accounts
 
 ---
 
