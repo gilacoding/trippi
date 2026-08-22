@@ -603,6 +603,56 @@ async def test_s3x_loading_indicators(page_member):
     record("S3x: Loading states (showLoading/hideLoading)", ok, str(result))
 
 
+async def test_s3y_font_compat(page_member):
+    """S3y: M4.8 — Inter @font-face declared with font-display:swap + system fallback intact.
+
+    Verifies the font is loaded via a local-first @font-face (not a blocking <link>)
+    with font-display:swap, and the system font stack fallback remains so first paint
+    isn't delayed. No external CSS <link> dependency (no Google Fonts stylesheet).
+    """
+    print("\n=== S3y: Font compatibility ===")
+
+    result = await page_member.evaluate('''async () => {
+        const out = {};
+        // 1. No external Google Fonts <link> (we inlined @font-face)
+        const links = document.querySelectorAll('link[rel~="stylesheet"]');
+        out.no_google_fonts = Array.from(links).every(l =>
+            !l.href.includes('fonts.googleapis.com') && !l.href.includes('fonts.googleapis'));
+        out.link_count = links.length;
+
+        // 2. @font-face for Inter with font-display:swap in CSSOM
+        const sheets = Array.from(document.styleSheets).flatMap(ss => {
+            try { return Array.from(ss.cssRules); } catch(e){ return []; }
+        });
+        const fontFaces = sheets.filter(r => r.type === 'font-face' || (r.cssText||"").includes('@font-face'));
+        const interFF = fontFaces.find(r => {
+            const txt = r.cssText || r.style ? (r.style ? r.style.fontFamily : r.cssText) : '';
+            return txt.includes('Inter');
+        });
+        out.inter_fontface = !!interFF;
+        const ffCSS = interFF ? (interFF.cssText || '') : '';
+        out.swap_display = ffCSS.includes('font-display:swap') || ffCSS.includes('font-display: swap');
+        out.local_src = ffCSS.includes("local('Inter')") || ffCSS.includes('local("Inter")');
+        out.woff2_src = ffCSS.includes('format') && ffCSS.includes('.woff2');
+
+        // 3. System font stack fallback still declared in body
+        const bodyFont = getComputedStyle(document.body).fontFamily || '';
+        out.fallback_stack = bodyFont.includes('-apple-system') || bodyFont.includes('sans-serif');
+        return out;
+    }''')
+
+    ok = (
+        result.get('no_google_fonts') is True
+        and result.get('link_count', 0) <= 1
+        and result.get('inter_fontface') is True
+        and result.get('swap_display') is True
+        and result.get('local_src') is True
+        and result.get('woff2_src') is True
+        and result.get('fallback_stack') is True
+    )
+    record("S3y: Font compatibility (Inter @font-face + fallback)", ok, str(result))
+
+
 async def test_s4_stop_sharing(page_member):
     """S4: Member stops sharing → writes rejected."""
     print("\n=== S4: Stop sharing ===")
@@ -961,6 +1011,7 @@ async def main():
         await test_s3v_input_validation(page_member)
         await test_s3w_loading_states(page_member)
         await test_s3x_loading_indicators(page_member)
+        await test_s3y_font_compat(page_member)
         await test_s4_stop_sharing(page_member)
         # S6 must run BEFORE S5 (journey end) — denied member needs active journey
         await test_s6_gps_denied(browser, page_member, ctx_member)
@@ -998,6 +1049,7 @@ async def main():
             "S3v: Client-side input validation",
             "S3w: Loading states (busyBtn/freeBtn)",
             "S3x: Loading states (showLoading/hideLoading)",
+            "S3y: Font compatibility (Inter @font-face + fallback)",
             "S4a: Stop Sharing clicked",
             "S4b: Consent banner resets",
             "S5: Journey ended",
