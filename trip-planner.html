@@ -713,8 +713,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
     // 2. Browser permission dialog
     navigator.geolocation.getCurrentPosition(
-      function(pos){
-        API.upsertMemberLocation(
+      async function(pos){
+        await API.upsertMemberLocation(
           pos.coords.latitude, pos.coords.longitude,
           pos.coords.accuracy || 0,
           pos.coords.heading || null,
