@@ -441,6 +441,61 @@ async def test_s3_gps_to_realtime(page_owner, page_member, ctx_member, ctx_owner
             print(f"  Owner still has {owner_markers} markers after 8s")
 
 
+async def test_s3v_input_validation(page_member):
+    """S3v: Client-side input validation — invalid coords rejected BEFORE RPC.
+
+    Uses the browser's own API.upsertMemberLocation (the exact code path the
+    app calls) and asserts invalid inputs return a client-side error without
+    hitting the network. Valid coords still pass the guard (no regression).
+    """
+    print("\n=== S3v: Input validation (client guard) ===")
+
+    result = await page_member.evaluate('''async () => {
+        const out = {};
+        // Invalid lat (out of range)
+        let r = await API.upsertMemberLocation(999, 106.8025, 0, null, null);
+        out.lat_high = r.error ? r.error.message : 'NO_ERROR';
+        // Invalid lat (low)
+        r = await API.upsertMemberLocation(-999, 106.8025, 0, null, null);
+        out.lat_low = r.error ? r.error.message : 'NO_ERROR';
+        // Invalid lng
+        r = await API.upsertMemberLocation(-6.225, -999, 0, null, null);
+        out.lng = r.error ? r.error.message : 'NO_ERROR';
+        // Invalid lng (high)
+        r = await API.upsertMemberLocation(-6.225, 999, 0, null, null);
+        out.lng_high = r.error ? r.error.message : 'NO_ERROR';
+        // Negative accuracy
+        r = await API.upsertMemberLocation(-6.225, 106.8025, -50, null, null);
+        out.accuracy = r.error ? r.error.message : 'NO_ERROR';
+        // Heading out of range
+        r = await API.upsertMemberLocation(-6.225, 106.8025, 0, 999, null);
+        out.heading = r.error ? r.error.message : 'NO_ERROR';
+        // Negative speed
+        r = await API.upsertMemberLocation(-6.225, 106.8025, 0, null, -10);
+        out.speed = r.error ? r.error.message : 'NO_ERROR';
+        // NaN lat
+        r = await API.upsertMemberLocation(NaN, 106.8025, 0, null, null);
+        out.nan = r.error ? r.error.message : 'NO_ERROR';
+        // Valid coords must still pass the guard (returns RPC result, not guard error)
+        r = await API.upsertMemberLocation(-6.225, 106.8025, 12, 90, 1.5);
+        out.valid = r.error ? 'GUARD_BLOCKED: ' + r.error.message : 'PASSED';
+        return out;
+    }''')
+
+    guard_ok = (
+        result.get('lat_high') == 'latitude out of range [-90, 90]'
+        and result.get('lat_low') == 'latitude out of range [-90, 90]'
+        and result.get('lng') == 'longitude out of range [-180, 180]'
+        and result.get('lng_high') == 'longitude out of range [-180, 180]'
+        and result.get('accuracy') == 'accuracy must be non-negative'
+        and result.get('heading') == 'heading must be in [0, 360)'
+        and result.get('speed') == 'speed must be non-negative'
+        and result.get('nan') == 'latitude out of range [-90, 90]'
+        and result.get('valid') == 'PASSED'
+    )
+    record("S3v: Client-side input validation", guard_ok, str(result))
+
+
 async def test_s4_stop_sharing(page_member):
     """S4: Member stops sharing → writes rejected."""
     print("\n=== S4: Stop sharing ===")
@@ -796,6 +851,7 @@ async def main():
 
         await test_s2_member_consent_banner(page_member)
         await test_s3_gps_to_realtime(page_owner, page_member, ctx_member, ctx_owner)
+        await test_s3v_input_validation(page_member)
         await test_s4_stop_sharing(page_member)
         # S6 must run BEFORE S5 (journey end) — denied member needs active journey
         await test_s6_gps_denied(browser, page_member, ctx_member)
@@ -830,6 +886,7 @@ async def main():
             "S3b: Consent granted (Stop Sharing visible)",
             "S3c: Self crew marker appears",
             "S3d: Owner sees member marker (Realtime, <10s)",
+            "S3v: Client-side input validation",
             "S4a: Stop Sharing clicked",
             "S4b: Consent banner resets",
             "S5: Journey ended",

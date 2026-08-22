@@ -638,6 +638,23 @@
     upsertMemberLocation: function (lat, lng, accuracy, heading, speed) {
       var gid = colState.group && colState.group.id;
       if (!gid) return Promise.resolve({ data: null, error: { message: 'No group context' } });
+      // Client-side input guard (defense in depth — DB validates too):
+      // reject out-of-range / non-finite coordinates before the RPC round-trip.
+      if (!isFinite(lat) || lat < -90 || lat > 90) {
+        return Promise.resolve({ data: null, error: { message: 'latitude out of range [-90, 90]' } });
+      }
+      if (!isFinite(lng) || lng < -180 || lng > 180) {
+        return Promise.resolve({ data: null, error: { message: 'longitude out of range [-180, 180]' } });
+      }
+      if (accuracy != null && (!isFinite(accuracy) || accuracy < 0)) {
+        return Promise.resolve({ data: null, error: { message: 'accuracy must be non-negative' } });
+      }
+      if (heading != null && (!isFinite(heading) || heading < 0 || heading >= 360)) {
+        return Promise.resolve({ data: null, error: { message: 'heading must be in [0, 360)' } });
+      }
+      if (speed != null && (!isFinite(speed) || speed < 0)) {
+        return Promise.resolve({ data: null, error: { message: 'speed must be non-negative' } });
+      }
       return getClient().then(function (client) {
         if (!client) return { data: null, error: { message: 'Backend unavailable' } };
         return client.rpc('upsert_member_location', {
