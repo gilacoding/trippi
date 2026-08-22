@@ -237,8 +237,14 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
      `redeem_invitation` RPC (NOT silent auto-join). Unauthenticated guests are prompted
      to login first. Join does NOT create `location_permissions` (join ≠ consent, per M4.3/M4.4).
 
-  **Verification: 45/45 PASS** — REST RPC 11/11 + Browser E2E 34/34 (8 new S3z scenarios).
-  GPT-4-mini auditor: **APPROVE** (559 tok, $0.00011).
+  **Verification: 46/46 PASS** — REST RPC 11/11 + Browser E2E 35/35 (9 new S3z scenarios).
+  GPT-4-mini auditor: **APPROVE** (559 + 453 tok, ~$0.00020 total).
+
+  **P0 correction applied:** unauthenticated guest viewers can see the full
+  read-only shared-trip projection (itinerary, dates, notes, links, budget,
+  expenses) via `renderGuestItinerary()`. Login/signup required only for
+  Gabung Trip (redeem_invitation RPC). Nav lockout preserved. Join ≠
+  location consent. Non-member → get_crew_locations 400.
   Key invariants preserved: non-member `get_crew_locations` → 400 "not a group member";
   guest pre-join has no journey panel / consent banner / location access.
 
