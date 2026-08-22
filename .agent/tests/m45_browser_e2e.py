@@ -708,6 +708,21 @@ async def test_s3z_guest_flow(page_guest, owner_jwt, group_id):
     has_count = summary and ('orang' in summary or summary.strip())
     record("S3z:4 Participant count shown", has_count, summary or "MISSING")
 
+    # 4b. Guest can see shared itinerary section (read-only) — public-safe fields only
+    # Note: the test trip is created without agenda items, so we verify the section
+    # is rendered and shows the empty state (guest can see there's no agenda yet).
+    itinerary_ok = await page_guest.evaluate('''() => {
+        const el = document.getElementById('guestItineraryList');
+        if (!el) return { found: false };
+        const items = el.querySelectorAll('.agenda-item');
+        const has_content = el.textContent.trim().length > 0;
+        const empty_state = el.querySelector('.empty');
+        return { found: !!el, items: items.length, has_content: has_content, has_empty: !!empty_state };
+    }''')
+    record("S3z:4b Shared itinerary section visible to guest",
+           itinerary_ok and itinerary_ok.get('found') and itinerary_ok.get('has_content'),
+           str(itinerary_ok) or "MISSING")
+
     # 5. Gabung Trip button visible (guest not yet member)
     join_btn = await page_guest.evaluate('''() => {
         const b = document.getElementById('guestJoinBtn');
@@ -1184,6 +1199,7 @@ async def main():
             "S3z:2 Guest view shown (not group/home)",
             "S3z:3 Navigation locked for guest",
             "S3z:4 Participant count shown",
+            "S3z:4b Shared itinerary section visible to guest",
             "S3z:5 Gabung Trip button shown",
             "S3z:6 No journey/consent for pre-join guest",
             "S3z:7 Gabung Trip prompts auth",

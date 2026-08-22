@@ -140,6 +140,9 @@
       <h1 id="guestTripName">Bagikan trip</h1>
       <div class="trip-meta muted" id="guestTripMeta"></div>
       <div class="participant-summary" id="guestParticipantSummary"></div>
+      <div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Itinerary</h2></div>
+      <div class="itinerary-list" id="guestItineraryList" style="text-align:left"></div>
+      <div class="expenses-summary" id="guestExpenses" style="margin-top:16px"></div>
       <div class="empty" id="guestEmptyState" style="margin-top:16px"></div>
       <div class="guest-actions" id="guestActions"></div>
     </div>
@@ -294,13 +297,13 @@
       const btn = document.getElementById('guestGoToGroup');
       if(btn) btn.onclick = async()=>{ guestSession=null; unlockNav(); await openGroup(t.id,false); };
     } else {
-      emptyEl.innerHTML = '<div class="empty"><strong>Undangan ini bersifat read-only sampai kamu bergabung.</strong>Lihat itinerary dan pengeluaran, atau gabung untuk ikut trip.</div>';
+      // --- GUEST VIEWER (read-only, no join yet) ---
+      // Per P0: unauthenticated guests see the FULL shared-trip projection.
+      // Only public-safe fields (esc()-escaped). Member/private/location data NOT exposed.
+      renderGuestItinerary(t);
+      emptyEl.innerHTML = '<div class="empty"><strong>Undangan ini bersifat read-only.</strong>Gabung trip untuk kolaborasi dan lokasi live.</div>';
       const joinLabel = colState.uid ? 'Gabung Trip' : 'Masuk / Daftar untuk bergabung';
       actions.innerHTML = '<button class="btn wide" id="guestJoinBtn">' + joinLabel + '</button>';
-      const list = (t.items||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-      const preview = document.createElement('div'); preview.className='empty'; preview.style.marginTop='16px';
-      preview.innerHTML = list.length ? '<strong>' + list.length + ' agenda</strong> dalam trip ini' : '<strong>Belum ada agenda</strong>';
-      actions.parentNode.insertBefore(preview, actions.nextSibling);
       const jb = $('guestJoinBtn');
       if(jb) jb.onclick = async()=>{
         if(!colState.uid){ openAuth('login'); return; }
@@ -310,12 +313,28 @@
           const { error } = await API.redeemInvitation(guestSession.token, colState.name || null);
           if(error){ alert('Gagal bergabung: ' + (error.message || error)); freeBtn(jb); return; }
           alert('Kamu sekarang anggota trip ini.');
-          const tk = guestSession ? guestSession.token : null;
-          guestSession = null; unlockNav();
-          if(tk) await openGuestTrip(tk); // re-fetch → isMember:true → member view
+          const tk = guestSession.token; guestSession = null; unlockNav();
+          if(tk) await openGuestTrip(tk);
         }catch(e){ alert('Gagal bergabung: ' + (e.message||e)); freeBtn(jb); }
       };
     }
+  }
+
+  // Render shared-trip itinerary (READ-ONLY — public-safe fields only via esc())
+  function renderGuestItinerary(t){
+    const list = (t.items||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const el = $('guestItineraryList');
+    if(!el) return;
+    if(list.length){
+      el.innerHTML = list.map(item=>`<article class="agenda-item"><div class="agenda-when">${esc(item.date||'')} ${esc(item.time||'')}</div><div class="agenda-body"><div class="agenda-title">${esc(item.title)}</div>${item.note?`<div class="agenda-note">${esc(item.note)}</div>`:''}${item.link?`<a class="agenda-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi →</a>`:''}${Number(item.budget)?`<div class="agenda-budget">${money(item.budget)}</div>`:''}</div></article>`).join('');
+    } else {
+      el.innerHTML = '<div class="empty">Belum ada agenda.</div>';
+    }
+    const exp = t.expenses||[];
+    const exEl = $('guestExpenses');
+    if(exEl) exEl.innerHTML = exp.length
+      ? `<div style="font-size:13px;color:var(--muted)">${esc(String(exp.length))} catatan pengeluaran · total ${money(exp.reduce((s,x)=>s+(Number(x.amount)||0),0))}</div>`
+      : '<div style="font-size:13px;color:var(--muted)">Tidak ada pengeluaran tercatat.</div>';
   }
 
   // ── M2 Sync layer (Supabase = source of truth; localStorage = cache/draft) ──
