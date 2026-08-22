@@ -370,11 +370,14 @@
   function renderPlanner(){const trip=getTrip();if(!trip)return;const ro=!!state.readOnlyTrip;const actions=document.querySelector('.planner-actions');if(actions)actions.style.display=ro?'none':'flex';$('readOnlyBanner').style.display=ro?'block':'none';$('addPanel').style.display=ro?'none':'';$('expensePanel').style.display=ro?'none':'';$('deleteTrip').style.display=ro?'none':'';const dates=daysBetween(trip.start,trip.end),items=trip.items||[];$('plannerName').textContent=trip.name;$('plannerMeta').textContent=`${trip.destination} · ${dateText(trip.start)} — ${dateText(trip.end)}`;$('placeTotal').textContent=items.length;$('budgetTotal').textContent=money(items.reduce((sum,item)=>sum+(Number(item.budget)||0),0));$('dayTotal').textContent=dates.length;$('dayTabs').innerHTML=dates.map((date,index)=>`<button class="day-tab ${date===state.activeDate?'active':''}" data-day="${date}">Hari ${index+1}<br><span style="font-weight:500;opacity:.8">${dateText(date).replace(/ \d{4}/,'')}</span></button>`).join('');document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{state.activeDate=b.dataset.day;renderPlanner()});const todayItems=items.filter(i=>i.date===state.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));$('itineraryList').innerHTML=todayItems.length?todayItems.map(item=>`<article class="item"><div class="item-time" data-edit-time="${item.id}" title="Klik untuk ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'}</div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">biaya?</div>`}</div><button class="delete-item" data-delete="${item.id}" aria-label="Hapus agenda">×</button></article>`).join(''):`<div class="empty"><strong>Hari ini masih longgar.</strong>Tambahkan tempat, transport, atau agenda yang ingin kamu ingat.</div>`;document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteItem(b.dataset.delete));document.querySelectorAll('[data-edit-time]').forEach(el=>el.onclick=()=>editInline(el,'time','time'));document.querySelectorAll('[data-edit-cost]').forEach(el=>el.onclick=()=>editInline(el,'budget','number'));renderExpenses()}
   function deleteItem(id){const trip=getTrip();const item=trip.items.find(i=>i.id===id);if(!confirm(`Hapus “${item.title}” dari itinerary?`))return;trip.items=trip.items.filter(i=>i.id!==id);save();renderPlanner()}
   function editInline(el,field,type){if(state.readOnlyTrip)return;const id=el.dataset[field==='time'?'editTime':'editCost'];const trip=getTrip();const item=trip.items.find(i=>i.id===id);if(!item)return;const input=document.createElement('input');input.type=type;input.className='inline-edit';input.value=item[field]||'';el.replaceWith(input);input.focus();if(type==='time')input.showPicker&&input.showPicker();const commit=()=>{const val=input.value.trim();if(field==='budget'&&val&&!isNaN(Number(val)))item.budget=Number(val);else if(field==='time')item.time=val;save();renderPlanner()};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')renderPlanner()}}
+  function busyBtn(el, label){ if(!el) return; el.dataset.origText=el.textContent; el.disabled=true; el.textContent=label; }
+  function freeBtn(el){ if(!el) return; el.textContent=el.dataset.origText||el.textContent; el.disabled=false; }
+
   async function addOrUpdateTrip(event){event.preventDefault();const start=$('tripStart').value,end=$('tripEnd').value;if(end<start){alert('Tanggal selesai harus sama atau setelah tanggal mulai.');return}
     if(state.editTripId){const trip=state.trips.find(t=>t.id===state.editTripId);if(!trip)return;trip.name=$('tripName').value.trim();trip.destination=$('tripDestination').value.trim();trip.start=start;trip.end=end;trip.note=$('tripNote').value.trim();state.editTripId=null;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';save();event.target.reset();openTrip(trip.id);return}
     await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId)}
-  async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:loadName()||'Guest'});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
-colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}
+  async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const submitBtn=$('newTripSubmit');busyBtn(submitBtn,'Membuat...');try{const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:loadName()||'Guest'});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
+colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}finally{freeBtn(submitBtn)}}
   function normalizeLink(value){const link=value.trim();if(!link)return '';return /^https?:\/\//i.test(link)?link:'https://'+link}
   function addAgenda(event){event.preventDefault();const trip=getTrip();trip.items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,title:$('agendaTitle').value.trim(),time:$('agendaTime').value,budget:$('agendaBudget').value,link:normalizeLink($('agendaLink').value),note:$('agendaNote').value.trim()});save();event.target.reset();$('addPanel').open=false;renderPlanner()}
   const categoryIcon=category=>({Makan:'🍜',Transport:'🚗',Hotel:'🛏️',Tiket:'🎟️',Belanja:'🛍️',Lainnya:'•'})[category]||'•';
@@ -681,21 +684,27 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
   // ── Journey Mode control (owner) ──────────────────────────
   async function startJourneyMode(){
-    const res = await API.startJourney();
-    if(res.error){ alert('Gagal memulai Journey: ' + (res.error.message || res.error)); return; }
-    colState.journey = {status:'active'};
-    setTimeout(renderJourneyView, 500);
+    const btn=$('startJourneyBtn'); busyBtn(btn,'Memulai...');
+    try{
+      const res = await API.startJourney();
+      if(res.error){ alert('Gagal memulai Journey: ' + (res.error.message || res.error)); return; }
+      colState.journey = {status:'active'};
+      setTimeout(renderJourneyView, 500);
+    } finally { freeBtn(btn); }
   }
 
   async function endJourneyMode(){
-    const res = await API.endJourney();
-    if(res.error){ alert('Gagal mengakhiri Journey: ' + (res.error.message || res.error)); return; }
-    colState.journey = {status:'planned'};
-    stopLocationWatch();
-    stopCrewRefresh();
-    stopJourneyRealtime();  // M4.5.6
-    hideCrewMap();
-    renderJourneyView();
+    const btn=$('endJourneyBtn'); busyBtn(btn,'Mengakhiri...');
+    try{
+      const res = await API.endJourney();
+      if(res.error){ alert('Gagal mengakhiri Journey: ' + (res.error.message || res.error)); return; }
+      colState.journey = {status:'planned'};
+      stopLocationWatch();
+      stopCrewRefresh();
+      stopJourneyRealtime();  // M4.5.6
+      hideCrewMap();
+      renderJourneyView();
+    } finally { freeBtn(btn); }
   }
 
   // ── Member consent banner ─────────────────────────────────
@@ -705,9 +714,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       alert('Browser Anda tidak mendukung geolokasi.');
       return;
     }
+    const btn=$('shareLocationBtn'); busyBtn(btn,'Membagikan...');
     // 1. Server-side consent (M4.3 security gate)
     const res = await API.grantLocationConsent();
-    if(res.error){ alert('Consent gagal: ' + (res.error.message || res.error)); return; }
+    if(res.error){ alert('Consent gagal: ' + (res.error.message || res.error)); freeBtn(btn); return; }
     colState.locationConsent = 'granted';
     _setConsent('granted');
 
@@ -733,17 +743,23 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   async function denyLocationHandler(){
-    const res = await API.revokeLocationConsent();
-    colState.locationConsent = 'denied';
-    renderJourneyView();
+    const btn=$('denyLocationBtn'); busyBtn(btn,'...');
+    try{
+      const res = await API.revokeLocationConsent();
+      colState.locationConsent = 'denied';
+      renderJourneyView();
+    } finally { freeBtn(btn); }
   }
 
   async function stopSharingHandler(){
-    await API.revokeLocationConsent();
-    stopLocationWatch();
-    colState.locationConsent = 'denied';
-    hideCrewMap();
-    renderJourneyView();
+    const btn=$('stopSharingBtn'); busyBtn(btn,'Menghentikan...');
+    try{
+      await API.revokeLocationConsent();
+      stopLocationWatch();
+      colState.locationConsent = 'denied';
+      hideCrewMap();
+      renderJourneyView();
+    } finally { freeBtn(btn); }
   }
 
   // ── Browser geolocation with adaptive heartbeat ─────────
@@ -989,11 +1005,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(idx<0) return;
     const to=idx+dir;
     if(to<0||to>=arr.length) return;
-    [arr[idx],arr[to]]=[arr[to],arr[idx]];
-    const ordered=arr.map(w=>w.id);
-    const {error}=await API.reorderWaypoints(route.id,ordered);
-    if(error){ alert('Gagal urutkan: '+(error&&error.message||'unknown')); return; }
-    await loadRoute(colState.group.id);
+    const btn=document.querySelector(`.route-up[data-rid="${id}"], .route-down[data-rid="${id}"]`); busyBtn(btn,'…');
+    try{
+      [arr[idx],arr[to]]=[arr[to],arr[idx]];
+      const ordered=arr.map(w=>w.id);
+      const {error}=await API.reorderWaypoints(route.id,ordered);
+      if(error){ alert('Gagal urutkan: '+(error&&error.message||'unknown')); return; }
+      await loadRoute(colState.group.id);
+    } finally { freeBtn(btn); }
   }
   async function deleteWaypoint(id){
     if(!confirm('Hapus perhentian ini?')) return;

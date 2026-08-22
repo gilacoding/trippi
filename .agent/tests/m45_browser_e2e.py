@@ -496,6 +496,61 @@ async def test_s3v_input_validation(page_member):
     record("S3v: Client-side input validation", guard_ok, str(result))
 
 
+async def test_s3w_loading_states(page_member):
+    """S3w: Loading states — busyBtn/freeBtn disable + re-enable buttons.
+
+    Verifies the M4.6 loading-state helpers via a synthetic button AND that the
+    real flow buttons are wired to them (start/end journey, share/stop, trip create).
+    """
+    print("\n=== S3w: Loading states (busyBtn/freeBtn) ===")
+
+    result = await page_member.evaluate('''() => {
+        const out = {};
+        // 1. Helper functions exist
+        out.helpers = (typeof busyBtn === 'function') && (typeof freeBtn === 'function');
+
+        // 2. Synthetic button: busy disables + swaps label, free restores
+        const b = document.createElement('button');
+        b.textContent = 'Test';
+        document.body.appendChild(b);
+        busyBtn(b, 'Memuat...');
+        out.busy_disabled = b.disabled === true;
+        out.busy_label = b.textContent === 'Memuat...';
+        freeBtn(b);
+        out.free_restored = b.disabled === false && b.textContent === 'Test';
+        b.remove();
+
+        // 3. Real buttons wired (exist in DOM or are wired in handlers)
+        out.trip_submit_wired = (typeof createGroupDirectly === 'function')
+            && createGroupDirectly.toString().includes('busyBtn(submitBtn');
+        out.start_journey_wired = (typeof startJourneyMode === 'function')
+            && startJourneyMode.toString().includes("busyBtn(btn,'Memulai...')");
+        out.end_journey_wired = (typeof endJourneyMode === 'function')
+            && endJourneyMode.toString().includes("busyBtn(btn,'Mengakhiri...')");
+        out.share_wired = (typeof shareLocationHandler === 'function')
+            && shareLocationHandler.toString().includes("busyBtn(btn,'Membagikan...')");
+        out.stop_wired = (typeof stopSharingHandler === 'function')
+            && stopSharingHandler.toString().includes("busyBtn(btn,'Menghentikan...')");
+        out.move_wired = (typeof moveWaypoint === 'function')
+            && moveWaypoint.toString().includes('busyBtn(btn');
+        return out;
+    }''')
+
+    ok = (
+        result.get('helpers') is True
+        and result.get('busy_disabled') is True
+        and result.get('busy_label') is True
+        and result.get('free_restored') is True
+        and result.get('trip_submit_wired') is True
+        and result.get('start_journey_wired') is True
+        and result.get('end_journey_wired') is True
+        and result.get('share_wired') is True
+        and result.get('stop_wired') is True
+        and result.get('move_wired') is True
+    )
+    record("S3w: Loading states (busyBtn/freeBtn)", ok, str(result))
+
+
 async def test_s4_stop_sharing(page_member):
     """S4: Member stops sharing → writes rejected."""
     print("\n=== S4: Stop sharing ===")
@@ -852,6 +907,7 @@ async def main():
         await test_s2_member_consent_banner(page_member)
         await test_s3_gps_to_realtime(page_owner, page_member, ctx_member, ctx_owner)
         await test_s3v_input_validation(page_member)
+        await test_s3w_loading_states(page_member)
         await test_s4_stop_sharing(page_member)
         # S6 must run BEFORE S5 (journey end) — denied member needs active journey
         await test_s6_gps_denied(browser, page_member, ctx_member)
@@ -887,6 +943,7 @@ async def main():
             "S3c: Self crew marker appears",
             "S3d: Owner sees member marker (Realtime, <10s)",
             "S3v: Client-side input validation",
+            "S3w: Loading states (busyBtn/freeBtn)",
             "S4a: Stop Sharing clicked",
             "S4b: Consent banner resets",
             "S5: Journey ended",
