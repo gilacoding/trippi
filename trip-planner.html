@@ -477,7 +477,13 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
   async function openGroup(id,fresh,trip){
     const uid=await ensureAuth();if(!uid)return;
-    const {data:g}=await API.getGroup(id);
+    let g = (await API.getGroup(id)).data;
+    if(!g){
+      // list_my_groups may not reflect a just-joined membership yet (PostgREST caching)
+      dbg('openGroup: retrying getGroup after 2s for freshly joined member');
+      await new Promise(r => setTimeout(r, 2000));
+      g = (await API.getGroup(id)).data;
+    }
     if(!g){alert('Grup tidak ditemukan.');return;}
     colState.group=g;colState.activeDate=null;colState.expenses=[];colState.nameMap={};
     show('groupView');
