@@ -372,7 +372,7 @@
   function editInline(el,field,type){if(state.readOnlyTrip)return;const id=el.dataset[field==='time'?'editTime':'editCost'];const trip=getTrip();const item=trip.items.find(i=>i.id===id);if(!item)return;const input=document.createElement('input');input.type=type;input.className='inline-edit';input.value=item[field]||'';el.replaceWith(input);input.focus();if(type==='time')input.showPicker&&input.showPicker();const commit=()=>{const val=input.value.trim();if(field==='budget'&&val&&!isNaN(Number(val)))item.budget=Number(val);else if(field==='time')item.time=val;save();renderPlanner()};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')renderPlanner()}}
   function busyBtn(el, label){ if(!el) return; el.dataset.origText=el.textContent; el.disabled=true; el.textContent=label; }
   function freeBtn(el){ if(!el) return; el.textContent=el.dataset.origText||el.textContent; el.disabled=false; }
-  function showLoading(el, label){ if(!el) return false; el.dataset.origHTML=el.innerHTML; el.innerHTML='<div class="loading-skel">'+label+'</div>'; return true; }
+  function showLoading(el, label){ if(!el) return false; el.dataset.origHTML=el.innerHTML; const sk=document.createElement('div'); sk.className='loading-skel'; sk.textContent=label; el.innerHTML=''; el.appendChild(sk); return true; }
   function hideLoading(el){ if(!el||!el.dataset.origHTML) return; el.innerHTML=el.dataset.origHTML; delete el.dataset.origHTML; }
   function freeBtn(el){ if(!el) return; el.textContent=el.dataset.origText||el.textContent; el.disabled=false; }
 
