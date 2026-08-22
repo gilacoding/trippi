@@ -465,8 +465,11 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     dbg('joinGroup: uid='+uid);
     let name=loadName();if(!name){name=askName();if(!name)return;}
     const { data:g }=await API.getGroup(id);
-    if(!g){dbg('joinGroup: group not found in DB (RLS?)');alert('Grup tidak ditemukan.');return;}
-    dbg('joinGroup: group found '+g.name);
+    if(!g){
+      dbg('joinGroup: group not found via list_my_groups (not yet a member)');
+      // Fall through: try isMember + join_group RPC directly for new members
+    }
+    else dbg('joinGroup: group found '+g.name);
     const { data:existing}=await API.isMember(id,uid);
     if(!existing){const {error:ee}=await API.joinGroup({group_id:id,user_id:uid,display_name:name});dbg('joinGroup: insert member '+(!ee?'OK':'ERR '+ee.message));}
     else dbg('joinGroup: already member');
