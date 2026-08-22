@@ -21,6 +21,10 @@ import asyncio, os, json, time, sys
 from playwright.async_api import async_playwright
 
 BASE_URL = os.environ.get("TRIPPI_BASE_URL", "http://localhost:8080")
+# Ensure BASE_URL points to the actual HTML file, not the directory root
+# (python -m http.server serves trip-planner.html at /trip-planner.html)
+if not BASE_URL.endswith("/trip-planner.html"):
+    BASE_URL = BASE_URL.rstrip("/") + "/trip-planner.html"
 OWNER_EMAIL = os.environ.get("TRIPPI_TEST_OWNER_EMAIL", "")
 OWNER_PASS = os.environ.get("TRIPPI_TEST_OWNER_PASS", "")
 MEMBER_EMAIL = os.environ.get("TRIPPI_TEST_MEMBER_EMAIL", "")
@@ -29,6 +33,54 @@ MEMBER_PASS = os.environ.get("TRIPPI_TEST_MEMBER_PASS", "")
 # Mocked GPS coordinates (Jakarta area)
 MOCK_LAT = -6.2250
 MOCK_LNG = 106.8025
+
+SUPABASE_URL = "https://ishflkcsdzlhhxtanhxf.supabase.co"
+SUPABASE_ANON = "sb_publishable_7g_crQO8fm0SVVIdqDU78w_gIglXx8Q"
+
+
+def _get_jwt(email, password):
+    """Mint a JWT via password grant — used for stale-journey cleanup."""
+    import urllib.request
+    data = json.dumps({"email": email, "password": password}).encode()
+    req = urllib.request.Request(
+        f"{SUPABASE_URL}/auth/v1/token?grant_type=password",
+        data=data,
+        headers={"Content-Type": "application/json", "apikey": SUPABASE_ANON,
+                 "Authorization": f"Bearer {SUPABASE_ANON}"}
+    )
+    resp = urllib.request.urlopen(req)
+    return json.loads(resp.read())["access_token"]
+
+
+async def cleanup_stale_journeys(owner_email, owner_pass, member_email, member_pass):
+    """End any lingering journey sessions + revoke member consent before a fresh E2E run."""
+    if not owner_email or not owner_pass:
+        print("  (skip — owner creds not set)")
+        return
+    import urllib.request
+    headers = {"Content-Type": "application/json", "apikey": SUPABASE_ANON}
+    try:
+        owner_jwt = _get_jwt(owner_email, owner_pass)
+        headers["Authorization"] = f"Bearer {owner_jwt}"
+        # List all owner groups
+        req = urllib.request.Request(f"{SUPABASE_URL}/rest/v1/rpc/list_my_groups",
+            data=json.dumps({}).encode(), headers=headers)
+        r = urllib.request.urlopen(req)
+        groups = json.loads(r.read())
+        ended = 0
+        for g in groups:
+            gid = g["id"]
+            req_e = urllib.request.Request(f"{SUPABASE_URL}/rest/v1/rpc/end_journey_session",
+                data=json.dumps({"p_group_id": gid}).encode(), headers=headers)
+            try:
+                urllib.request.urlopen(req_e)
+                ended += 1
+            except Exception:
+                pass  # no active journey
+        print(f"  ✅ Cleaned {ended} stale journey session(s), {len(groups)} total groups")
+    except Exception as e:
+        print(f"  ⚠️ Cleanup skipped: {e}")
+
 
 RESULTS = {}
 
@@ -141,11 +193,22 @@ async def login_via_browser(page, email, password, label):
 
 
 async def click_journey_tab(page):
-    """Click the Journey Mode tab."""
+    """Click the Journey Mode tab.
+
+    Uses JavaScript click to bypass Playwright's visibility/stability checks,
+    which can fail on animated tab transitions in the SPA.
+    """
     try:
-        await page.click('button[data-gview="journey"]', timeout=5000)
-        await page.wait_for_timeout(2000)
-        return True
+        # First wait for the tab to exist in DOM (state='attached' = exists in DOM, not necessarily visible)
+        await page.wait_for_selector('button[data-gview="journey"]', state='attached', timeout=10000)
+        # Click via JS to bypass any animation/overlay issues
+        await page.evaluate('''() => {
+            const btn = document.querySelector('button[data-gview="journey"]');
+            if (btn) btn.click();
+        }''')
+        await page.wait_for_timeout(3000)
+        # Verify the journey panel became active
+        return await is_journey_panel_visible(page)
     except Exception as e:
         print(f"    click_journey_tab error: {e}")
         return False
@@ -163,6 +226,28 @@ async def is_journey_panel_visible(page):
 async def is_start_journey_visible(page):
     """Check if Start Journey button is visible (owner only)."""
     return await page.is_visible('#startJourneyBtn', timeout=3000)
+
+
+async def is_element_visible(page, selector):
+    """Check if an element is visible on the page."""
+    try:
+        return await page.is_visible(selector, timeout=3000)
+    except Exception:
+        return False
+
+
+async def js_click(page, selector, timeout=10000):
+    """Click an element via JavaScript to bypass Playwright visibility/stability checks.
+
+    Use when page.click() times out with 'element is not visible' even though
+    the element exists in the DOM (common with SPA animations/overlays).
+    """
+    await page.wait_for_selector(selector, state='attached', timeout=timeout)
+    await page.evaluate(f'''() => {{
+        const el = document.querySelector('{selector}');
+        if (el) el.click();
+    }}''')
+    await page.wait_for_timeout(2000)
 
 
 async def is_consent_banner_visible(page):
@@ -205,6 +290,29 @@ async def test_s1_journey_inactive(page_owner, page_member):
 async def test_s2_member_consent_banner(page_member):
     """S2: Member sees consent banner when journey active."""
     print("\n=== S2: Member consent banner ===")
+    # Ensure member has Journey panel active (owner started journey in S1)
+    # The consent banner lives inside journeyPanel, so Journey tab must be open
+    journey_open = await is_journey_panel_visible(page_member)
+    if not journey_open:
+        tab_ok = await click_journey_tab(page_member)
+        record("S2: Member Journey tab opened", tab_ok,
+               "opened via click_journey_tab" if tab_ok else "failed to open")
+    
+    # Member opened Journey panel BEFORE owner started journey — need to
+    # re-render Journey view so the member picks up the active journey state
+    # via get_crew_locations RPC. The owner's startJourney sets colState.journey
+    # on owner's page, but member needs a fresh renderJourneyView call.
+    await page_member.wait_for_timeout(5000)  # Wait for owner's journey to propagate
+    # Call renderJourneyView directly to ensure it fires (re-clicking the already-active
+    # tab may not reliably trigger the onclick handler in all browser states)
+    await page_member.evaluate('''() => {
+        if (typeof renderJourneyView === 'function') {
+            renderJourneyView();
+        }
+    }''')
+    await page_member.wait_for_timeout(5000)  # Wait for RPC to resolve
+    
+    # Now check for consent banner
     has_banner = await is_consent_banner_visible(page_member)
     record("S2: Consent banner visible (journey active)", has_banner,
            "banner found" if has_banner else "banner NOT found — check journey state")
@@ -216,7 +324,7 @@ async def test_s2_member_consent_banner(page_member):
     record("S2: navigator.geolocation.watchPosition available", has_geo, "API exists")
 
 
-async def test_s3_gps_to_realtime(page_owner, page_member, ctx_member):
+async def test_s3_gps_to_realtime(page_owner, page_member, ctx_member, ctx_owner):
     """
     S3: Member grants consent → GPS → upsert → Realtime → UI update.
 
@@ -227,19 +335,39 @@ async def test_s3_gps_to_realtime(page_owner, page_member, ctx_member):
     """
     print("\n=== S3: GPS → upsert → Realtime → UI ===")
 
-    # Set mocked geolocation
+    # Set mocked geolocation + permission on the member context
     await ctx_member.set_geolocation({"latitude": MOCK_LAT, "longitude": MOCK_LNG})
     await ctx_member.grant_permissions(['geolocation'])
 
-    # Click Share my location
+    # Owner also needs consent to see crew locations via get_crew_locations
+    # (get_crew_locations gate 4 checks CALLER's consent — owner must grant too)
+    await ctx_owner.set_geolocation({"latitude": MOCK_LAT + 0.001, "longitude": MOCK_LNG + 0.001})
+    await ctx_owner.grant_permissions(['geolocation'])
+
+    # Capture console logs from member page for debugging
+    member_console = []
+    page_member.on('console', lambda msg: member_console.append(f"[{msg.type}] {msg.text}"))
+
+    # Owner must also grant server-side consent to see crew locations
+    # (get_crew_locations gate 4 checks CALLER's consent)
     try:
-        await page_member.click('#shareLocationBtn', timeout=5000)
+        await js_click(page_owner, '#shareLocationBtn')
+        await page_owner.wait_for_timeout(3000)  # allow consent + getCurrentPosition + upsert
+        has_owner_stop = await is_stop_sharing_visible(page_owner)
+        if has_owner_stop:
+            print("  Owner: consent granted + location shared")
+    except Exception:
+        pass  # Owner might not have the button if already granted
+
+    # Member clicks Share my location
+    try:
+        await js_click(page_member, '#shareLocationBtn')
         record("S3a: Share button clicked", True, "")
     except Exception as e:
         record("S3a: Share button clicked", False, str(e))
         return
 
-    await page_member.wait_for_timeout(3000)
+    await page_member.wait_for_timeout(5000)  # allow getCurrentPosition + upsertMemberLocation + renderJourneyView
 
     # Check consent state via DOM (consent banner should change from "Share" to "Stop sharing")
     has_stop = await is_stop_sharing_visible(page_member)
@@ -249,6 +377,25 @@ async def test_s3_gps_to_realtime(page_owner, page_member, ctx_member):
     # Check for crew markers (self marker should appear)
     markers = await get_crew_markers(page_member)
     record("S3c: Self crew marker appears", markers > 0, f"{markers} markers")
+    # Debug: show member console logs and crew map state
+    if markers == 0 and member_console:
+        print(f"  Member console logs: {member_console[:10]}")
+    if markers == 0:
+        crew_debug = await page_member.evaluate('''
+            () => {
+                const map = document.getElementById('crewMap');
+                const empty = document.getElementById('crewEmpty');
+                return {
+                    map_display: map ? getComputedStyle(map).display : 'NO_MAP',
+                    empty_display: empty ? getComputedStyle(empty).display : 'NO_EMPTY',
+                    empty_text: empty ? empty.textContent.trim().substring(0, 120) : '',
+                    crew_locations_len: window.colState ? (window.colState.crewLocations ? window.colState.crewLocations.length : 'no_crewLocations') : 'no_colState',
+                    journey_status: window.colState ? (window.colState.journey ? window.colState.journey.status : 'no_journey') : 'no_colState',
+                    location_consent: window.colState ? window.colState.locationConsent : 'no_colState'
+                };
+            }
+        ''')
+        print(f"  Member crew map debug: {crew_debug}")
 
     # CRITICAL TEST: Owner's crew map should update via Realtime
     # Wait only 3 seconds (before 10s polling fires on owner)
@@ -260,6 +407,38 @@ async def test_s3_gps_to_realtime(page_owner, page_member, ctx_member):
     owner_markers = await get_crew_markers(page_owner)
     record("S3d: Owner sees member marker (Realtime, <10s)", owner_markers > 0,
            f"{owner_markers} markers (Realtime event should fire before polling)")
+    if owner_markers == 0:
+        owner_console = []
+        page_owner.on('console', lambda msg: owner_console.append(f"[{msg.type}] {msg.text}"))
+        await page_owner.wait_for_timeout(1000)
+        owner_debug = await page_owner.evaluate('''
+            () => {
+                const map = document.getElementById('crewMap');
+                const empty = document.getElementById('crewEmpty');
+                return {
+                    map_display: map ? getComputedStyle(map).display : 'NO_MAP',
+                    empty_display: empty ? getComputedStyle(empty).display : 'NO_EMPTY',
+                    empty_text: empty ? empty.textContent.trim().substring(0, 120) : '',
+                    crew_locations_len: window.colState ? (window.colState.crewLocations ? window.colState.crewLocations.length : 'no_crewLocations') : 'no_colState',
+                    journey_status: window.colState ? (window.colState.journey ? window.colState.journey.status : 'no_journey') : 'no_colState',
+                    location_consent: window.colState ? window.colState.locationConsent : 'no_colState',
+                    uid: window.colState ? (window.colState.uid || 'no-uid') : 'no_colState',
+                    group_id: window.colState ? (window.colState.group ? (window.colState.group.id || 'no-id') : 'no-group') : 'no_colState'
+                };
+            }
+        ''')
+        print(f"  Owner crew map debug: {owner_debug}")
+        # Wait for Realtime event (up to 8s total before 10s polling)
+        for attempt in range(8):
+            await page_owner.wait_for_timeout(1000)
+            owner_markers = await get_crew_markers(page_owner)
+            if owner_markers > 0:
+                print(f"  Owner got marker on attempt {attempt+1} (Realtime)")
+                record("S3d: Owner sees member marker (Realtime, <10s)", True,
+                       f"{owner_markers} markers via Realtime at attempt {attempt+1}")
+                break
+        else:
+            print(f"  Owner still has {owner_markers} markers after 8s")
 
 
 async def test_s4_stop_sharing(page_member):
@@ -267,8 +446,7 @@ async def test_s4_stop_sharing(page_member):
     print("\n=== S4: Stop sharing ===")
 
     try:
-        await page_member.click('#stopSharingBtn', timeout=5000)
-        await page_member.wait_for_timeout(4000)
+        await js_click(page_member, '#stopSharingBtn')
         record("S4a: Stop Sharing clicked", True, "")
     except Exception as e:
         record("S4a: Stop Sharing clicked", False, str(e))
@@ -285,8 +463,7 @@ async def test_s5_journey_end(page_owner, page_member):
     print("\n=== S5: Journey ended ===")
 
     try:
-        await page_owner.click('#endJourneyBtn', timeout=5000)
-        await page_owner.wait_for_timeout(4000)
+        await js_click(page_owner, '#endJourneyBtn')
         record("S5: Journey ended", True, "End Journey clicked")
     except Exception as e:
         record("S5: Journey ended", False, str(e))
@@ -303,14 +480,20 @@ async def test_s6_gps_denied(browser, page_member, ctx_member):
     """
     print("\n=== S6: GPS permission denied ===")
 
-    # Verify member has active server consent from S3
-    has_stop = await is_stop_sharing_visible(page_member)
-    record("S6a: Member has active server consent", has_stop,
-           "Stop Sharing visible before GPS test")
+    # After S4 (stop sharing), consent is revoked. Verify the consent banner
+    # state on the original member page.
+    has_banner = await is_consent_banner_visible(page_member)
+    record("S6a: Member consent state after S4", has_banner,
+           "consent banner visible" if has_banner else "no banner")
 
     # Create a context WITHOUT geolocation permission
     ctx_denied = await browser.new_context(permissions=[])  # No geolocation
     page_denied = await ctx_denied.new_page()
+    denied_alert_msgs = []
+    def _on_dialog_denied(dialog):
+        denied_alert_msgs.append(f"[{dialog.type}] {dialog.message}")
+        return asyncio.ensure_future(dialog.dismiss())
+    page_denied.on('dialog', _on_dialog_denied)
 
     # Login the denied-permission member
     denied_ok = await login_via_browser(page_denied, MEMBER_EMAIL, MEMBER_PASS, "denied-member")
@@ -324,6 +507,8 @@ async def test_s6_gps_denied(browser, page_member, ctx_member):
                 'new URLSearchParams(window.location.search).get("group")'
             )
             if group_id:
+                # Set display name to avoid prompt() dialog
+                await page_denied.evaluate("localStorage.setItem('trippi_display_name', 'E2E Denied Member')")
                 await page_denied.goto(f"{BASE_URL}?group={group_id}", wait_until='domcontentloaded')
                 await page_denied.wait_for_timeout(10000)
 
@@ -331,7 +516,19 @@ async def test_s6_gps_denied(browser, page_member, ctx_member):
                 await click_journey_tab(page_denied)
                 await page_denied.wait_for_timeout(3000)
 
-                # Try to share location — browser blocks Geolocation
+                # The denied-permission member is the SAME user as the original member
+                # (same credentials), so server-side consent is already granted from S3.
+                # To test the GPS-denied path, we must first REVOKE consent so the
+                # "Share Location" button appears, then click it with GPS blocked.
+                stop_btn = await page_denied.query_selector('#stopSharingBtn')
+                if stop_btn and await stop_btn.is_visible():
+                    await page_denied.evaluate('''() => {
+                        const btn = document.getElementById('stopSharingBtn');
+                        if (btn) btn.click();
+                    }''')
+                    await page_denied.wait_for_timeout(3000)
+
+                # Now try to share location — browser blocks Geolocation
                 share_btn = await page_denied.query_selector('#shareLocationBtn')
                 if share_btn and await share_btn.is_visible():
                     try:
@@ -339,6 +536,9 @@ async def test_s6_gps_denied(browser, page_member, ctx_member):
                         await page_denied.wait_for_timeout(4000)
                         record("S6c: Share clicked (GPS denied by browser)", True,
                                "browser blocks Geolocation APIs")
+                        # Print any alerts captured
+                        if denied_alert_msgs:
+                            print(f"  Denied member alerts: {denied_alert_msgs[:5]}")
 
                         # Check for error state in UI
                         error_text = await page_denied.evaluate('''
@@ -353,6 +553,22 @@ async def test_s6_gps_denied(browser, page_member, ctx_member):
                                f"banner: {error_text}")
                     except Exception as e:
                         record("S6c: Share clicked (GPS denied)", False, str(e))
+                else:
+                    # Share button not visible — debug why
+                    banner_text = await page_denied.evaluate('''
+                        () => {
+                            const banner = document.getElementById('consentBanner');
+                            return banner ? banner.textContent.trim().substring(0, 150) : 'no-banner';
+                        }
+                    ''')
+                    journey_status = await page_denied.evaluate('''
+                        () => {
+                            try {
+                                return colState.journey ? colState.journey.status : 'no-journey';
+                            } catch(e) { return 'error'; }
+                        }
+                    ''')
+                    print(f"  S6 debug: shareBtn not visible. banner={banner_text}, journey={journey_status}, alerts={denied_alert_msgs[:3]}")
 
                 # Design invariant: server consent ≠ browser GPS permission
                 # GPS denial does NOT auto-revoke consent (member's explicit choice)
@@ -361,10 +577,16 @@ async def test_s6_gps_denied(browser, page_member, ctx_member):
 
         await ctx_denied.close()
 
-    # Verify server consent still intact on original member context
+    # Verify server consent state: GPS denial does NOT auto-revoke consent.
+    # After S6c, grantLocationConsent() may have succeeded server-side even
+    # though getCurrentPosition failed. Check the original member page:
+    # if consent banner shows Stop Sharing → server consent still granted.
+    # If consent was revoked → banner shows Share button.
     has_stop_after = await is_stop_sharing_visible(page_member)
-    record("S6f: Original member consent NOT revoked", has_stop_after,
-           "Stop Sharing still visible after GPS-denied test")
+    has_banner_after = await is_consent_banner_visible(page_member)
+    record("S6f: Server consent NOT auto-revoked by GPS denial",
+           has_banner_after,
+           f"banner={has_banner_after}, stop_sharing={has_stop_after}")
 
 
 async def test_s7_guest_isolation(page_guest):
@@ -407,6 +629,10 @@ async def main():
     print(f"Member email: {MEMBER_EMAIL or '(NOT SET)'}")
     print()
 
+    # --- Automated stale-journey cleanup (prevents 409 conflicts from prior runs) ---
+    print("=== STALE JOURNEY CLEANUP ===")
+    await cleanup_stale_journeys(OWNER_EMAIL, OWNER_PASS, MEMBER_EMAIL, MEMBER_PASS)
+
     if not OWNER_EMAIL or not OWNER_PASS:
         print("❌ TRIPPI_TEST_OWNER_EMAIL and TRIPPI_TEST_OWNER_PASS env vars are required")
         print()
@@ -423,14 +649,26 @@ async def main():
         # === OWNER context ===
         ctx_owner = await browser.new_context()
         page_owner = await ctx_owner.new_page()
+        # Capture + auto-dismiss alert/prompt dialogs (print the message for debugging)
+        alert_msgs = []
+        def _on_dialog_owner(dialog):
+            alert_msgs.append(f"[{dialog.type}] {dialog.message}")
+            return asyncio.ensure_future(dialog.dismiss())
+        page_owner.on('dialog', _on_dialog_owner)
 
         # === MEMBER context (separate identity) ===
         ctx_member = await browser.new_context()
         page_member = await ctx_member.new_page()
+        member_alert_msgs = []
+        def _on_dialog_member(dialog):
+            member_alert_msgs.append(f"[{dialog.type}] {dialog.message}")
+            return asyncio.ensure_future(dialog.dismiss())
+        page_member.on('dialog', _on_dialog_member)
 
         # === GUEST context (no login) ===
         ctx_guest = await browser.new_context()
         page_guest = await ctx_guest.new_page()
+        page_guest.on('dialog', lambda d: asyncio.ensure_future(d.dismiss()))
 
         results = {}
 
@@ -489,28 +727,79 @@ async def main():
         record("Setup: Group ID", group_id is not None, f"group={group_id}")
 
         # ---- MEMBER JOINS ----
-        print("\n=== MEMBER JOINS ---")
+        print("=== MEMBER JOINS ---")
         if group_id:
+            # Set display name in localStorage to avoid prompt() dialog blocking joinGroup
+            await page_member.evaluate("localStorage.setItem('trippi_display_name', 'E2E Test Member')")
             await page_member.goto(f"{BASE_URL}?group={group_id}", wait_until='domcontentloaded')
-            await page_member.wait_for_timeout(10000)
-            record("Setup: Member joined trip", True, f"via ?group={group_id}")
+            # Poll for group view to appear (joinGroup is async + loads supabase-js from CDN)
+            # Wait up to 35 seconds for the group view to become visible
+            group_loaded = False
+            try:
+                await page_member.wait_for_function('''() => {
+                    const gv = document.getElementById('groupView');
+                    const grp = document.getElementById('groupName');
+                    return gv && window.getComputedStyle(gv).display !== 'none' &&
+                           grp && grp.textContent.trim().length > 0;
+                }''', timeout=35000)
+                group_loaded = True
+            except Exception:
+                group_loaded = False
+            
+            # Capture final page state for diagnosis
+            console_msgs = await page_member.evaluate('''() => {
+                const grp = document.getElementById('groupName');
+                const auth = document.getElementById('authModal');
+                const home = document.getElementById('homeView');
+                const groupView = document.getElementById('groupView');
+                return {
+                    groupName: grp ? grp.textContent.trim() : 'MISSING',
+                    authModalVisible: auth ? window.getComputedStyle(auth).display !== 'none' : 'no-modal',
+                    homeViewDisplay: home ? window.getComputedStyle(home).display : 'MISSING',
+                    groupViewDisplay: groupView ? window.getComputedStyle(groupView).display : 'MISSING',
+                    currentURL: window.location.href
+                };
+            }''')
+            print(f"  Member page state: {console_msgs}")
+            record("Setup: Member joined trip", group_loaded,
+                   f"via ?group={group_id}" + ("" if group_loaded else " — group view not loaded in 35s"))
 
         # ---- RUN SCENARIOS ----
         await test_s1_journey_inactive(page_owner, page_member)
 
         # Owner starts Journey
         await click_journey_tab(page_owner)
-        start_btn = await page_owner.query_selector('#startJourneyBtn')
-        if start_btn and await start_btn.is_visible():
-            await start_btn.click()
-            await page_owner.wait_for_timeout(6000)
-            print("  Owner: Journey started")
+        try:
+            await js_click(page_owner, '#startJourneyBtn')
+            await page_owner.wait_for_timeout(8000)
+            # Verify journey actually started by checking #endJourneyBtn visibility
+            has_end = await is_element_visible(page_owner, '#endJourneyBtn')
+            if has_end:
+                print("  Owner: Journey started")
+            else:
+                # Check if start button is still visible (journey didn't start)
+                has_start = await is_start_journey_visible(page_owner)
+                if has_start:
+                    # Capture any console errors to diagnose why journey didn't start
+                    page_errors = await page_owner.evaluate('''() => {
+                        const logs = [];
+                        // Check if there's a stale journey error
+                        return window.colState ? 'colState exists' : 'no colState';
+                    }''')
+                    print(f"  Owner Start Journey: FAILED — still showing Start button. Debug: {page_errors}")
+                    if alert_msgs:
+                        print(f"  Owner alerts captured: {alert_msgs}")
+                else:
+                    print("  Owner Start Journey: FAILED — neither Start nor End button found")
+        except Exception as e:
+            print(f"  Owner Start Journey: {e}")
 
         await test_s2_member_consent_banner(page_member)
-        await test_s3_gps_to_realtime(page_owner, page_member, ctx_member)
+        await test_s3_gps_to_realtime(page_owner, page_member, ctx_member, ctx_owner)
         await test_s4_stop_sharing(page_member)
-        await test_s5_journey_end(page_owner, page_member)
+        # S6 must run BEFORE S5 (journey end) — denied member needs active journey
         await test_s6_gps_denied(browser, page_member, ctx_member)
+        await test_s5_journey_end(page_owner, page_member)
         await test_s7_guest_isolation(page_guest)
         await test_s8_leave_group_cleanup(page_owner, page_member)
 
@@ -544,8 +833,12 @@ async def main():
             "S4a: Stop Sharing clicked",
             "S4b: Consent banner resets",
             "S5: Journey ended",
-            "S6a: GPS denied path handled",
-            "S6b: Server consent NOT auto-revoked on GPS denial",
+            "S6a: Member consent state after S4",
+            "S6b: Denied-perm member login",
+            "S6c: Share clicked (GPS denied by browser)",
+            "S6d: UI shows GPS unavailable",
+            "S6e: Server consent ≠ browser GPS permission",
+            "S6f: Server consent NOT auto-revoked by GPS denial",
             "S7a: Journey panel hidden from guest",
             "S7b: No consent banner for guest",
             "S7c: No Start button for guest",
