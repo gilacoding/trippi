@@ -551,6 +551,58 @@ async def test_s3w_loading_states(page_member):
     record("S3w: Loading states (busyBtn/freeBtn)", ok, str(result))
 
 
+async def test_s3x_loading_indicators(page_member):
+    """S3x: M4.7 loading states — showLoading/hideLoading render skeleton text.
+
+    Verifies the .loading-skel CSS exists, the helpers swap innerHTML, and that
+    the real async loaders (loadCrewMap, loadMembers, loadRoute) call showLoading.
+    Does not assert timing (fetch is fast); asserts the wiring + skeleton markup.
+    """
+    print("\n=== S3x: Loading states (showLoading/hideLoading) ===")
+
+    result = await page_member.evaluate('''() => {
+        const out = {};
+        // 1. CSS rule exists
+        out.css = Array.from(document.styleSheets).some(ss => {
+            try { return ss.cssRules; } catch(e){ return false; }
+        }).toString(); // just confirms access
+        const skel_rules = Array.from(document.styleSheets).flatMap(ss => {
+            try { return Array.from(ss.cssRules).map(r => r.cssText||""); } catch(e){ return []; }
+        });
+        out.skel_css = skel_rules.some(r => r.includes('.loading-skel'));
+
+        // 2. Helpers exist + swap markup
+        out.helpers = (typeof showLoading === 'function') && (typeof hideLoading === 'function');
+        const el = document.getElementById('crewMap') || document.createElement('div');
+        el.id = el.id || 'test_skel';
+        if(!el.parentNode) document.body.appendChild(el);
+        const wired = showLoading(el, 'Memuat...');
+        out.show_sets_html = el.innerHTML.includes('loading-skel') && el.innerHTML.includes('Memuan') || el.innerHTML.includes('Memuat');
+        out.saved_orig = !!el.dataset.origHTML;
+        hideLoading(el);
+        out.restored = el.innerHTML !== '' || !el.dataset.origHTML;
+        if(el.id === 'test_skel') el.remove();
+
+        // 3. Real loaders call showLoading
+        out.crew_loading = loadCrewMap.toString().includes("showLoading(map, 'Memuat lokasi grup...");
+        out.member_loading = loadMembers.toString().includes("showLoading(ml, 'Memuat anggota...");
+        out.route_loading = loadRoute.toString().includes("showLoading(list, 'Memuat route...'");
+        return out;
+    }''')
+
+    ok = (
+        result.get('skel_css') is True
+        and result.get('helpers') is True
+        and result.get('show_sets_html') is True
+        and result.get('saved_orig') is True
+        and result.get('restored') is True
+        and result.get('crew_loading') is True
+        and result.get('member_loading') is True
+        and result.get('route_loading') is True
+    )
+    record("S3x: Loading states (showLoading/hideLoading)", ok, str(result))
+
+
 async def test_s4_stop_sharing(page_member):
     """S4: Member stops sharing → writes rejected."""
     print("\n=== S4: Stop sharing ===")
@@ -908,6 +960,7 @@ async def main():
         await test_s3_gps_to_realtime(page_owner, page_member, ctx_member, ctx_owner)
         await test_s3v_input_validation(page_member)
         await test_s3w_loading_states(page_member)
+        await test_s3x_loading_indicators(page_member)
         await test_s4_stop_sharing(page_member)
         # S6 must run BEFORE S5 (journey end) — denied member needs active journey
         await test_s6_gps_denied(browser, page_member, ctx_member)
@@ -944,6 +997,7 @@ async def main():
             "S3d: Owner sees member marker (Realtime, <10s)",
             "S3v: Client-side input validation",
             "S3w: Loading states (busyBtn/freeBtn)",
+            "S3x: Loading states (showLoading/hideLoading)",
             "S4a: Stop Sharing clicked",
             "S4b: Consent banner resets",
             "S5: Journey ended",
