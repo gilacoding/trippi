@@ -227,8 +227,12 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 ---
 
 ## P0 — Guest Mode Redesign (DONE)
+> **Note:** The initial implementation was DONE (46/46 E2E), but the Founder corrected
+> the guest policy post-implementation: unauthenticated guests must see the full read-only
+> shared-trip projection **without** login. See **P0.1 Guest View Correction** below for
+> the follow-up backlog item that addresses this.
 
-- [x] Guest Mode redesign · risk: LOW · state: ✅ DONE (2026-08-22)
+|- [x] Guest Mode redesign · risk: LOW · state: ✅ DONE (2026-08-22)
 
   Split into two scoped changes per user's P0 acceptance criteria:
   1. **Guest has no trip list** — `?gt=` lands on a dedicated `guestView` (card preview +
@@ -971,4 +975,139 @@ SQL Editor (no CLI linked, no management token in env per security rules). Found
 **NEXT: M4.3 → M4.4 Location Sharing** (`member_locations`, `get_crew_locations` join,
 `upsert_member_location`, browser geolocation, adaptive heartbeat, realtime crew map).
 M4.4 will NOT alter the M4.3 admission gate — it only adds the position data behind it.
+
+---
+
+## P0 — Guest View Correction
+
+- [ ] P0.1 Guest viewer sees full shared-trip projection without authentication · risk: HIGH · state: BACKLOG
+  **Scope:** An unauthenticated guest opening `?gt=<token>` must see the creator-approved
+  shared-trip projection (itinerary, dates, destination, participant count, public-safe
+  fields). Login/signup is required ONLY when the guest clicks "Gabung Trip" and attempts
+  `redeem_invitation`. The existing `get_guest_trip(p_token)` RPC already returns this
+  payload (guest_payload) — `renderGuestView` must render the full itinerary, not a stub.
+
+  **Acceptance criteria:**
+  1. `?gt=<token>` → guest renders full read-only itinerary (agenda items, dates, notes, links, budget)
+  2. Guest NOT prompted to login/signup just to view
+  3. "Gabung Trip" button → login/signup → `redeem_invitation` RPC (server-authoritative)
+  4. Guest cannot edit (all mutation controls hidden/disabled)
+  5. Guest does NOT appear as a member until join is redeemed
+  6. Guest cannot access location APIs (no journey panel, no consent banner)
+  7. Join does NOT create `location_permissions` (isolation preserved — M4.3/M4.4)
+  8. Non-member → `get_crew_locations` → 400 "not a group member" (RLS gate intact)
+  9. Guest cannot navigate to trip list / create trips (nav lockout preserved)
+  10. No private/member-only/location data leaked to guest view
+
+  **Dependencies:**
+  - `get_guest_trip(p_token)` / `guest_payload(group_id)` RPCs (already deployed)
+  - `redeem_invitation(p_token, p_display_name)` RPC (already deployed, requires auth.uid)
+
+  **Known risks:**
+  - Must NOT weaken `get_crew_locations` 4-gate security layer (auth → member → journey → consent)
+  - Must NOT expose `invitations.revoked` / `expires_at` internals to guest
+  - Must NOT allow guest to infer other group IDs from the payload
+
+  **Audit note:** `trip-planner.html` — inspect `?gt=` startup path (L1146) → `openGuestTrip`
+  → `renderGuestView` (L283). Verify `renderGuestItinerary` renders full shared_items.
+  Confirm `lockNavForGuest` hides `[data-home]` buttons + `#newTripBtn`. Confirm guestClick
+  handler calls `openAuth('login')` then `redeemInvitation` RPC — NOT a direct INSERT.
+
+---
+
+## P1 — Product Backlog
+
+### P1.1 Trip History / Memory Lane
+- [ ] P1.1 Trip History / Memory Lane page · risk: MEDIUM · state: BACKLOG
+  **Scope:** Completed trips become read-only memory lane. Wishlist remains per-trip Itinerary.
+
+  **Acceptance criteria:**
+  1. Completed trips appear on a dedicated Trip History page (separate from active planner)
+  2. No editing itinerary / adding agenda / recording expenses from Trip History
+  3. Creator chooses visibility: **Public** (viewable by share link) or **Private — members only**
+  4. Public format: Instagram-style feed (photo/video posts, geo-tagged media, trip story/context)
+  5. `Save this trip` CTA copies reusable blueprint: itinerary + route + privacy-safe expense data
+  6. Public expense data: estimated cost/person, hotel range/category, transport cost, attraction/HTM,
+     trip-level/category totals, route/destination context
+  7. NEVER expose: raw personal transactions, payment details, or member-private financial info
+
+  **Dependencies:**
+  - **P0 Guest View correction must be resolved first** (shared-trip projection defines the
+    public-safe data model that Trip History reuses)
+  - Existing `trip_status` / `is_past` logic in `tripCard()` (L369) for completed trip detection
+  - Supabase storage for trip media (photo/video posts)
+
+  **Known risks:**
+  - Public expense anonymization: must strip individual member attribution, show aggregate only
+  - Privacy model for geo-tagged media: must respect location consent history
+  - Route sharing: if Route feature is removed (P1.2), Trip History must not depend on it
+
+### P1.2 Remove Route Feature
+- [ ] P1.2 Remove standalone Route feature · risk: MEDIUM · state: BACKLOG
+  **Scope:** Remove the standalone Route tab/feature. Route is redundant — the itinerary already
+  provides planning structure. Journey/location/map functionality must NOT be affected.
+
+  **Pre-implementation audit (required):**
+  1. `routePanel` (L176) + `#routeList` (L180) + `loadRoute()` (L1012) + `getRoute(groupId)` API
+  2. Route tab in group view: `<button class="view-tab" data-gview="route">Route</button>` (L159)
+  3. `#createRouteBtn` (L178) — auto-route generation trigger
+  4. CSS: `.route-list`, `.route-card`, `.route-seq`, `.route-copy`, `.route-actions` (L33)
+  5. `colState.route` field (L538) — check if referenced by crew map / journey
+
+  **Dependencies to verify (NOT to remove):**
+  - Journey mode / crew map (`crewMap`, `member_locations`) — L660+
+  - `upsert_member_location` / `get_crew_locations` path
+  - `shareLocationHandler` / consent banner
+
+  **Known risks:**
+  - If `colState.route` is read by `initJourneyRealtime` or crew map, removing it breaks location
+  - Route waypoints may be referenced by `addWaypoint` / `moveWaypoint` in journey planning
+  - Must check `API.getRoute` in `backend/trippi-api.js` — if other features call it, gate behind
+    journey-only usage before removal
+
+---
+
+## P2 — Product Backlog
+
+### P2.1 Wishlist → Itinerary Only
+- [ ] P2.1 Wishlist consolidation to Itinerary page · risk: LOW · state: BACKLOG
+  **Scope:** Wishlist (currently "To Go List") must only appear on the Itinerary page. Remove
+  redundant entry points from other pages. Preserve all wishlist data/functionality.
+
+  **Current locations (2 entry points found):**
+  - Home (`#homeView`): `#toGoList` (L86), `#toGoSearch` (L86), `#toGoPanel` (L87), `#toGoCount` (L86)
+  - Group/trip planner (`#plannerView` / group view): `#groupWishList` (L206), `#groupWishForm` (L207)
+
+  **Action:** Keep wishlist/Wishlist on the Itinerary page (planner/group view). Remove the
+  standalone home `#toGoList` section. Migrate `state.toGo` persistence (already in localStorage).
+
+  **Dependencies:** `renderToGo()`, `addToGo()`, `scheduleToGo()`, `state.toGo` (L234)
+  **Known risks:** `pendingToGoId` used in trip creation flow (L424, L1093) — removing home wishlist
+  must not break the "add To Go item to first day of new trip" flow.
+
+### P2.2 Remove Backup & Restore
+- [ ] P2.2 Remove Backup & Restore feature · risk: LOW · state: BACKLOG
+  **Rationale:** Authenticated members have Supabase-backed persistence. Guests access shared trips
+  via creator's invitation link. Manual Backup/Restore is redundant.
+
+  **Current implementation:**
+  - UI: `#exportData` / `#importData` buttons in "Data & offline" tools section (L96)
+  - `exportBackup()` / `importBackup(file)` functions (L1102-1103)
+  - Backed up: `state.trips` + `state.toGo` as JSON to localStorage download
+  - Input: `#importFile` file picker (L96, `accept="application/json"`)
+
+  **Pre-removal audit:**
+  - `exportBackup` writes: `{app:'Trippi',version:1,exportedAt, trips, toGo}` → no server calls
+  - `importBackup` replaces `state.trips` + `state.toGo` entirely → no merge/dependency on other state
+  - Referenced by: `#exportData.onclick` (L1104) and `#importData.onclick` → `#importFile` (L1104)
+  - NO references from M4.x location/journey/member code paths
+
+  **Known risks:**
+  - Some users may rely on manual backup for cross-device migration (mitigation: document
+    Supabase persistence as the supported alternative)
+  - `importBackup` does NOT call any server RPC — pure client localStorage swap (safe to remove)
+  - Removing must NOT touch `scheduleSync()` (sync to Supabase) — that's a separate path
+
+  **No data deletion** — this is UI/function removal only. Existing localStorage backups remain
+  importable by older app versions until user upgrades.
 
