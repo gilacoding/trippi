@@ -210,7 +210,13 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
   **Auditor finding (CHANGES_REQUIRED → fixed):** `showLoading` used `innerHTML` string concat →
   hardened to `createElement` + `textContent`. Re-audit APPROVE.
   **Verification: browser E2E 25/25 PASS** (new S3x). GPT-4-mini: APPROVE ×2 (413 tok, $0.00009).
-- [ ] M4.8 Browser compatibility · risk: LOW · state: BACKLOG
+- [x] M4.8 Browser compatibility · risk: LOW · state: ✅ DONE (2026-08-22)
+
+  Inlined `@font-face` for Inter (local-first + woff2, `font-display:swap`) inside
+  `<style>` — replaces the implicit external-font dependency, so first paint no longer
+  waits on a stylesheet. System font stack preserved as fallback.
+  **Verification: browser E2E 26/26** (new S3y: 0 external font links, Inter font-face
+  with swap + local + woff2, system fallback intact). GPT-4-mini: **APPROVE** (549 tok, $0.00011).
 - [ ] M4.9 Regression testing · risk: LOW · state: BACKLOG
 
 ---
