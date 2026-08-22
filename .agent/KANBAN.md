@@ -143,6 +143,19 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 
   **Verified via:** two distinct authenticated identities (owner UID `eadd4ade-…`, member UID `01d58972-…`), REST RPC against live Supabase project `ishflkcsdzlhhxtanhxf`.
 
+  **⚠️ SUPERSEDED 2026-08-22 — FULL BROWSER DOM E2E NOW AUTOMATED & PASSING (22/22):**
+  `.agent/tests/m45_browser_e2e.py` (Playwright, dedicated e2e identities) now runs the full
+  click-through: login → create trip → join → Start Journey → consent → GPS mock → upsert →
+  Realtime → crew markers → stop sharing → journey end → GPS-denied path → guest isolation →
+  realtime cleanup. **22/22 scenarios PASS** (S1–S8, incl. S3d asserting the owner sees the
+  member marker via **Realtime subscription**, not the 10s poll).
+  Production fixes that made this green (both in `trip-planner.html`, deployed to live marki.cab):
+  - `renderJourneyView`: treat `"location permission not granted"` as **journey active**
+    (get_crew_locations gates 1-3 passed; only consent missing) — previously reset to 'planned'.
+  - `shareLocationHandler`: `await API.upsertMemberLocation(...)` before `renderJourneyView()`
+    — previously fire-and-forget, so the crew map read an empty DB until the 10s poll.
+  GPT-4-mini auditor: **APPROVE** (979 tok, $0.00018). Commits `6cdf392`, `c6911da`, `27d5672`.
+
   Acceptance matrix — ALL 11 SCENARIOS PASS:
   - ✅ Journey inactive → get_crew_locations denied (400 P0001 "no active journey")
   - ✅ Owner can start Journey (200)
