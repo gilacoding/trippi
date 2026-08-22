@@ -217,7 +217,18 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
   waits on a stylesheet. System font stack preserved as fallback.
   **Verification: browser E2E 26/26** (new S3y: 0 external font links, Inter font-face
   with swap + local + woff2, system fallback intact). GPT-4-mini: **APPROVE** (549 tok, $0.00011).
-- [ ] M4.9 Regression testing · risk: LOW · state: BACKLOG
+- [x] M4.9 Regression testing · risk: LOW · state: ✅ DONE (2026-08-22) — 37/37 PASS
+
+  Full regression gate across M4.5–M4.8: **REST RPC 11/11 + Browser E2E 26/26 = 37/37 PASS**,
+  zero regressions. GPT-4-mini: **APPROVE** (668 tok, $0.00013).
+  **M4.5 + M4.5.6 marked CLOSED** per the user's criterion (M4.5: IMPLEMENTED · SECURE · E2E COMPLETE).
+  Milestone sequence closed: M4.5 → M4.5.6 → M4.6 → M4.7 → M4.8 → M4.9.
+
+  ## Milestone Closure
+  | Milestone | Status |
+  |---|---|
+  | M4.5 Location sharing UX | ✅ IMPLEMENTED · SECURITY VERIFIED · E2E COMPLETE (37/37) |
+  | M4.5.6 Realtime crew location | ✅ INTEGRATED (Realtime subscription verified — crew markers appear <10s, not via 10s polling) |
 
 ---
 
