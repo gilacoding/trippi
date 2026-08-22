@@ -4,8 +4,8 @@
 -- CREATE OR REPLACE preserves OID -> no PostgREST schema-cache reload needed.
 -- Security model unchanged: SECURITY DEFINER, owner postgres, search_path='',
 -- 4 admission gates unchanged. Adds Gate 5: input validation.
--- NOTE: NaN/Inf comparisons are FALSE in SQL, so a pure range check would let
--- NaN through; use isfinite() (PG builtin) to reject NaN and +/-Inf.
+-- NaN detection for float8: `x <> x` (NaN is never equal to itself; isfinite()
+-- does NOT exist for double precision). +-Infinity are caught by range checks.
 
 create or replace function public.upsert_member_location(
   p_group_id uuid,
@@ -53,22 +53,25 @@ begin
   end if;
 
   -- Gate 5: input validation (lat/lng required; telemetry optional but sane)
+  -- NOTE: isfinite() does NOT exist for double precision (only date/timestamp/
+  -- interval/numeric). NaN detection for float8: NaN <> NaN (never equal to
+  -- itself); +-Infinity are caught by the range checks (Inf > 90, -Inf < -90).
   if p_lat is null or p_lng is null then
     raise exception 'latitude and longitude are required' using errcode = 'P0001';
   end if;
-  if not isfinite(p_lat) or p_lat < -90 or p_lat > 90 then
+  if p_lat <> p_lat or p_lat < -90 or p_lat > 90 then
     raise exception 'latitude out of range [-90, 90]' using errcode = 'P0001';
   end if;
-  if not isfinite(p_lng) or p_lng < -180 or p_lng > 180 then
+  if p_lng <> p_lng or p_lng < -180 or p_lng > 180 then
     raise exception 'longitude out of range [-180, 180]' using errcode = 'P0001';
   end if;
-  if p_accuracy_m is not null and (not isfinite(p_accuracy_m) or p_accuracy_m < 0) then
+  if p_accuracy_m is not null and (p_accuracy_m <> p_accuracy_m or p_accuracy_m < 0) then
     raise exception 'accuracy must be non-negative' using errcode = 'P0001';
   end if;
-  if p_heading_deg is not null and (not isfinite(p_heading_deg) or p_heading_deg < 0 or p_heading_deg >= 360) then
+  if p_heading_deg is not null and (p_heading_deg <> p_heading_deg or p_heading_deg < 0 or p_heading_deg >= 360) then
     raise exception 'heading must be in [0, 360)' using errcode = 'P0001';
   end if;
-  if p_speed_mps is not null and (not isfinite(p_speed_mps) or p_speed_mps < 0) then
+  if p_speed_mps is not null and (p_speed_mps <> p_speed_mps or p_speed_mps < 0) then
     raise exception 'speed must be non-negative' using errcode = 'P0001';
   end if;
 
