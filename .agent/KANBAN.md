@@ -202,7 +202,14 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
   didn't restore button — added freeBtn in both getCurrentPosition callbacks.
   **Verification: browser E2E 24/24 PASS** (new S3w scenario: helper semantics +
   6 handlers wired). GPT-4-mini: APPROVE ×2 (868 + 449 tok, ~$0.00026).
-- [ ] M4.7 Empty states · risk: LOW · state: BACKLOG
+- [x] M4.7 Empty states · risk: LOW · state: ✅ DONE (2026-08-22) — loading states for async data views
+
+  Note: empty states already existed (13 `.empty` patterns). M4.7 adds LOADING feedback
+  (`.loading-skel` + `showLoading`/`hideLoading` helpers, wired into `loadCrewMap`, `loadMembers`,
+  `loadRoute`) — fills the blank-view gap during data fetch.
+  **Auditor finding (CHANGES_REQUIRED → fixed):** `showLoading` used `innerHTML` string concat →
+  hardened to `createElement` + `textContent`. Re-audit APPROVE.
+  **Verification: browser E2E 25/25 PASS** (new S3x). GPT-4-mini: APPROVE ×2 (413 tok, $0.00009).
 - [ ] M4.8 Browser compatibility · risk: LOW · state: BACKLOG
 - [ ] M4.9 Regression testing · risk: LOW · state: BACKLOG
 
