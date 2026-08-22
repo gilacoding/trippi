@@ -177,19 +177,22 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 
   FIX (post-E2E only, for GPS-denied UI handling): shareLocationHandler GPS-denied path shows clear UI state ("Location blocked by browser"), does NOT auto-revoke server consent. This is correct — consent ≠ device permission.
 
-- [x] M4.5 Input validation · risk: MEDIUM · state: ✅ PARTIAL — frontend guard DONE (2026-08-22)
+- [x] M4.5 Input validation · risk: MEDIUM · state: ✅ DONE (2026-08-22)
 
   **Defect confirmed (reproduced):** `upsert_member_location` accepted lat=999, lng=-999,
   accuracy=-50, heading=999, speed=-10 (all 200 OK) — garbage coordinates would poison
   `member_locations` + `get_crew_locations` for every reader.
-  **Frontend guard DEPLOYED** (`trippi-api.js` `upsertMemberLocation`, commit 27d5672+):
-  rejects non-finite/out-of-range lat/lng/accuracy/heading/speed before the RPC round-trip.
-  **E2E: 23/23 PASS** (new S3v scenario: 8 invalid cases rejected with exact messages +
-  valid coords still pass). GPT-4-mini auditor: **APPROVE** (1100 tok, $0.00019).
-  **DB-side Gate 5 migration READY but NOT DEPLOYED**: `.agent/migrations/M4_phase3b_location_input_validation.sql`
-  (CREATE OR REPLACE, same signature/OID, `isfinite()` catches NaN/Inf). ⛔ Blocked:
-  `SUPABASE_ACCESS_TOKEN` in `~/AppData/Local/hermes/.env` returns **401 (rotated)**.
-  Until deployed, a crafted client can bypass the frontend guard. Needs Founder to refresh token.
+  **Frontend guard DEPLOYED** (`trippi-api.js` `upsertMemberLocation`): rejects
+  non-finite/out-of-range lat/lng/accuracy/heading/speed before the RPC round-trip.
+  **DB Gate 5 DEPLOYED** (`.agent/migrations/M4_phase3b_location_input_validation.sql`,
+  CREATE OR REPLACE, same signature/OID): NaN via `x<>x`, ±Inf via range checks.
+  **Root cause found during verify:** first deploy used `isfinite()` which does NOT exist
+  for double precision in PG (42883) — surfaced as PostgREST 404 only when gates 1-4
+  passed. Fixed + redeployed.
+  **Verification: REST RPC 9/9 PASS (valid 200, 8 invalid 400 with exact messages);
+  browser E2E 23/23 PASS (incl. S3 realtime crew markers + S3v client guard).**
+  GPT-4-mini auditor: **APPROVE ×2** (1100 + 1054 tok, ~$0.00038 total).
+  Supabase access token refreshed by Founder (old token was rotated).
 - [ ] M4.6 Loading states · risk: LOW · state: BACKLOG
 - [ ] M4.7 Empty states · risk: LOW · state: BACKLOG
 - [ ] M4.8 Browser compatibility · risk: LOW · state: BACKLOG
