@@ -193,7 +193,15 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
   browser E2E 23/23 PASS (incl. S3 realtime crew markers + S3v client guard).**
   GPT-4-mini auditor: **APPROVE ×2** (1100 + 1054 tok, ~$0.00038 total).
   Supabase access token refreshed by Founder (old token was rotated).
-- [ ] M4.6 Loading states · risk: LOW · state: BACKLOG
+- [x] M4.6 Loading states · risk: LOW · state: ✅ DONE (2026-08-22)
+
+  **busyBtn/freeBtn helpers** added (disable + label swap during async op, restore in
+  finally). Wired into: trip create (prevents duplicate-group double-submit),
+  start/end journey, share/stop/deny location, waypoint reorder.
+  **Auditor finding (CHANGES_REQUIRED → fixed):** shareLocationHandler success path
+  didn't restore button — added freeBtn in both getCurrentPosition callbacks.
+  **Verification: browser E2E 24/24 PASS** (new S3w scenario: helper semantics +
+  6 handlers wired). GPT-4-mini: APPROVE ×2 (868 + 449 tok, ~$0.00026).
 - [ ] M4.7 Empty states · risk: LOW · state: BACKLOG
 - [ ] M4.8 Browser compatibility · risk: LOW · state: BACKLOG
 - [ ] M4.9 Regression testing · risk: LOW · state: BACKLOG
