@@ -224,6 +224,24 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
   **M4.5 + M4.5.6 marked CLOSED** per the user's criterion (M4.5: IMPLEMENTED · SECURE · E2E COMPLETE).
   Milestone sequence closed: M4.5 → M4.5.6 → M4.6 → M4.7 → M4.8 → M4.9.
 
+---
+
+## P0 — Guest Mode Redesign (DONE)
+
+- [x] Guest Mode redesign · risk: LOW · state: ✅ DONE (2026-08-22)
+
+  Split into two scoped changes per user's P0 acceptance criteria:
+  1. **Guest has no trip list** — `?gt=` lands on a dedicated `guestView` (card preview +
+     participant count + read-only itinerary). Back/create-nav buttons hidden (nav lockout).
+  2. **Explicit opt-in join** — "Gabung Trip" button calls server-authoritative
+     `redeem_invitation` RPC (NOT silent auto-join). Unauthenticated guests are prompted
+     to login first. Join does NOT create `location_permissions` (join ≠ consent, per M4.3/M4.4).
+
+  **Verification: 45/45 PASS** — REST RPC 11/11 + Browser E2E 34/34 (8 new S3z scenarios).
+  GPT-4-mini auditor: **APPROVE** (559 tok, $0.00011).
+  Key invariants preserved: non-member `get_crew_locations` → 400 "not a group member";
+  guest pre-join has no journey panel / consent banner / location access.
+
   ## Milestone Closure
   | Milestone | Status |
   |---|---|
