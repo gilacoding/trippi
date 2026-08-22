@@ -229,8 +229,8 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 ## P0 — Guest Mode Redesign (DONE)
 > **Note:** The initial implementation was DONE (46/46 E2E), but the Founder corrected
 > the guest policy post-implementation: unauthenticated guests must see the full read-only
-> shared-trip projection **without** login. See **P0.1 Guest View Correction** below for
-> the follow-up backlog item that addresses this.
+> shared-trip projection **without** login. See **P0.2 Guest Trip Participation Model V2** below for
+> the follow-up backlog item that redesigns the guest model using Supabase Anonymous Auth.
 
 |- [x] Guest Mode redesign · risk: LOW · state: ✅ DONE (2026-08-22)
 
@@ -978,40 +978,74 @@ M4.4 will NOT alter the M4.3 admission gate — it only adds the position data b
 
 ---
 
-## P0 — Guest View Correction
+## P0 — Guest Trip Participation Model V2
 
-- [ ] P0.1 Guest viewer sees full shared-trip projection without authentication · risk: HIGH · state: BACKLOG
-  **Scope:** An unauthenticated guest opening `?gt=<token>` must see the creator-approved
-  shared-trip projection (itinerary, dates, destination, participant count, public-safe
-  fields). Login/signup is required ONLY when the guest clicks "Gabung Trip" and attempts
-  `redeem_invitation`. The existing `get_guest_trip(p_token)` RPC already returns this
-  payload (guest_payload) — `renderGuestView` must render the full itinerary, not a stub.
+> **Architecture decision:** Use Supabase Anonymous Auth + existing `group_members`.
+> No custom JWT. No `trip_participants` table. No migration of `group_members.user_id`.
+> Anonymous users get `auth.uid()` + JWT with `is_anonymous=true` claim.
+> Existing `auth.uid()` gates + RLS + Realtime work unchanged.
+> **Prerequisite:** Enable Anonymous Auth provider in Supabase Dashboard (currently disabled).
+
+- [ ] P0.2 Guest Trip Participation Model V2 (anonymous auth) · risk: HIGH · state: BACKLOG
+
+  **Scope:** Unauthenticated guest opens valid `?gt=` trip link → sees preview → clicks
+  "Gabung Trip" → enters name → `signInAnonymously()` → `auth.uid()` available →
+  `redeem_invitation()` → `group_members` row inserted → full read-only itinerary +
+  participant list + location opt-in + realtime updates. No MarkiCab account required.
+
+  **Architecture:**
+  - Supabase Anonymous Auth: `signInAnonymously({ data: { display_name: "Budi" } })`
+  - `auth.uid()` available immediately after anonymous sign-in
+  - `group_members` table unchanged: `(group_id, user_id, display_name, role)`
+  - `redeem_invitation(p_token, p_display_name)` inserts `group_members` row for anonymous uid
+  - `is_anonymous` JWT claim used for permission differentiation (not `user_metadata`)
+  - `group_members.display_name` = snapshot per-trip name (authoritative, not user-editable)
+  - Capacity: `invitations.participant_limit` (per-invitation limit, checked atomically in RPC)
+  - Guest → User upgrade: link anonymous identity to permanent account (Supabase identity linking)
 
   **Acceptance criteria:**
-  1. `?gt=<token>` → guest renders full read-only itinerary (agenda items, dates, notes, links, budget)
-  2. Guest NOT prompted to login/signup just to view
-  3. "Gabung Trip" button → login/signup → `redeem_invitation` RPC (server-authoritative)
-  4. Guest cannot edit (all mutation controls hidden/disabled)
-  5. Guest does NOT appear as a member until join is redeemed
-  6. Guest cannot access location APIs (no journey panel, no consent banner)
-  7. Join does NOT create `location_permissions` (isolation preserved — M4.3/M4.4)
-  8. Non-member → `get_crew_locations` → 400 "not a group member" (RLS gate intact)
-  9. Guest cannot navigate to trip list / create trips (nav lockout preserved)
-  10. No private/member-only/location data leaked to guest view
+  1. `?gt=` → guest sees preview (trip name, dates, destination, participant count, capacity)
+  2. "Gabung Trip" → lightweight name form (NOT login/signup)
+  3. `signInAnonymously()` creates auth identity (no email/password/PII)
+  4. `redeem_invitation()` inserts `group_members` row (server-authoritative)
+  5. Full read-only itinerary visible after join (agenda, dates, notes, links, budget)
+  6. Participant list visible (with `is_anonymous` flag for creator awareness)
+  7. Location opt-in available (explicit, NOT automatic on join)
+  8. Realtime trip updates work for anonymous participants
+  9. Capacity enforced server-side in `redeem_invitation` (not frontend)
+  10. `is_anonymous` claim differentiates guest from registered user in permission checks
+  11. Guest cannot edit itinerary/expenses/settings (read-only)
+  12. Guest cannot access other trips (scoped to invitation token)
+  13. Existing M4.5/M4.5.6 location security gates intact (4-gate: auth → member → journey → consent)
+  14. Existing authenticated member flow unchanged (zero regression)
+  15. Guest → User upgrade path: link anonymous identity without losing trip participation
 
   **Dependencies:**
-  - `get_guest_trip(p_token)` / `guest_payload(group_id)` RPCs (already deployed)
-  - `redeem_invitation(p_token, p_display_name)` RPC (already deployed, requires auth.uid)
+  - Enable Anonymous Auth in Supabase Dashboard (currently disabled — `422 anonymous_provider_disabled`)
+  - `redeem_invitation` RPC: add capacity check + anonymous uid support
+  - `invitations` table: add `participant_limit` column (or reuse existing capacity field)
+  - Frontend: `signInAnonymously()` in `openGuestTrip` join flow
+  - Frontend: `is_anonymous` check in permission rendering (show/hide edit controls)
 
   **Known risks:**
-  - Must NOT weaken `get_crew_locations` 4-gate security layer (auth → member → journey → consent)
-  - Must NOT expose `invitations.revoked` / `expires_at` internals to guest
-  - Must NOT allow guest to infer other group IDs from the payload
+  - Anonymous auth disabled by default in Supabase — must be explicitly enabled by founder
+  - `is_anonymous` JWT claim must be validated server-side, not just client-side
+  - Anonymous users without email cannot recover account if session lost
+  - Capacity check must be atomic (race condition: two guests join simultaneously when 1 slot left)
+  - Supabase Anonymous Auth has rate limits — test under load before production
+  - Identity linking (guest → user) requires careful migration to avoid orphaned anonymous accounts
 
-  **Audit note:** `trip-planner.html` — inspect `?gt=` startup path (L1146) → `openGuestTrip`
-  → `renderGuestView` (L283). Verify `renderGuestItinerary` renders full shared_items.
-  Confirm `lockNavForGuest` hides `[data-home]` buttons + `#newTripBtn`. Confirm guestClick
-  handler calls `openAuth('login')` then `redeemInvitation` RPC — NOT a direct INSERT.
+  **Pre-implementation checklist:**
+  1. Enable Anonymous Auth in Supabase Dashboard → Auth → Providers → Anonymous
+  2. Test `signInAnonymously()` with current anon key (REST or JS client)
+  3. Verify `auth.uid()` + `is_anonymous` claim in JWT
+  4. Confirm existing RLS policies allow anonymous users (role = `authenticated`)
+  5. Add `participant_limit` to `invitations` table
+  6. Add capacity check to `redeem_invitation` RPC (atomic: count + insert in transaction)
+  7. Wire `signInAnonymously()` in frontend guest join flow
+  8. Add `is_anonymous` permission gate in frontend (hide edit/owner controls)
+  9. Browser E2E test: anonymous guest → join → full itinerary → realtime → location opt-in
+  10. Security test: anonymous user cannot access other trips / mutate data
 
 ---
 
@@ -1032,7 +1066,7 @@ M4.4 will NOT alter the M4.3 admission gate — it only adds the position data b
   7. NEVER expose: raw personal transactions, payment details, or member-private financial info
 
   **Dependencies:**
-  - **P0 Guest View correction must be resolved first** (shared-trip projection defines the
+  - **P0.2 Guest Trip Participation Model V2 must be resolved first** (shared-trip projection defines the
     public-safe data model that Trip History reuses)
   - Existing `trip_status` / `is_past` logic in `tripCard()` (L369) for completed trip detection
   - Supabase storage for trip media (photo/video posts)
