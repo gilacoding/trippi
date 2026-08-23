@@ -234,8 +234,19 @@
   // ── Collaborative (P2) state ──
   const API=window.TrippiAPI;
   const colState={uid:null,name:null,group:null,items:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null,poll:null,locationChannel:null};
+  // Display name fallback chain: profile → metadata → localStorage → email prefix → Guest
   const loadName=()=>localStorage.getItem('trippi_display_name')||'';
   const saveName=n=>localStorage.setItem('trippi_display_name',n);
+  const displayName=(user)=>{
+    // Priority 1: explicit display name from profile/members
+    if(user.display_name) return user.display_name;
+    // Priority 2: user_metadata.name
+    if(user.user_metadata?.name) return user.user_metadata.name;
+    // Priority 3: email prefix
+    if(user.email) return user.email.split('@')[0];
+    // Priority 4: fallback
+    return 'Guest';
+  };
   const money=value=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(value)||0);
   const dateText=value=>new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(new Date(value+'T12:00:00'));
   const MIG_KEY='trippi_migration_v';
@@ -613,7 +624,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       g = (await API.getGroup(id)).data;
     }
     if(!g){alert('Grup tidak ditemukan.');return;}
-    colState.group=g;colState.activeDate=null;colState.expenses=[];colState.nameMap={};
+    // Reset ALL group state to prevent stale data from previous trip
+    colState.group=g;colState.items=[];colState.members=[];colState.expenses=[];colState.nameMap={};colState.activeDate=null;colState.journey=null;colState.perms=null;
     show('groupView');
     $('groupName').textContent=g.name;
     if(colState.channel)await API._getSb().removeChannel(colState.channel);
@@ -1064,7 +1076,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   function renderMembers(){ 
-    $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Pemilik</span>':''}</div><div class="link-field">${m.user_id===colState.uid?'kamu':''}</div></div>${m.user_id!==colState.uid&&colState.perms&&colState.perms.can_manage_members?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
+    $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Pemilik</span>':''}</div><div class="link-field">${m.user_id===colState.uid?'kamu':''}</div></div>${m.user_id!==colState.uid&&canManageMembers()?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
     document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>removeMemberFromTrip(b.dataset.rm));
   }
   async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}
@@ -1168,12 +1180,20 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   // M3 Phase 1: apply owner/member permission matrix to the group UI
+  function canEditTrip(){ const p=colState.perms||{}; return !!p.can_edit; }
+  function canInvite(){ const p=colState.perms||{}; return !!p.can_invite; }
+  function canManageMembers(){ const p=colState.perms||{}; return !!p.can_manage_members; }
   function applyPermsUI(){
     const p=colState.perms||{};
-    const ig=document.getElementById('inviteGroupBtn'); if(ig) ig.style.display = p.can_invite ? '' : 'none';
-    const st=document.getElementById('shareTrip'); if(st) st.style.display = p.can_invite ? '' : 'none';
+    const ig=document.getElementById('inviteGroupBtn'); if(ig) ig.style.display = canInvite() ? '' : 'none';
+    const st=document.getElementById('shareTrip'); if(st) st.style.display = canInvite() ? '' : 'none';
     const lb=document.getElementById('leaveGroupBtn'); if(lb) lb.textContent = p.is_owner ? 'Hapus trip' : 'Keluar';
-    const cr=document.getElementById('createRouteBtn'); if(cr) cr.style.display = p.can_edit ? 'none' : 'none';
+    // Hide edit controls for non-owners
+    const addAgendaPanel=document.querySelector('#itineraryPanel details');
+    if(addAgendaPanel) addAgendaPanel.style.display = canEditTrip() ? '' : 'none';
+    const addExpensePanel=document.getElementById('expensesPanel');
+    if(addExpensePanel) addExpensePanel.style.display = canEditTrip() ? '' : 'none';
+    const cr=document.getElementById('createRouteBtn'); if(cr) cr.style.display = 'none'; // route hidden
   }
   async function removeMemberFromTrip(userId){
     if(!confirm('Hapus anggota ini dari trip?')) return;
