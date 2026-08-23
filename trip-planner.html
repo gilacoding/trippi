@@ -375,6 +375,9 @@
             freeBtn(nameSubmit);
             return;
           }
+          // CRITICAL: sync colState.uid so isMember evaluates correctly on re-render
+          // (signInAnonymously sets cachedUid internally but colState is separate)
+          colState.uid = authData.user.id;
           // Step 2: redeem invitation (inserts group_members for anonymous uid)
           const { error } = await API.redeemInvitation(guestSession.token, name);
           if(error){
