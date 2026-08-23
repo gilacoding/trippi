@@ -1185,14 +1185,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   function openFromHash(){if(location.hash.startsWith('#t=')){try{const json=LZString.decompressFromEncodedURIComponent(location.hash.slice(3));const trip=JSON.parse(json);if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}if(location.hash.startsWith('#trip=')){try{const trip=JSON.parse(decodeURIComponent(location.hash.slice(6)));if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}return false}
 
   $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>{renderHome();show('homeView')});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=()=>{const t=getTrip();if(confirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)){state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;renderHome();show('homeView')}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;$('toGoSearch').oninput=renderToGo;
-  // P2 collaborative wiring
-  $('makeGroupBtn').onclick=()=>makeGroupFromTrip();
-  $('inviteGroupBtn').onclick=shareGroup;
-  $('leaveGroupBtn').onclick=()=>leaveGroup();
-  $('groupAgendaForm').onsubmit=addGroupAgenda;
-  $('cancelGroupAgenda').onclick=()=>{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false};
-  $('groupExpenseForm').onsubmit=addGroupExpense;
-  $('cancelGroupExpense').onclick=()=>{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false};
+  // P2 collaborative wiring (elements may not exist if not in group view)
+  const _makeGroupBtn=document.getElementById('makeGroupBtn'); if(_makeGroupBtn) _makeGroupBtn.onclick=()=>makeGroupFromTrip();
+  const _inviteGroupBtn=document.getElementById('inviteGroupBtn'); if(_inviteGroupBtn) _inviteGroupBtn.onclick=shareGroup;
+  const _leaveGroupBtn=document.getElementById('leaveGroupBtn'); if(_leaveGroupBtn) _leaveGroupBtn.onclick=()=>leaveGroup();
+  const _groupAgendaForm=document.getElementById('groupAgendaForm'); if(_groupAgendaForm) _groupAgendaForm.onsubmit=addGroupAgenda;
+  const _cancelGroupAgenda=document.getElementById('cancelGroupAgenda'); if(_cancelGroupAgenda) _cancelGroupAgenda.onclick=()=>{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false};
+  const _groupExpenseForm=document.getElementById('groupExpenseForm'); if(_groupExpenseForm) _groupExpenseForm.onsubmit=addGroupExpense;
+  const _cancelGroupExpense=document.getElementById('cancelGroupExpense'); if(_cancelGroupExpense) _cancelGroupExpense.onclick=()=>{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false};
   // M4.2 Route view wiring
   const _groupViewTabs=document.getElementById('groupViewTabs');
   const _routePanel=document.getElementById('routePanel');
