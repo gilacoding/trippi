@@ -92,6 +92,7 @@
         <div class="form-actions"><button type="button" class="btn secondary" id="cancelToGo">Batal</button><button class="btn" type="submit">Simpan tempat</button></div>
       </form></details>
     </section>
+    <div class="section"><div class="section-head"><h2>Trip mendatang</h2><span class="count" id="upcomingCount"></span></div><div class="trip-grid" id="upcomingTrips"></div></div>
     <div class="section" id="historySection"><div class="section-head"><h2>Riwayat trip</h2><span class="count" id="historyCount"></span></div><div class="form-card" id="historyTrips"></div></div>
 
   </section>
@@ -676,7 +677,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     document.querySelectorAll('[data-gcost]').forEach(el=>el.onclick=()=>editGroupCost(el));
     document.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>removeGroupItem(b.dataset.gdel));
     const wish=colState.items.filter(i=>!i.date);
-    $('groupWishList').innerHTML=wish.length?wish.map(item=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(item.title)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="to-go-source" href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.link)}</a>`:''}${item.note?`<div class="link-field">${esc(item.note)}</div>`:''}</div><div class="to-go-actions"><button class="btn secondary small" data-gdel="${item.id}">×</button></div></article>`).join(''):'<div class="empty">Belum ada wishlist.</div>';
+    const groupWishListEl=$('groupWishList');
+    if(groupWishListEl){
+      groupWishListEl.innerHTML=wish.length?wish.map(item=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(item.title)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="to-go-source" href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.link)}</a>`:''}${item.note?`<div class="link-field">${esc(item.note)}</div>`:''}</div><div class="to-go-actions"><button class="btn secondary small" data-gdel="${item.id}">×</button></div></article>`).join(''):'<div class="empty">Belum ada wishlist.</div>';
+    }
     renderMembers();
     populatePayerSelect();
   }
@@ -1065,7 +1069,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
   async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}
   async function addGroupExpense(event){event.preventDefault();const g=colState.group;if(!g)return;const payer=$('groupExpensePayer').value||'';const {error}=await API.addExpense({group_id:g.id,name:$('groupExpenseName').value.trim(),amount:Number($('groupExpenseAmount').value)||0,category:$('groupExpenseCategory').value,note:$('groupExpenseNote').value.trim(),date:colState.activeDate||'',paid_by:payer||null});if(error)alert('Gagal: '+error.message);else{$('groupExpenseForm').reset();$('groupExpensePayer').innerHTML='<option value="">— saya —</option>';populatePayerSelect();$('groupExpenseForm').parentElement.open=false;await loadGroupExpenses(g.id);}}
-  async function addGroupWish(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupWishTitle').value.trim(),link:normalizeLink($('groupWishLink').value),note:$('groupWishNote').value.trim(),created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupWishForm').reset();$('groupWishForm').parentElement.open=false;await loadShared(g.id);}}
+  // NOTE: groupWishForm removed from DOM — addGroupWish only called if element exists
+  async function addGroupWish(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupWishTitle').value.trim(),link:normalizeLink($('groupWishLink').value),note:$('groupWishNote').value.trim(),created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{const f=$('groupWishForm');if(f){f.reset();f.parentElement.open=false;}await loadShared(g.id);}}
   async function editGroupTime(el){const id=el.dataset.gtime;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='time';input.className='inline-edit';input.value=it.time||'';el.replaceWith(input);input.focus();if(input.showPicker)input.showPicker();const commit=async()=>{const v=input.value.trim();await API.updateItem(id,{time:v});await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
   async function editGroupCost(el){const id=el.dataset.gcost;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='number';input.className='inline-edit';input.value=it.budget||0;el.replaceWith(input);input.focus();const commit=async()=>{const v=input.value.trim();await API.updateItem(id,{budget:Number(v)||0});await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
   async function removeGroupItem(id){await API.deleteItem(id);}
@@ -1188,8 +1193,6 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   $('cancelGroupAgenda').onclick=()=>{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false};
   $('groupExpenseForm').onsubmit=addGroupExpense;
   $('cancelGroupExpense').onclick=()=>{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false};
-  $('groupWishForm').onsubmit=addGroupWish;
-  $('cancelGroupWish').onclick=()=>{$('groupWishForm').reset();$('groupWishForm').parentElement.open=false};
   // M4.2 Route view wiring
   const _groupViewTabs=document.getElementById('groupViewTabs');
   const _routePanel=document.getElementById('routePanel');
