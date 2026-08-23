@@ -1214,7 +1214,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       };
     });
   }
-  $('createRouteBtn').onclick=async()=>{
+  const _createRouteBtn=document.getElementById('createRouteBtn');
+  if(_createRouteBtn) _createRouteBtn.onclick=async()=>{
     if(!colState.group) return;
     const name=colState.group.name || 'Route';
     const {data:rid,error}=await API.createRoute(colState.group.id, name);
@@ -1222,23 +1223,24 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     await loadRoute(colState.group.id);
     setTimeout(()=>openAddWaypoint(), 120);
   };
-  $('waypointForm').onsubmit=async (event) => {
+  const _waypointForm=document.getElementById('waypointForm');
+  if(_waypointForm) _waypointForm.onsubmit=async (event) => {
     event.preventDefault();
     const route=(colState.route&&colState.route.route)||null;
     if(!route){ alert('Buat route dulu.'); return; }
     const wp={
       name:$('wpName').value.trim(),
-      category:$('wpCategory').value,
-      day_number:Number($('wpDay').value)||null,
-      estimated_arrival_time:$('wpEta').value?new Date('1970-01-01T'+$('wpEta').value+'Z').toISOString():null,
-      notes:$('wpNotes').value.trim()||null
+      category:($('wpCategory').value||'').toLowerCase(),
+      day:parseInt($('wpDay').value)||1,
+      eta:$('wpEta').value||null,
+      notes:$('wpNotes').value.trim()
     };
-    const {data:id,error}=await API.addWaypoint(route.id, wp);
-    if(error||!id){ alert('Gagal: '+(error&&error.message||'unknown')); return; }
-    $('waypointForm').reset(); $('waypointForm').parentElement.open=false;
-    await loadRoute(colState.group.id);
+    const {error}=await API.addWaypoint(route.id, wp);
+    if(error) alert('Gagal: '+error.message);
+    else{$('waypointForm').reset();$('waypointForm').parentElement.open=false;await loadRoute(colState.group.id);}
   };
-  $('cancelWaypoint').onclick=()=>{$('waypointForm').reset();$('waypointForm').parentElement.open=false};
+  const _cancelWaypoint=document.getElementById('cancelWaypoint');
+  if(_cancelWaypoint) _cancelWaypoint.onclick=()=>{$('waypointForm').reset();$('waypointForm').parentElement.open=false};
   // M3.5: capture pending guest token so a newly-authenticated user can be
   // soft-converted into a real member of the trip they were viewing.
   var pendingGuestToken=null;
