@@ -83,6 +83,7 @@
     <h1>Rencanakan trip-mu,<br><span style="color:var(--accent2)">tanpa lupa detailnya.</span></h1>
     <p class="lead">Satu tempat untuk menyusun agenda, waktu, catatan, dan perkiraan biaya perjalananmu.</p>
     <div class="section"><button class="btn wide" id="newTripBtn">+ Buat trip baru</button></div>
+
     <section class="to-go"><div class="section-head"><div><h2>To Go List</h2><div class="muted" style="font-size:13px;margin-top:4px">Simpan tempat dulu, jadwalkan saat membuat trip baru.</div></div><span class="count" id="toGoCount"></span></div><input class="to-go-search" id="toGoSearch" placeholder="Cari tempat…"><div class="to-go-list" id="toGoList"></div>
       <details class="add-panel add-togo" id="toGoPanel"><summary><span class="btn secondary wide">+ Simpan tempat ke To Go List</span></summary><form class="form-card form-grid" id="toGoForm">
         <div class="field"><label for="toGoName">Nama tempat</label><input id="toGoName" required maxlength="100" placeholder="Contoh: Nasi Goreng Sapi Padmanaba"></div>
@@ -91,9 +92,8 @@
         <div class="form-actions"><button type="button" class="btn secondary" id="cancelToGo">Batal</button><button class="btn" type="submit">Simpan tempat</button></div>
       </form></details>
     </section>
-    <div class="section"><div class="section-head"><h2>Trip mendatang</h2><span class="count" id="upcomingCount"></span></div><div class="trip-grid" id="upcomingTrips"></div></div>
     <div class="section" id="historySection"><div class="section-head"><h2>Riwayat trip</h2><span class="count" id="historyCount"></span></div><div class="form-card" id="historyTrips"></div></div>
-    <section class="tools"><div class="section-head"><h2>Data & offline</h2></div><div class="tool-grid"><button class="btn secondary" id="exportData">Backup data</button><button class="btn secondary" id="importData">Restore data</button></div><input id="importFile" type="file" accept="application/json" hidden><p class="tool-note">Backup menyimpan trip, agenda, pengeluaran, dan To Go List dalam satu file. Gunakan sebelum mengganti perangkat atau browser.</p></section>
+
   </section>
 
   <section class="view" id="newTripView">
@@ -177,7 +177,6 @@
     <div class="trip-stats" id="groupStats"></div>
     <div class="view-tabs" id="groupViewTabs">
       <button class="view-tab active" data-gview="itinerary">Itinerary</button>
-      <button class="view-tab" data-gview="route">Route</button>
       <button class="view-tab" data-gview="expenses">Expenses</button>
       <button class="view-tab" data-gview="journey">Journey Mode</button>
     </div>
@@ -194,22 +193,6 @@
         <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupAgenda">Batal</button><button class="btn" type="submit">Tambah</button></div>
       </form></details>
     </div>
-    <div class="view-panel" id="routePanel">
-      <div class="section-head"><div><h2>Route</h2></div>
-        <button class="btn secondary small" id="createRouteBtn" style="display:none">Buat route</button>
-      </div>
-      <div class="route-list" id="routeList"></div>
-      <details class="add-panel" id="addWaypointPanel" style="display:none"><summary><span class="btn secondary wide">+ Tambah perhentian</span></summary>
-        <form class="form-card form-grid" id="waypointForm">
-          <div class="field"><label for="wpName">Nama</label><input id="wpName" required maxlength="80" placeholder="Contoh: Bromo"></div>
-          <div class="field"><label for="wpCategory">Kategori</label><select id="wpCategory"><option>start</option><option>stop</option><option>food</option><option>fuel</option><option>rest</option><option>stay</option><option>activity</option><option>viewpoint</option><option>end</option></select></div>
-          <div class="field"><label for="wpDay">Hari ke</label><input id="wpDay" type="number" min="1" placeholder="1"></div>
-          <div class="field"><label for="wpEta">ETA</label><input id="wpEta" type="time"></div>
-          <div class="field" style="grid-column:1/-1"><label for="wpNotes">Catatan</label><textarea id="wpNotes" maxlength="240" placeholder="Detail, tips, parkir, dll."></textarea></div>
-          <div class="form-actions"><button type="button" class="btn secondary" id="cancelWaypoint">Batal</button><button class="btn" type="submit">Tambah</button></div>
-        </form>
-      </details>
-    </div>
     <div class="view-panel" id="expensesPanel">
       <div class="section-head"><div><h2>Pengeluaran</h2></div></div>
       <div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="groupDailyExpense">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="groupTripExpense">Rp0</b></div></div>
@@ -223,16 +206,7 @@
         <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupExpense">Batal</button><button class="btn" type="submit">Catat</button></div>
       </form></details>
     </div>
-    <section class="to-go"><div class="section-head"><div><h2>Tempat ingin dikerjakan</h2><div class="muted" style="font-size:13px;margin-top:4px">Belum ditentukan hari, bareng rencanakan.</div></div></div>
-      <div class="to-go-list" id="groupWishList"></div>
-      <details class="add-panel add-togo"><summary><span class="btn secondary wide">+ Tambah ke wishlist</span></summary><form class="form-card form-grid" id="groupWishForm">
-        <div class="field"><label for="groupWishTitle">Tempat atau kegiatan</label><input id="groupWishTitle" required maxlength="100" placeholder="Sate Klathak"></div>
-        <div class="field"><label for="groupWishLink">Link referensi</label><input id="groupWishLink" type="url" maxlength="500" placeholder="Paste link"></div>
-        <div class="field" style="grid-column:1/-1"><label for="groupWishNote">Catatan</label><textarea id="groupWishNote" maxlength="240" placeholder="Detail"></textarea></div>
-        <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupWish">Batal</button><button class="btn" type="submit">Tambah</button></div>
-      </form></details>
-    </section>
-    
+
     <!-- M4.5: Journey Mode view panel -->
     <div class="view-panel" id="journeyPanel">
       <div id="journeyContent">
@@ -1112,8 +1086,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     colState.group=null; renderHome(); show('homeView');
   }
 
-  // ── M4.2 Route ─────────────────────────────────────────────────────
+  // ── M4.2 Route (HIDDEN — UI removed, backend preserved for future) ──
   async function loadRoute(groupId){
+    if(!document.getElementById('routePanel')) return; // route hidden
     if(!groupId||!colState.group) return;
     const list=$('routeList');
     showLoading(list, 'Memuat route...');
@@ -1203,9 +1178,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   function openFromHash(){if(location.hash.startsWith('#t=')){try{const json=LZString.decompressFromEncodedURIComponent(location.hash.slice(3));const trip=JSON.parse(json);if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}if(location.hash.startsWith('#trip=')){try{const trip=JSON.parse(decodeURIComponent(location.hash.slice(6)));if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}return false}
-  function exportBackup(){const backup={app:'Trippi',version:1,exportedAt:new Date().toISOString(),trips:state.trips,toGo:state.toGo};const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`trippi-backup-${new Date().toISOString().slice(0,10)}.json`;link.click();URL.revokeObjectURL(url)}
-  function importBackup(file){const reader=new FileReader();reader.onload=()=>{try{const backup=JSON.parse(reader.result);if(!Array.isArray(backup.trips)||!Array.isArray(backup.toGo))throw new Error('invalid');if(!confirm(`Pulihkan ${backup.trips.length} trip dan ${backup.toGo.length} tempat? Data Trippi saat ini akan diganti.`))return;state.trips=backup.trips;state.toGo=backup.toGo;state.activeTripId=null;state.activeDate=null;save();renderHome();show('homeView');alert('Data Trippi berhasil dipulihkan.')}catch{alert('File backup tidak valid. Pilih file JSON hasil Backup data dari Trippi.')}};reader.readAsText(file)}
-  $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>{renderHome();show('homeView')});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('exportData').onclick=exportBackup;$('importData').onclick=()=>$('importFile').click();$('importFile').onchange=event=>{if(event.target.files[0])importBackup(event.target.files[0]);event.target.value=''};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=()=>{const t=getTrip();if(confirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)){state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;renderHome();show('homeView')}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;$('toGoSearch').oninput=renderToGo;
+
+  $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>{renderHome();show('homeView')});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=()=>{const t=getTrip();if(confirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)){state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;renderHome();show('homeView')}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;$('toGoSearch').oninput=renderToGo;
   // P2 collaborative wiring
   $('makeGroupBtn').onclick=()=>makeGroupFromTrip();
   $('inviteGroupBtn').onclick=shareGroup;
