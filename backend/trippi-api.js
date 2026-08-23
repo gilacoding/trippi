@@ -103,6 +103,21 @@
     });
   }
 
+  // P0.2: Anonymous sign-in for guest participants (no email/password).
+  // Returns { data: { user, session }, error }.
+  function signInAnonymously(displayName) {
+    return getClient().then(function (client) {
+      if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+      return client.auth.signInAnonymously({ data: { display_name: displayName || 'Guest' } }).then(function (res) {
+        if (res.data && res.data.user) {
+          cachedUid = res.data.user.id;
+          authReady = true;
+        }
+        return res;
+      });
+    });
+  }
+
   // Subscribe to auth state changes. cb receives (event, session).
   function onAuthChange(cb) {
     return getClient().then(function (client) {
@@ -135,6 +150,7 @@
     signInWithEmail: signInWithEmail,
     signInWithOAuth: signInWithOAuth,
     signOut: signOut,
+    signInAnonymously: signInAnonymously,
     onAuthChange: onAuthChange,
     getSession: getSession,
 

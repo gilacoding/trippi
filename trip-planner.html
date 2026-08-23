@@ -140,11 +140,32 @@
       <h1 id="guestTripName">Bagikan trip</h1>
       <div class="trip-meta muted" id="guestTripMeta"></div>
       <div class="participant-summary" id="guestParticipantSummary"></div>
-      <div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Itinerary</h2></div>
-      <div class="itinerary-list" id="guestItineraryList" style="text-align:left"></div>
-      <div class="expenses-summary" id="guestExpenses" style="margin-top:16px"></div>
-      <div class="empty" id="guestEmptyState" style="margin-top:16px"></div>
-      <div class="guest-actions" id="guestActions"></div>
+      <!-- PRE-JOIN: preview only -->
+      <div id="guestPreview" style="margin-top:16px">
+        <div class="empty" id="guestPreviewText" style="margin-bottom:12px"></div>
+        <button class="btn wide" id="guestJoinBtn">Gabung Trip</button>
+        <div style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center">Tidak perlu akun MarkiCab. Masukkan nama untuk ikut.</div>
+      </div>
+      <!-- NAME FORM (hidden until Gabung Trip clicked) -->
+      <div id="guestNameForm" style="display:none;margin-top:16px">
+        <div class="form-card form-grid">
+          <div class="field"><label for="guestNameInput">Nama kamu</label><input id="guestNameInput" required maxlength="40" placeholder="Contoh: Budi"></div>
+          <div class="form-actions"><button class="btn secondary" id="guestNameCancel">Batal</button><button class="btn" id="guestNameSubmit">Ikut Trip</button></div>
+        </div>
+      </div>
+      <!-- POST-JOIN: full itinerary (hidden pre-join) -->
+      <div id="guestJoinedView" style="display:none">
+        <div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Itinerary</h2></div>
+        <div class="itinerary-list" id="guestItineraryList" style="text-align:left"></div>
+        <div class="expenses-summary" id="guestExpenses" style="margin-top:16px"></div>
+        <div id="guestParticipantList" style="margin-top:16px"></div>
+        <div id="guestLocationActions" style="margin-top:16px"></div>
+        <div style="margin-top:16px;padding:14px;background:rgba(54,211,153,.06);border:1px solid rgba(54,211,153,.18);border-radius:14px;font-size:13px">
+          <strong>Mau menyimpan perjalanan ini ke akun MarkiCab?</strong><br>
+          <span style="color:var(--muted)">Daftar gratis untuk menyimpan trip, mengikuti creator, dan mendapatkan Trip History.</span>
+          <button class="btn secondary" style="margin-top:10px" id="guestUpgradeBtn">Daftar MarkiCab</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -287,37 +308,117 @@
     $('guestTripName').textContent = t.name || 'Trip';
     $('guestTripMeta').textContent = [t.destination, t.start_date||'', t.end_date||''].filter(Boolean).join(' · ') || '';
     const memberCount = (t.members||[]).length;
-    $('guestParticipantSummary').innerHTML =
-      '<span class="count">' + memberCount + ' orang</span> sudah bergabung ke trip ini';
-    const actions = $('guestActions');
-    const emptyEl = $('guestEmptyState');
+    const limit = t.participant_limit;
+    const countText = limit
+      ? `${memberCount} / ${limit} orang`
+      : `${memberCount} orang`;
+    $('guestParticipantSummary').innerHTML = '<span class="count">' + countText + '</span> sudah bergabung';
+
+    const previewEl = $('guestPreview');
+    const nameForm = $('guestNameForm');
+    const joinedView = $('guestJoinedView');
+    const previewText = $('guestPreviewText');
+    const joinBtn = $('guestJoinBtn');
+    const nameInput = $('guestNameInput');
+    const nameSubmit = $('guestNameSubmit');
+    const nameCancel = $('guestNameCancel');
+    const upgradeBtn = $('guestUpgradeBtn');
+
+    // Reset all sections
+    if(previewEl) previewEl.style.display = 'none';
+    if(nameForm) nameForm.style.display = 'none';
+    if(joinedView) joinedView.style.display = 'none';
+
     if(isMember){
-      emptyEl.textContent = 'Kamu sudah anggota. Buka grup untuk lihat itinerary, route, dan lokasi.';
-      actions.innerHTML = '<button class="btn" id="guestGoToGroup">Buka trip grup</button>';
-      const btn = document.getElementById('guestGoToGroup');
-      if(btn) btn.onclick = async()=>{ guestSession=null; unlockNav(); await openGroup(t.id,false); };
-    } else {
-      // --- GUEST VIEWER (read-only, no join yet) ---
-      // Per P0: unauthenticated guests see the FULL shared-trip projection.
-      // Only public-safe fields (esc()-escaped). Member/private/location data NOT exposed.
+      // POST-JOIN: full itinerary + participant list + location opt-in + upgrade CTA
+      if(joinedView) joinedView.style.display = '';
       renderGuestItinerary(t);
-      emptyEl.innerHTML = '<div class="empty"><strong>Undangan ini bersifat read-only.</strong>Gabung trip untuk kolaborasi dan lokasi live.</div>';
-      const joinLabel = colState.uid ? 'Gabung Trip' : 'Masuk / Daftar untuk bergabung';
-      actions.innerHTML = '<button class="btn wide" id="guestJoinBtn">' + joinLabel + '</button>';
-      const jb = $('guestJoinBtn');
-      if(jb) jb.onclick = async()=>{
-        if(!colState.uid){ openAuth('login'); return; }
-        if(!guestSession.token){ alert('Token undangan hilang. Minta pembuat trip kirim ulang.'); return; }
-        busyBtn(jb, 'Bergabung…');
-        try{
-          const { error } = await API.redeemInvitation(guestSession.token, colState.name || null);
-          if(error){ alert('Gagal bergabung: ' + (error.message || error)); freeBtn(jb); return; }
-          alert('Kamu sekarang anggota trip ini.');
-          const tk = guestSession.token; guestSession = null; unlockNav();
-          if(tk) await openGuestTrip(tk);
-        }catch(e){ alert('Gagal bergabung: ' + (e.message||e)); freeBtn(jb); }
+      renderGuestParticipantList(t);
+      renderGuestLocationActions(t);
+      if(previewText) previewText.innerHTML = '<div class="empty">Kamu ikut sebagai <b>' + esc(colState.name || 'Guest') + '</b>. Berikut itinerary trip ini.</div>';
+    } else {
+      // PRE-JOIN: preview only (no itinerary)
+      if(previewEl) previewEl.style.display = '';
+      if(previewText) previewText.innerHTML = '<div class="empty"><strong>Kamu diundang ke:</strong><br>' + esc(t.name || 'Trip') + '<br><span style="font-size:12px">' + esc(t.destination||'') + ' · ' + esc(t.start_date||'') + (t.end_date ? ' – ' + esc(t.end_date) : '') + '</span></div>';
+      // Reset name form
+      if(nameInput) nameInput.value = '';
+      if(joinBtn) joinBtn.style.display = '';
+    }
+
+    // Gabung Trip → show name form
+    if(joinBtn && !isMember){
+      joinBtn.onclick = async()=>{
+        if(previewEl) previewEl.style.display = 'none';
+        if(nameForm) nameForm.style.display = '';
+        if(nameInput) nameInput.focus();
       };
     }
+
+    // Cancel name form → back to preview
+    if(nameCancel){
+      nameCancel.onclick = ()=>{
+        if(nameForm) nameForm.style.display = 'none';
+        if(previewEl) previewEl.style.display = '';
+      };
+    }
+
+    // Submit name → anonymous sign-in → redeem invitation
+    if(nameSubmit && !isMember){
+      nameSubmit.onclick = async()=>{
+        const name = (nameInput && nameInput.value.trim()) || 'Guest';
+        busyBtn(nameSubmit, 'Bergabung…');
+        try{
+          // Step 1: anonymous auth (creates auth.uid() without email/password)
+          const { data: authData, error: authError } = await API.signInAnonymously(name);
+          if(authError || !authData || !authData.user){
+            alert('Gagal membuat identitas: ' + ((authError && authError.message) || 'unknown'));
+            freeBtn(nameSubmit);
+            return;
+          }
+          // Step 2: redeem invitation (inserts group_members for anonymous uid)
+          const { error } = await API.redeemInvitation(guestSession.token, name);
+          if(error){
+            alert('Gagal bergabung: ' + (error.message || error));
+            freeBtn(nameSubmit);
+            return;
+          }
+          // Step 3: reload trip with isMember=true
+          const tk = guestSession.token;
+          guestSession = null; unlockNav();
+          if(tk) await openGuestTrip(tk);
+        }catch(e){
+          alert('Gagal bergabung: ' + (e.message || e));
+          freeBtn(nameSubmit);
+        }
+      };
+    }
+
+    // Upgrade to MarkiCab account (opens auth modal in registration mode)
+    if(upgradeBtn){
+      upgradeBtn.onclick = ()=>{ openAuth('signup'); };
+    }
+  }
+
+  // Render participant list (post-join)
+  function renderGuestParticipantList(t){
+    const el = $('guestParticipantList');
+    if(!el) return;
+    const members = (t.members||[]).filter(m => m.display_name);
+    if(!members.length){
+      el.innerHTML = '<div class="empty">Belum ada peserta lain.</div>';
+      return;
+    }
+    el.innerHTML = '<div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Peserta</h2></div>' +
+      members.map(m => '<div class="agenda-item"><div class="agenda-body"><div class="agenda-title">' + esc(m.display_name) + '</div></div></div>').join('');
+  }
+
+  // Render location actions (post-join, opt-in only)
+  function renderGuestLocationActions(t){
+    const el = $('guestLocationActions');
+    if(!el) return;
+    // Location sharing only available if journey is active (same as member flow)
+    // For now, show a disabled hint — actual share button appears after creator starts journey
+    el.innerHTML = '<div class="empty" style="font-size:13px">Pembuat trip harus memulai Journey Mode agar kamu bisa berbagi lokasi.</div>';
   }
 
   // Render shared-trip itinerary (READ-ONLY — public-safe fields only via esc())
@@ -1283,7 +1384,22 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       // M3.5: soft-convert a guest (?gt=) viewer into a real member of the
       // trip they were viewing. redeem_invitation accepts authenticated users.
       if(pendingGuestToken){
-        (async()=>{ try{ const nm=(colState.name)||''; await API.redeemInvitation(pendingGuestToken, nm||null); pendingGuestToken=null; if(colState.group) openGroup(colState.group.id,false); }catch(e){ console.warn('soft-convert failed',e); } })();
+        (async()=>{ 
+          try{ 
+            const token = pendingGuestToken;
+            const nm = (colState.name)||''; 
+            const r = await API.redeemInvitation(token, nm || null);
+            pendingGuestToken = null;
+            const groupId = r && r.data ? r.data.id : null;
+            if(groupId){
+              openGroup(groupId, false);
+            } else {
+              console.warn('soft-convert: no group_id in response', r);
+            }
+          }catch(e){ 
+            console.warn('soft-convert failed', e); 
+          } 
+        })();
       }
       closeAuth();
       onSessionReady(uid); // M2: backfill local trips to Supabase (idempotent, non-blocking)
@@ -1293,7 +1409,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       document.getElementById('logoutBtn').style.display='none';
       // signed-out: update UI in place (no navigation — avoids reload loop)
       // Guests (?gt=) must NOT be forced into the login modal — they view read-only.
-      if(isGuest()){ return; }
+      // Also check pendingGuestToken: guestSession may not be set yet (async openGuestTrip)
+      if(isGuest() || pendingGuestToken){ return; }
       renderHome(); show('homeView'); openAuth('login');
     }
   });
