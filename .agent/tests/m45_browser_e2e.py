@@ -797,7 +797,10 @@ async def test_s3z_guest_flow(page_guest, owner_jwt, group_id):
                 guestPreview: disp('guestPreview'),
                 guestNameForm: disp('guestNameForm'),
                 guestItineraryList: !!document.getElementById('guestItineraryList'),
-                participantList: !!document.getElementById('guestParticipantList'),
+                // Guest UI revision: the separate 'Peserta' list was intentionally removed
+                // (Crew inside Journey Mode is the single member list). The Group Wishlist
+                // is the post-join section that must always be present.
+                wishlistSection: !!document.getElementById('guestWishList'),
                 locationActions: !!document.getElementById('guestLocationActions'),
                 upgradeBtn: !!document.getElementById('guestUpgradeBtn'),
             };
@@ -806,10 +809,10 @@ async def test_s3z_guest_flow(page_guest, owner_jwt, group_id):
         dom_preview_hidden = dom_state.get('guestPreview') == 'none'
         dom_name_hidden = dom_state.get('guestNameForm') == 'none'
         dom_itinerary = dom_state.get('guestItineraryList')
-        dom_participants = dom_state.get('participantList')
+        dom_wishlist = dom_state.get('wishlistSection')
         dom_location = dom_state.get('locationActions')
         dom_upgrade = dom_state.get('upgradeBtn')
-        joined_ok = dom_joined and dom_preview_hidden and dom_name_hidden and dom_itinerary and dom_participants and dom_location and dom_upgrade
+        joined_ok = dom_joined and dom_preview_hidden and dom_name_hidden and dom_itinerary and dom_wishlist and dom_location and dom_upgrade
         # NOTE: console/network errors are intentionally NOT part of this assertion.
         # An anonymous guest legitimately gets 403 on `/rest/v1/trips` (personal-trip
         # sync blocked by RLS) — that is correct security behaviour, not a join failure.
@@ -818,7 +821,7 @@ async def test_s3z_guest_flow(page_guest, owner_jwt, group_id):
             err_note = " | console(non-fatal): " + "; ".join(console_errors[:3])
         record("S3z:7b Anonymous join → full itinerary visible",
                joined_ok,
-               f"joined={dom_joined}, preview_hidden={dom_preview_hidden}, name_hidden={dom_name_hidden}, itinerary={dom_itinerary}, participants={dom_participants}, location={dom_location}, upgrade={dom_upgrade}{err_note}")
+               f"joined={dom_joined}, preview_hidden={dom_preview_hidden}, name_hidden={dom_name_hidden}, itinerary={dom_itinerary}, wishlist={dom_wishlist}, location={dom_location}, upgrade={dom_upgrade}{err_note}")
     except Exception as e:
         record("S3z:7b Anonymous join → full itinerary visible", False, "ERR: " + str(e)[:120])
 

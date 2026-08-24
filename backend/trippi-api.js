@@ -542,6 +542,15 @@
         return client.rpc('trip_permissions', { p_group_id: groupId });
       });
     },
+    // Creator-only group edit. No new RPC: the existing RLS policy already
+    // restricts UPDATE on public.groups to the owner (verified live — a guest's
+    // PATCH matches zero rows), so this uses the plain table endpoint.
+    updateGroup: function (groupId, fields) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.from('groups').update(fields).eq('id', groupId).select().single();
+      });
+    },
     // Fase C: Group Wishlist
     listWishlists: function (groupId) {
       return getClient().then(function (client) {

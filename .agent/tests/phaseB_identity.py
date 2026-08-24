@@ -174,7 +174,10 @@ async def main():
                 editButtons: editBtns.length,
                 hasAddAgenda,
                 hasExpenseForm,
-                participantList: !!document.getElementById('guestParticipantList'),
+                // Guest UI revision: the separate 'Peserta' list was removed on purpose;
+                // Crew (inside Journey Mode) is now the single member list.
+                oldParticipantList: !!document.getElementById('guestParticipantList'),
+                crewList: !!document.getElementById('crewStatusList'),
                 locationActions: !!document.getElementById('guestLocationActions'),
                 upgradeBtn: !!document.getElementById('guestUpgradeBtn'),
                 shownName: (document.getElementById('guestPreviewText') || {}).textContent || '',
@@ -187,7 +190,13 @@ async def main():
         record("guest: NO edit buttons in itinerary", guest_state["editButtons"] == 0, f"editBtns={guest_state['editButtons']}")
         record("guest: NO add-agenda form", not guest_state["hasAddAgenda"])
         record("guest: NO expense form", not guest_state["hasExpenseForm"])
-        record("guest: participant list visible", guest_state["participantList"])
+        record("guest: old Peserta list removed", not guest_state["oldParticipantList"])
+        # Crew lives inside Journey Mode, so it only renders once the creator has
+        # started a journey. This scenario never starts one, so the correct
+        # assertion is that the journey container exists and explains itself
+        # (Fase D / guest_ui_revision cover Crew with an active journey).
+        record("guest: journey section present (Crew lives there)",
+               guest_state["locationActions"], guest_state["crewList"])
         record("guest: location actions visible", guest_state["locationActions"])
         record("guest: upgrade CTA visible", guest_state["upgradeBtn"])
         record("guest: shown name is join name", "Budi" in guest_state["shownName"], guest_state["shownName"][:60])

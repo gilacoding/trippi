@@ -146,18 +146,38 @@
           <div class="form-actions"><button class="btn secondary" id="guestNameCancel">Batal</button><button class="btn" id="guestNameSubmit">Ikut Trip</button></div>
         </div>
       </div>
-      <!-- POST-JOIN: full itinerary (hidden pre-join) -->
-      <div id="guestJoinedView" style="display:none">
+      <!-- POST-JOIN: itinerary -> wishlist -> journey -> CTA -> leave
+           (order locked by the Guest Trip revision; the old separate
+           "Peserta" list is gone — Crew inside Journey Mode is the single
+           member list) -->
+      <div id="guestJoinedView" style="display:none;text-align:left">
         <div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Itinerary</h2></div>
-        <div class="itinerary-list" id="guestItineraryList" style="text-align:left"></div>
+        <div class="itinerary-list" id="guestItineraryList"></div>
         <div class="expenses-summary" id="guestExpenses" style="margin-top:16px"></div>
-        <div id="guestParticipantList" style="margin-top:16px"></div>
-        <div id="guestLocationActions" style="margin-top:16px"></div>
-        <div style="margin-top:16px;padding:14px;background:rgba(54,211,153,.06);border:1px solid rgba(54,211,153,.18);border-radius:14px;font-size:13px">
+
+        <!-- Group Wishlist (P0): guests may view + add, never convert -->
+        <div class="section-head" style="margin:22px 0 6px"><h2 style="font-size:18px">Wishlist Grup</h2></div>
+        <div class="muted" style="font-size:12px;margin-bottom:10px">Punya ide tempat atau aktivitas? Tambahkan ke wishlist grup.</div>
+        <div id="guestWishList"></div>
+        <details class="add-panel" id="guestWishlistPanel" style="margin-top:12px"><summary><span class="btn secondary wide">+ Tambah Wishlist</span></summary>
+          <form class="form-card form-grid" id="guestWishlistForm">
+            <div class="field"><label for="guestWishlistTitle">Judul / nama tempat</label><input id="guestWishlistTitle" name="wishlistTitle" required maxlength="100" placeholder="Contoh: Museum Nasional"></div>
+            <div class="field"><label for="guestWishlistLink">Link <span style="font-weight:400">(opsional)</span></label><input id="guestWishlistLink" name="wishlistLink" type="url" maxlength="500" placeholder="Paste Google Maps, Instagram, dll"></div>
+            <div class="field" style="grid-column:1/-1"><label for="guestWishlistNote">Catatan <span style="font-weight:400">(opsional)</span></label><textarea id="guestWishlistNote" name="wishlistNote" maxlength="240" placeholder="Wajib mampir kalau sempat"></textarea></div>
+            <div class="form-actions"><button type="button" class="btn secondary" id="guestWishlistCancel">Batal</button><button class="btn" type="submit">Simpan ke Wishlist</button></div>
+          </form>
+        </details>
+
+        <!-- Journey Mode: status + consent + map + Crew -->
+        <div id="guestLocationActions" style="margin-top:22px"></div>
+
+        <div style="margin-top:22px;padding:14px;background:rgba(54,211,153,.06);border:1px solid rgba(54,211,153,.18);border-radius:14px;font-size:13px">
           <strong>Mau menyimpan perjalanan ini ke akun MarkiCab?</strong><br>
           <span style="color:var(--muted)">Daftar gratis untuk menyimpan trip, mengikuti creator, dan mendapatkan Trip History.</span>
           <button class="btn secondary" style="margin-top:10px" id="guestUpgradeBtn">Daftar MarkiCab</button>
         </div>
+
+        <button class="btn secondary wide" style="margin-top:14px" id="guestLeaveBtn">Keluar dari Trip</button>
       </div>
     </div>
   </section>
@@ -165,7 +185,7 @@
   <section class="view" id="groupView">
     <button class="back" data-home>← Semua trip</button>
     <div class="planner-head"><h1 id="groupName"></h1><div class="trip-meta" id="groupMeta"></div>
-      <div class="planner-actions"><button class="btn secondary small" id="inviteGroupBtn">Bagikan grup</button><button class="btn secondary small" id="leaveGroupBtn">Keluar</button></div>
+      <div class="planner-actions"><button class="btn secondary small" id="editGroupBtn" style="display:none">Edit trip</button><button class="btn secondary small" id="inviteGroupBtn">Bagikan grup</button><button class="btn secondary small" id="leaveGroupBtn">Keluar</button></div>
     </div>
     <div class="trip-stats" id="groupStats"></div>
     <div class="view-tabs" id="groupViewTabs">
@@ -298,13 +318,17 @@
 
   async function renderGuestView(t, isMember){
     $('guestTripName').textContent = t.name || 'Trip';
-    $('guestTripMeta').textContent = [t.destination, t.start_date||'', t.end_date||''].filter(Boolean).join(' · ') || '';
+    // destination · date range · duration
+    var _s = t.start_date ? String(t.start_date) : '';
+    var _e = t.end_date ? String(t.end_date) : '';
+    var _days = (_s && _e) ? daysBetween(_s, _e).length : 0;
+    var _range = _s ? (dateText(_s) + (_e && _e !== _s ? ' — ' + dateText(_e) : '')) : '';
+    $('guestTripMeta').textContent = [t.destination || '', _range, _days ? _days + ' hari' : '']
+      .filter(Boolean).join(' · ');
+    // Member count only — participant_limit is an internal safety cap with no
+    // creator-facing control, so we never advertise a maximum we did not set.
     const memberCount = (t.members||[]).length;
-    const limit = t.participant_limit;
-    const countText = limit
-      ? `${memberCount} / ${limit} orang`
-      : `${memberCount} orang`;
-    $('guestParticipantSummary').innerHTML = '<span class="count">' + countText + '</span> sudah bergabung';
+    $('guestParticipantSummary').innerHTML = '<span class="count">' + memberCount + ' anggota</span>';
 
     const previewEl = $('guestPreview');
     const nameForm = $('guestNameForm');
@@ -325,10 +349,17 @@
       // POST-JOIN: full itinerary + participant list + location opt-in + upgrade CTA
       if(joinedView) joinedView.style.display = '';
       renderGuestItinerary(t);
-      renderGuestParticipantList(t);
       colState._guestTrip = t;
+      seedIdentities(t.members);
+      // seedGuestContext loads the canonical roster (uid+name+role); the payload
+      // members[] only carries display_name, so it is just a fallback.
+      colState.members = (t.members || []).filter(function(m){ return m.display_name; });
+      await seedGuestContext(t);
+      wireGuestWishlist();
+      wireGuestLeave();
+      await renderGuestWishlist();
       await renderGuestLocationActions(t);
-      if(previewText) previewText.innerHTML = '<div class="empty">Kamu ikut sebagai <b>' + esc(colState.name || 'Guest') + '</b>. Berikut itinerary trip ini.</div>';
+      if(previewText) previewText.innerHTML = '<div class="empty">Kamu ikut sebagai <b>' + esc(nameOfOrNull(colState.uid) || colState.name || 'peserta') + '</b>. Berikut itinerary trip ini.</div>';
     } else {
       // PRE-JOIN: preview only (no itinerary)
       if(previewEl) previewEl.style.display = '';
@@ -405,18 +436,9 @@
     }
   }
 
-  // Render participant list (post-join)
-  function renderGuestParticipantList(t){
-    const el = $('guestParticipantList');
-    if(!el) return;
-    const members = (t.members||[]).filter(m => m.display_name);
-    if(!members.length){
-      el.innerHTML = '<div class="empty">Belum ada peserta lain.</div>';
-      return;
-    }
-    el.innerHTML = '<div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Peserta</h2></div>' +
-      members.map(m => '<div class="agenda-item"><div class="agenda-body"><div class="agenda-title">' + esc(m.display_name) + '</div></div></div>').join('');
-  }
+  // The old separate "Peserta" list was removed: Crew (inside Journey Mode) is
+  // the single source for who is on the trip and their live-location status.
+  // Membership names still flow into colState via seedIdentities().
 
   // Render location actions (post-join, opt-in only)
   // Fase D: a joined guest is a real group member, so it gets the same Journey
@@ -426,25 +448,7 @@
     const el = $('guestLocationActions');
     if(!el) return;
 
-    // The journey/location APIs read colState.group.id and colState.uid, which the
-    // guest path never populated (it renders straight from the get_guest_trip
-    // payload). Seed them from that payload + the anonymous session so a joined
-    // guest can use exactly the same journey code path as a member.
-    if(t && t.id){
-      colState.group = colState.group && colState.group.id === t.id
-        ? colState.group
-        : { id: t.id, name: t.name, start_date: t.start_date, end_date: t.end_date };
-    }
-    if(!colState.uid){
-      try{
-        const sb = API._getSb && API._getSb();
-        if(sb){
-          const s = await sb.auth.getSession();
-          const u = s && s.data && s.data.session && s.data.session.user;
-          if(u) colState.uid = u.id;
-        }
-      }catch(e){ console.warn('[Fase D] cannot resolve guest uid:', e && e.message); }
-    }
+    await seedGuestContext(t);
     if(!colState.group || !colState.group.id){
       el.innerHTML = '<div class="empty" style="font-size:13px">Journey Mode belum tersedia.</div>';
       return;
@@ -464,7 +468,13 @@
     colState.journey = {status:'active'};
     const needsConsent = msg.indexOf('location permission not granted') !== -1;
     colState.crewLocations = needsConsent ? [] : ((locRes && locRes.data) || []);
-    colState.members = (t.members || []).filter(function(m){ return m.display_name; });
+    // Do NOT overwrite colState.members here: seedGuestContext already loaded the
+    // canonical roster (user_id + display_name + role) from group_members, while
+    // the get_guest_trip payload carries display_name only. Overwriting it made
+    // roleLabelOf() fall back to 'Member' for the trip creator.
+    if(!colState.members || !colState.members.length){
+      colState.members = (t.members || []).filter(function(m){ return m.display_name; });
+    }
     // get_crew_locations is the source of truth for consent here: if it refused
     // with 'location permission not granted', this participant has NOT consented,
     // whatever any local cache says.
@@ -473,7 +483,7 @@
 
     const consentHtml = (colState.locationConsent === 'granted')
       ? '<div class="consent-banner consent-denied" id="consentBanner"><p>📍 Sedang membagikan lokasi ke grup.</p><div class="consent-actions"><button class="btn secondary small" id="stopSharingBtn">Stop berbagi</button></div></div>'
-      : '<div class="consent-banner" id="consentBanner"><p><b>Bagikan lokasi kamu ke grup?</b></p><div class="muted" style="font-size:12px;margin:4px 0 10px">Hanya selama Journey Mode aktif dan halaman ini terbuka.</div><div class="consent-actions"><button class="btn small" id="shareLocationBtn">Izinkan</button><button class="btn secondary small" id="denyLocationBtn">Nanti</button></div></div>';
+      : '<div class="consent-banner" id="consentBanner"><p><b>Bagikan lokasi kamu ke grup?</b></p><div class="muted" style="font-size:12px;margin:4px 0 10px">Anggota trip dapat melihat posisi kamu selama Journey Mode aktif dan halaman tetap terbuka.</div><div class="consent-actions"><button class="btn small" id="shareLocationBtn">Izinkan</button><button class="btn secondary small" id="denyLocationBtn">Nanti</button></div></div>';
 
     el.innerHTML =
       '<div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Journey Mode</h2><span class="count" id="crewStatus"></span></div>' +
@@ -497,20 +507,56 @@
     }
   }
 
-  // Render shared-trip itinerary (READ-ONLY — public-safe fields only via esc())
+  // Render shared-trip itinerary (READ-ONLY — public-safe fields only via esc()).
+  // Uses the same day-grouped card structure as the creator planner: day heading,
+  // then one row per agenda with time prominent, title prominent, cost secondary.
+  // No edit/delete controls are emitted for guests.
   function renderGuestItinerary(t){
-    const list = (t.items||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     const el = $('guestItineraryList');
     if(!el) return;
-    if(list.length){
-      el.innerHTML = list.map(item=>`<article class="agenda-item"><div class="agenda-when">${esc(item.date||'')} ${esc(item.time||'')}</div><div class="agenda-body"><div class="agenda-title">${esc(item.title)}</div>${item.note?`<div class="agenda-note">${esc(item.note)}</div>`:''}${item.link?`<a class="agenda-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi →</a>`:''}${Number(item.budget)?`<div class="agenda-budget">${money(item.budget)}</div>`:''}</div></article>`).join('');
+
+    const items = (t.items || []).slice().sort(function(a, b){
+      return (String(a.date||'') + (a.time || '99:99'))
+        .localeCompare(String(b.date||'') + (b.time || '99:99'));
+    });
+
+    if(!items.length){
+      el.innerHTML = '<div class="empty"><strong>Belum ada agenda.</strong>Pembuat trip belum menambahkan kegiatan.</div>';
     } else {
-      el.innerHTML = '<div class="empty">Belum ada agenda.</div>';
+      // group by date, keeping chronological order
+      const order = [];
+      const byDate = {};
+      items.forEach(function(it){
+        const d = String(it.date || '');
+        if(!byDate[d]){ byDate[d] = []; order.push(d); }
+        byDate[d].push(it);
+      });
+
+      el.innerHTML = order.map(function(d, idx){
+        const head = '<div class="section-head" style="margin:' + (idx ? '18px' : '4px') + ' 0 8px">' +
+          '<div><h3 style="font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Hari ' + (idx + 1) + '</h3>' +
+          '<div style="font-weight:700">' + esc(d ? dateText(d) : 'Tanpa tanggal') + '</div></div></div>';
+
+        const rows = byDate[d].map(function(item){
+          return '<article class="item">' +
+            (item.link ? '<div class="item-pin" title="Titik lokasi">📍</div>' : '') +
+            '<div class="item-time">' + esc(item.time || '—') + '</div>' +
+            '<div><div class="item-title">' + esc(item.title) + '</div>' +
+            (item.note ? '<div class="item-detail">' + esc(item.note) + '</div>' : '') +
+            (item.link ? '<a class="item-link" href="' + esc(item.link) + '" target="_blank" rel="noopener">Buka referensi ↗</a>' : '') +
+            (Number(item.budget) ? '<div class="item-cost">' + money(item.budget) + '</div>' : '') +
+            '</div></article>';
+        }).join('');
+
+        return head + rows;
+      }).join('');
     }
-    const exp = t.expenses||[];
+
+    const exp = t.expenses || [];
     const exEl = $('guestExpenses');
     if(exEl) exEl.innerHTML = exp.length
-      ? `<div style="font-size:13px;color:var(--muted)">${esc(String(exp.length))} catatan pengeluaran · total ${money(exp.reduce((s,x)=>s+(Number(x.amount)||0),0))}</div>`
+      ? '<div style="font-size:13px;color:var(--muted)">' + esc(String(exp.length)) +
+        ' catatan pengeluaran · total ' + money(exp.reduce(function(s, x){ return s + (Number(x.amount) || 0); }, 0)) + '</div>'
       : '<div style="font-size:13px;color:var(--muted)">Tidak ada pengeluaran tercatat.</div>';
   }
 
@@ -599,7 +645,7 @@
   async function addOrUpdateTrip(event){event.preventDefault();const start=$('tripStart').value,end=$('tripEnd').value;if(end<start){alert('Tanggal selesai harus sama atau setelah tanggal mulai.');return}
     if(state.editTripId){const trip=state.trips.find(t=>t.id===state.editTripId);if(!trip)return;trip.name=$('tripName').value.trim();trip.destination=$('tripDestination').value.trim();trip.start=start;trip.end=end;trip.note=$('tripNote').value.trim();state.editTripId=null;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';save();event.target.reset();openTrip(trip.id);return}
     await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId)}
-  async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const submitBtn=$('newTripSubmit');busyBtn(submitBtn,'Membuat...');try{const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:loadName()||'Guest'});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
+  async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const submitBtn=$('newTripSubmit');busyBtn(submitBtn,'Membuat...');try{const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const _ownerName=loadName()||ownerNameFromAccount();const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:_ownerName});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
 colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}finally{freeBtn(submitBtn)}}
   function normalizeLink(value){const link=value.trim();if(!link)return '';return /^https?:\/\//i.test(link)?link:'https://'+link}
   function addAgenda(event){event.preventDefault();const trip=getTrip();trip.items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,title:$('agendaTitle').value.trim(),time:$('agendaTime').value,budget:$('agendaBudget').value,link:normalizeLink($('agendaLink').value),note:$('agendaNote').value.trim()});save();event.target.reset();$('addPanel').open=false;renderPlanner()}
@@ -659,6 +705,22 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     let n=loadName();
     while(!n||!n.trim()){n=prompt('Nama kamu di grup? (tampil ke anggota lain)');if(n===null)return null;}
     n=n.trim().slice(0,40);saveName(n);colState.name=n;return n;
+  }
+  // Best-effort display name for the trip creator, derived from the signed-in
+  // account (profile name -> metadata -> email prefix). Never returns a role
+  // word like 'Guest'/'Creator', and never blocks trip creation on a prompt.
+  function ownerNameFromAccount(){
+    var n = (colState.name || '').trim();
+    if(n) return n.slice(0, 40);
+    try{
+      var sb = API._getSb && API._getSb();
+      var u = sb && sb.auth && sb.auth.user ? sb.auth.user() : null;
+      var meta = u && u.user_metadata;
+      var mn = meta && (meta.full_name || meta.name);
+      if(mn) return String(mn).slice(0, 40);
+      if(u && u.email) return String(u.email).split('@')[0].slice(0, 40);
+    }catch(e){ /* fall through */ }
+    return 'Tanpa nama';
   }
   function groupLink(id){return `${location.origin}${location.pathname}?group=${id}`;}
   // Convert a shared (read-only) trip into a collaborative group.
@@ -741,12 +803,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         if(ce)console.warn('[MarkiCab] copy agenda failed:',ce.message);
       }
     }
+    // Permissions must be resolved BEFORE anything permission-gated renders:
+    // the wishlist's '+ Add to Itin' and the itinerary edit controls read
+    // canEditTrip(), which was still false when they rendered first.
+    const permsRes=await API.getTripPermissions(id);
+    colState.perms=(permsRes&&permsRes.data)||null;
     await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);
     if (document.getElementById('groupWishList')) { await loadWishlists(id); }
     renderGroupPlanner();
-    // M3 Phase 1: load permission matrix and apply to UI
-    const permsRes=await API.getTripPermissions(id);
-    colState.perms=(permsRes&&permsRes.data)||null;
     applyPermsUI();
   }
   async function loadShared(id){const { data }=await API.getItems(id);
@@ -852,12 +916,46 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if (panel) panel.open = false;
     await loadWishlists(g.id);
   }
-  // Fase B: identity — always show real display name, never "(kamu)" suffix
-  function nameOf(uid){
+  // ── Canonical identity ────────────────────────────────────
+  // ONE source of truth for names, used by Crew, Journey markers, itinerary
+  // authors and wishlist suggested_by. Rules:
+  //   display name = the user's own name, nothing else
+  //   role         = Trip Creator / Guest / Member   (metadata, NOT the name)
+  //   status       = Online / Offline / Tidak berbagi (metadata, NOT the name)
+  // Words like 'Creator', 'Guest', 'anggota', 'member' or 'kamu' must never be
+  // substituted for a real display name.
+  function seedIdentities(rows){
+    if(!rows || !rows.length) return;
+    colState.nameMap = colState.nameMap || {};
+    rows.forEach(function(r){
+      if(!r) return;
+      var uid = r.user_id || r.uid;
+      var nm  = r.display_name || r.name;
+      if(uid && nm) colState.nameMap[uid] = nm;
+    });
+  }
+
+  // Returns the real display name, or null when genuinely unknown. Callers
+  // decide how to present an unknown identity — nameOf never invents a label.
+  function nameOfOrNull(uid){
+    if(!uid) return null;
     if(colState.nameMap && colState.nameMap[uid]) return colState.nameMap[uid];
-    if(uid===colState.uid) return colState.name || 'kamu';
-    const m=colState.members.find(x=>x.user_id===uid);
-    return (m && m.display_name) || 'anggota';
+    var m = (colState.members || []).find(function(x){ return x.user_id === uid; });
+    if(m && m.display_name) return m.display_name;
+    if(uid === colState.uid && colState.name) return colState.name;
+    return null;
+  }
+  function nameOf(uid){
+    // 'Tanpa nama' is only ever used when no display name exists anywhere.
+    return nameOfOrNull(uid) || 'Tanpa nama';
+  }
+  // Role label is separate metadata, never part of the name.
+  function roleLabelOf(uid){
+    var m = (colState.members || []).find(function(x){ return x.user_id === uid; });
+    var role = m && m.role;
+    if(role === 'owner') return 'Trip Creator';
+    if(m && m.is_anonymous) return 'Guest';
+    return 'Member';
   }
   function renderGroupPlanner(){
     const g=colState.group;if(!g)return;
@@ -999,7 +1097,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // active and this page can still run geolocation.
     if(active){
       if(!hasConsent){
-        html.push('<div class="consent-banner" id="consentBanner"><p><b>Bagikan lokasi kamu ke grup?</b></p><div class="muted" style="font-size:12px;margin:4px 0 10px">Hanya selama Journey Mode aktif dan halaman ini terbuka.</div><div class="consent-actions"><button class="btn small" id="shareLocationBtn">Izinkan</button><button class="btn secondary small" id="denyLocationBtn">Nanti</button></div></div>');
+        html.push('<div class="consent-banner" id="consentBanner"><p><b>Bagikan lokasi kamu ke grup?</b></p><div class="muted" style="font-size:12px;margin:4px 0 10px">Anggota trip dapat melihat posisi kamu selama Journey Mode aktif dan halaman tetap terbuka.</div><div class="consent-actions"><button class="btn small" id="shareLocationBtn">Izinkan</button><button class="btn secondary small" id="denyLocationBtn">Nanti</button></div></div>');
       } else {
         html.push('<div class="consent-banner consent-denied" id="consentBanner"><p>📍 Sedang membagikan lokasi ke grup.</p><div class="consent-actions"><button class="btn secondary small" id="stopSharingBtn">Stop berbagi</button></div></div>');
       }
@@ -1039,6 +1137,46 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       return;
     }
     return renderJourneyView();
+  }
+
+  // ── Creator-only trip edit ────────────────────────────────
+  // A created trip must stay flexible: the owner can still fix the name,
+  // destination and dates. Guests/members cannot — the button is owner-only in
+  // the UI and the existing RLS policy on public.groups enforces it server-side.
+  async function editGroupTrip(){
+    const g = colState.group;
+    if(!g) return;
+    if(!(colState.perms && colState.perms.is_owner)){
+      alert('Hanya pembuat trip yang bisa mengubah detail trip.');
+      return;
+    }
+    const name = prompt('Nama trip:', g.name || '');
+    if(name === null) return;
+    if(!name.trim()){ alert('Nama trip tidak boleh kosong.'); return; }
+    const destination = prompt('Destinasi:', g.destination || '');
+    if(destination === null) return;
+    const start = prompt('Tanggal mulai (YYYY-MM-DD):', g.start_date ? String(g.start_date) : '');
+    if(start === null) return;
+    const end = prompt('Tanggal selesai (YYYY-MM-DD):', g.end_date ? String(g.end_date) : '');
+    if(end === null) return;
+
+    const iso = /^\d{4}-\d{2}-\d{2}$/;
+    if(!iso.test(start) || !iso.test(end)){ alert('Format tanggal harus YYYY-MM-DD.'); return; }
+    if(end < start){ alert('Tanggal selesai tidak boleh sebelum tanggal mulai.'); return; }
+
+    const btn = document.getElementById('editGroupBtn');
+    busyBtn(btn, 'Menyimpan...');
+    try{
+      const res = await API.updateGroup(g.id, {
+        name: name.trim(),
+        destination: destination.trim() || null,
+        start_date: start,
+        end_date: end
+      });
+      if(res && res.error){ alert('Gagal menyimpan: ' + (res.error.message || res.error)); return; }
+      // Re-open so day tabs, header and agenda re-derive from the new dates.
+      await openGroup(g.id, false);
+    } finally { freeBtn(btn); }
   }
 
   // ── Journey Mode control (owner) ──────────────────────────
@@ -1173,6 +1311,128 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     colState.locationWatchId = null;
   }
 
+  // The wishlist/journey/location APIs read colState.group.id and colState.uid,
+  // which the guest path never populated (it renders straight from the
+  // get_guest_trip payload). Seed them once so a joined guest runs exactly the
+  // same code paths as a registered member.
+  async function seedGuestContext(t){
+    if(t && t.id){
+      colState.group = (colState.group && colState.group.id === t.id)
+        ? colState.group
+        : { id: t.id, name: t.name, start_date: t.start_date, end_date: t.end_date };
+    }
+    // Canonical roster (user_id + display_name + role) for identity + role labels.
+    if(colState.group && colState.group.id){
+      try{
+        const mem = await API.getMembers(colState.group.id);
+        if(mem && !mem.error && Array.isArray(mem.data) && mem.data.length){
+          colState.members = mem.data;
+          seedIdentities(mem.data);
+        }
+      }catch(e){ console.warn('[guest] roster load failed:', e && e.message); }
+    }
+    if(!colState.uid){
+      try{
+        const sb = API._getSb && API._getSb();
+        if(sb){
+          const s = await sb.auth.getSession();
+          const u = s && s.data && s.data.session && s.data.session.user;
+          if(u) colState.uid = u.id;
+        }
+      }catch(e){ console.warn('[guest] cannot resolve uid:', e && e.message); }
+    }
+  }
+
+  // ── Guest Group Wishlist (view + add; convert stays creator-only) ──
+  async function renderGuestWishlist(){
+    const el = document.getElementById('guestWishList');
+    if(!el || !colState.group || !colState.group.id) return;
+    const res = await API.listWishlists(colState.group.id);
+    const rows = (res && !res.error && Array.isArray(res.data)) ? res.data : [];
+    colState.wishlists = rows;
+    seedIdentities(rows.map(function(w){ return { user_id: w.suggested_by }; }));
+
+    const pending = rows.filter(function(w){ return w.status === 'suggested'; });
+    const done = rows.filter(function(w){ return w.status !== 'suggested'; });
+
+    // Full replace keeps this idempotent under re-render.
+    let html = '';
+    if(!pending.length && !done.length){
+      html = '<div class="empty">Belum ada wishlist. Ajukan tempat yang ingin kamu kunjungi.</div>';
+    } else {
+      html += pending.map(function(w){
+        // NOTE: no '+ Add to Itin' here — converting is the creator's action.
+        return '<article class="to-go-item"><div class="to-go-copy">' +
+          '<div class="to-go-name">' + esc(w.title) + '</div>' +
+          (w.link ? '<a class="to-go-source" href="' + esc(w.link) + '" target="_blank" rel="noopener">' + esc(w.link) + '</a>' : '') +
+          (w.note ? '<div class="link-field">' + esc(w.note) + '</div>' : '') +
+          '<div class="muted" style="font-size:11px;margin-top:4px">Disarankan oleh ' + esc(nameOf(w.suggested_by)) + '</div>' +
+          '</div></article>';
+      }).join('');
+      if(done.length){
+        html += '<div class="muted" style="font-size:11px;margin-top:10px">Sudah diproses</div>';
+        html += done.map(function(w){
+          return '<article class="to-go-item" style="opacity:.65"><div class="to-go-copy">' +
+            '<div class="to-go-name">' + esc(w.title) + '</div>' +
+            '<div class="muted" style="font-size:11px">' +
+            (w.status === 'approved' ? 'Sudah masuk itinerary' : 'Tidak dilanjutkan') +
+            '</div></div></article>';
+        }).join('');
+      }
+    }
+    el.innerHTML = html;
+  }
+
+  function wireGuestWishlist(){
+    const form = document.getElementById('guestWishlistForm');
+    if(form) form.onsubmit = async function(ev){
+      ev.preventDefault();
+      if(!colState.group || !colState.group.id) return;
+      const title = (form.querySelector('[name="wishlistTitle"]').value || '').trim();
+      if(!title){ alert('Judul wishlist wajib diisi.'); return; }
+      const link = (form.querySelector('[name="wishlistLink"]').value || '').trim() || null;
+      const note = (form.querySelector('[name="wishlistNote"]').value || '').trim() || null;
+      const res = await API.addWishlistItem(colState.group.id, title, link, note);
+      if(res && res.error){ alert('Gagal menambah wishlist: ' + (res.error.message || res.error)); return; }
+      form.reset();
+      const panel = document.getElementById('guestWishlistPanel');
+      if(panel) panel.open = false;
+      await renderGuestWishlist();
+    };
+    const cancel = document.getElementById('guestWishlistCancel');
+    if(cancel) cancel.onclick = function(){
+      if(form) form.reset();
+      const panel = document.getElementById('guestWishlistPanel');
+      if(panel) panel.open = false;
+    };
+  }
+
+  // Leaving the trip: the guest view had no exit at all, so people closed the
+  // tab instead and their membership row stayed behind — rejoining then created
+  // a second name. leave_group already deletes the row server-side; this simply
+  // gives the guest a way to call it.
+  function wireGuestLeave(){
+    const btn = document.getElementById('guestLeaveBtn');
+    if(!btn) return;
+    btn.onclick = async function(){
+      if(!confirm('Keluar dari trip ini? Nama kamu akan dihapus dari daftar anggota.')) return;
+      busyBtn(btn, 'Keluar...');
+      try{
+        if(colState.group && colState.group.id){
+          const res = await API.leaveGroup(colState.group.id, colState.uid);
+          if(res && res.error){ alert('Gagal keluar: ' + (res.error.message || res.error)); return; }
+        }
+        stopLocationWatch();
+        stopCrewRefresh();
+        guestSession = null;
+        colState.group = null; colState.members = []; colState.wishlists = [];
+        colState.crewLocations = []; colState.journey = null; colState.locationConsent = null;
+        // drop ?gt= so a reload does not silently re-open the invitation
+        window.location.href = window.location.pathname;
+      } finally { freeBtn(btn); }
+    };
+  }
+
   // ── Fase D: background / closed-tab behaviour ─────────────
   // MarkiCab has no background location service, and browsers stop geolocation
   // for hidden or closed pages. We do not pretend otherwise: when the page goes
@@ -1230,26 +1490,48 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     updateCrewStatus();
   }
 
-  // Simple positional map: normalise lat/lng into the box, no tiles, no library.
+  // Simple functional map: a subtle grid plus one labelled marker per person
+  // who actually has coordinates. No tiles, no library, no empty rectangle.
+  // Built by full replace so realtime refresh cannot duplicate markers.
   function renderCrewMarkers(points){
     const lats = points.map(function(p){ return p.latitude; });
     const lngs = points.map(function(p){ return p.longitude; });
     const minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
     const minLng = Math.min.apply(null, lngs), maxLng = Math.max.apply(null, lngs);
-    const spanLat = (maxLat - minLat) || 0.001;
-    const spanLng = (maxLng - minLng) || 0.001;
+    const spanLat = (maxLat - minLat) || 0.002;
+    const spanLng = (maxLng - minLng) || 0.002;
 
-    return points.map(function(m){
+    // Faint grid so the area reads as a map surface rather than a blank box.
+    const grid =
+      '<div style="position:absolute;inset:0;background-image:' +
+      'linear-gradient(var(--line) 1px, transparent 1px),' +
+      'linear-gradient(90deg, var(--line) 1px, transparent 1px);' +
+      'background-size:44px 44px;opacity:.25;pointer-events:none"></div>';
+
+    const seen = {};
+    const markers = points.filter(function(m){
+      if(seen[m.user_id]) return false;   // dedupe per person
+      seen[m.user_id] = true;
+      return true;
+    }).map(function(m){
       const isMe = m.user_id === colState.uid;
-      const name = m.display_name || nameOf(m.user_id);
-      // 12%..88% keeps markers off the very edge of the box
-      const left = 12 + ((m.longitude - minLng) / spanLng) * 76;
-      const top  = 88 - ((m.latitude  - minLat) / spanLat) * 76;
+      const name = nameOf(m.user_id);
+      // 14%..86% keeps labels inside the box
+      const left = 14 + ((m.longitude - minLng) / spanLng) * 72;
+      const top  = 86 - ((m.latitude  - minLat) / spanLat) * 72;
       const fresh = isFreshLocation(m);
-      return '<div class="crew-member crew-pin' + (isMe ? ' me' : '') + '" style="position:absolute;left:' + left.toFixed(1) + '%;top:' + top.toFixed(1) + '%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;white-space:nowrap">' +
-        '<span class="crew-dot' + (fresh ? '' : ' stale') + '" title="' + (isMe ? 'Kamu' : esc(name)) + '" style="width:12px;height:12px;border-radius:50%;background:' + (fresh ? 'var(--accent)' : 'var(--muted)') + ';box-shadow:0 0 0 3px rgba(0,0,0,.25)"></span>' +
-        '<b style="font-size:12px">' + esc(name) + '</b></div>';
+      const color = fresh ? 'var(--accent)' : 'var(--muted)';
+      return '<div class="crew-member crew-pin' + (isMe ? ' me' : '') + '" data-uid="' + esc(m.user_id) + '"' +
+        ' style="position:absolute;left:' + left.toFixed(1) + '%;top:' + top.toFixed(1) + '%;' +
+        'transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;white-space:nowrap">' +
+        '<span class="crew-dot' + (fresh ? '' : ' stale') + '" title="' + esc(name) + '"' +
+        ' style="width:12px;height:12px;border-radius:50%;background:' + color + ';' +
+        'box-shadow:0 0 0 3px rgba(0,0,0,.35)"></span>' +
+        '<b style="font-size:12px;background:rgba(0,0,0,.45);padding:2px 6px;border-radius:6px">' +
+        esc(name) + '</b></div>';
     }).join('');
+
+    return grid + markers;
   }
 
   function isFreshLocation(m){
@@ -1258,52 +1540,48 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     return (Date.now() - new Date(ts).getTime()) < 120000; // fresh < 2 minutes
   }
 
-  // Fase D: 3-state crew list.
-  //   🟢 Online         — has a location fix newer than 2 minutes
-  //   🔴 Offline        — consented / shared before, but the fix is stale or gone
-  //   ⚪ Tidak berbagi  — never shared a location in this journey
+  // Crew — the ONE member list. Name, role and status are three separate
+  // columns: a role or status word is never rendered in place of a name.
+  //   🟢 Online        consent granted + fix newer than 2 minutes
+  //   🔴 Offline       shared before, but the fix is stale/gone
+  //   ⚪ Tidak berbagi never consented in this journey
+  // Rendering is idempotent: it always rebuilds from canonical state
+  // (members ∪ reporters), so realtime refreshes cannot duplicate rows.
+  function crewRows(){
+    const byUid = {};
+    (colState.crewLocations || []).forEach(function(m){ byUid[m.user_id] = m; });
+    seedIdentities(colState.crewLocations);
+
+    const seen = {};
+    const rows = [];
+    const push = function(uid){
+      if(!uid || seen[uid]) return;      // dedupe by uid — never append twice
+      seen[uid] = true;
+      const loc = byUid[uid];
+      let icon, status;
+      if(loc && isFreshLocation(loc)){ icon = '🟢'; status = 'Online'; }
+      else if(loc){                     icon = '🔴'; status = 'Offline'; }
+      else {                            icon = '⚪'; status = 'Tidak berbagi'; }
+      rows.push({ uid: uid, name: nameOf(uid), role: roleLabelOf(uid), icon: icon, status: status });
+    };
+
+    (colState.members || []).forEach(function(m){ push(m.user_id); });
+    Object.keys(byUid).forEach(push);    // anyone reporting but not in the roster
+    return rows;
+  }
+
   function renderCrewStatusList(){
     const el = document.getElementById('crewStatusList');
     if(!el) return;
-
-    const byUid = {};
-    (colState.crewLocations || []).forEach(function(m){
-      byUid[m.user_id] = m;
-      // Names travelling with the location row are authoritative for people who
-      // joined after openGroup() loaded the roster (e.g. a guest redeeming an
-      // invite mid-journey) — without this they render as the 'Guest' fallback.
-      if(m.display_name){
-        colState.nameMap = colState.nameMap || {};
-        colState.nameMap[m.user_id] = m.display_name;
-      }
-    });
-
-    // Union of the known roster and whoever is actually reporting a location.
-    const members = (colState.members || []).slice();
-    const known = {};
-    members.forEach(function(m){ known[m.user_id] = true; });
-    Object.keys(byUid).forEach(function(uid){
-      if(!known[uid]){
-        members.push({ user_id: uid, display_name: byUid[uid].display_name || nameOf(uid) });
-      }
-    });
-    const rows = members.map(function(mem){
-      const loc = byUid[mem.user_id];
-      let icon, label;
-      if(loc && isFreshLocation(loc)){
-        icon = '🟢'; label = 'Online';
-      } else if(loc){
-        icon = '🔴'; label = 'Offline';
-      } else {
-        icon = '⚪'; label = 'Tidak berbagi';
-      }
-      const name = mem.display_name || nameOf(mem.user_id);
-      return '<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">' +
-        icon + ' ' + esc(name) + '</div></div>' +
-        '<div class="to-go-actions"><span class="muted" style="font-size:12px">' + label + '</span></div></article>';
-    }).join('');
-
-    el.innerHTML = rows || '<div class="empty">Belum ada anggota.</div>';
+    const rows = crewRows();
+    // Full replace (not append) — this is what keeps refresh idempotent.
+    el.innerHTML = rows.length ? rows.map(function(r){
+      return '<article class="to-go-item"><div class="to-go-copy">' +
+        '<div class="to-go-name">' + r.icon + ' ' + esc(r.name) + '</div>' +
+        '<div class="muted" style="font-size:11px">' + esc(r.role) + '</div>' +
+        '</div><div class="to-go-actions"><span class="muted" style="font-size:12px">' +
+        esc(r.status) + '</span></div></article>';
+    }).join('') : '<div class="empty">Belum ada anggota.</div>';
   }
 
   function hideCrewMap(){
@@ -1526,6 +1804,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const ig=document.getElementById('inviteGroupBtn'); if(ig) ig.style.display = canInvite() ? '' : 'none';
     const st=document.getElementById('shareTrip'); if(st) st.style.display = canInvite() ? '' : 'none';
     const lb=document.getElementById('leaveGroupBtn'); if(lb) lb.textContent = p.is_owner ? 'Hapus trip' : 'Keluar';
+    const egb=document.getElementById('editGroupBtn'); if(egb) egb.style.display = p.is_owner ? '' : 'none';
     // Hide edit controls for non-owners
     const addAgendaPanel=document.querySelector('#itineraryPanel details');
     if(addAgendaPanel) addAgendaPanel.style.display = canEditTrip() ? '' : 'none';
@@ -1547,6 +1826,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   const _makeGroupBtn=document.getElementById('makeGroupBtn'); if(_makeGroupBtn) _makeGroupBtn.onclick=()=>makeGroupFromTrip();
   const _inviteGroupBtn=document.getElementById('inviteGroupBtn'); if(_inviteGroupBtn) _inviteGroupBtn.onclick=shareGroup;
   const _leaveGroupBtn=document.getElementById('leaveGroupBtn'); if(_leaveGroupBtn) _leaveGroupBtn.onclick=()=>leaveGroup();
+  const _editGroupBtn=document.getElementById('editGroupBtn'); if(_editGroupBtn) _editGroupBtn.onclick=()=>editGroupTrip();
   const _groupAgendaForm=document.getElementById('groupAgendaForm'); if(_groupAgendaForm) _groupAgendaForm.onsubmit=addGroupAgenda;
   const _cancelGroupAgenda=document.getElementById('cancelGroupAgenda'); if(_cancelGroupAgenda) _cancelGroupAgenda.onclick=()=>{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false};
   const _groupExpenseForm=document.getElementById('groupExpenseForm'); if(_groupExpenseForm) _groupExpenseForm.onsubmit=addGroupExpense;
