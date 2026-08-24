@@ -45,6 +45,35 @@ WHERE n.nspname = 'public';
 ### 5. Flip-flop 404s between identical calls
 If the same RPC sometimes 400 and sometimes 404 with no deployment changes → the test harness is sending **inconsistent params** (e.g., one run sends 8 params, another sends 9). Confirm the test client matches the frontend `rpc()` call shape exactly.
 
+### 6. 404 ONLY when the function body executes (not on early gates) — `isfinite()` trap
+If early `raise exception` gates (P0001) work fine but you get **42883 / PGRST202 404 only when all security gates PASS**, the function body contains a runtime PL/pgSQL error surfacing as a dispatch-level "no function matches":
+
+| Gate outcome | Symptom | Root cause |
+|---|---|---|
+| Gate fails (P0001) | 400 with clear message | ✅ gate working |
+| All gates pass | 42883 / 404 "no function matches" | ❌ body has unresolvable call |
+
+**Root-cause example:** `isfinite(double precision)` inside a SECURITY DEFINER (`search_path=''`)
+function — PostgreSQL's `isfinite()` exists only for `date`, `timestamp`, `interval`, `numeric`,
+**NOT `float8`/`double precision`**. The `CREATE OR REPLACE` succeeds (resolved at definition time);
+the 42883 fires at **execution time** — only when gates 1-4 pass and code reaches the bad call.
+Symptoms look like per-group routing flakiness, but it's deterministic: 404 ⟺ code path reaches the bad call.
+
+**Diagnostic:** run the function body directly via the Management API SQL endpoint
+with `auth.uid()` faked via `SET LOCAL` inside a transaction — the raw error is
+`function isfinite(double precision) does not exist`.
+
+**Fix:** use `x <> x` for NaN (NaN ≠ NaN in SQL) + range checks (catch ±Infinity).
+
+**Verify the body directly:**
+```sql
+BEGIN;
+SET LOCAL request.jwt.claim.sub = '<caller_uid>';
+SELECT public.upsert_member_location('<group_uuid>', 42.0, 42.0, 0, 0, 0);
+ROLLBACK;
+-- If this errors 42883, the body has an unresolvable call (e.g. isfinite(float8))
+```
+
 ## Quick reference
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -52,3 +81,4 @@ If the same RPC sometimes 400 and sometimes 404 with no deployment changes → t
 | PGRST202 after reload | Missing GRANT (proacl IS NULL) | `GRANT EXECUTE ... TO authenticated` |
 | PGRST202, signature differs | Param mismatch | Fix client params to match `pg_get_function_arguments` |
 | PGRST202 flip-flops same params | Test harness inconsistency | Match frontend `rpc()` signature exactly |
+| 42883/404 only when gates pass | Runtime body error (e.g. `isfinite(float8)`) | `x<>x` for NaN + range check; see Pitfall 4c |

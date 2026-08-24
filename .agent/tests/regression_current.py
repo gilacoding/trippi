@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""Test current state after P0.3 fixes"""
+import asyncio, json, urllib.request
+from playwright.async_api import async_playwright
+
+SUPABASE_URL = "https://ishflkcsdzlhhxtanhxf.supabase.co"
+SUPABASE_ANON = "sb_publishable_7g_crQO8fm0SVVIdqDU78w_gIglXx8Q"
+BASE_URL = "https://marki.cab/trip-planner.html"
+OWNER_EMAIL = "e2e-guest-baseline@marki.cab"
+OWNER_PASS = "Str0ngP@ss99!"
+
+
+def login(email, password):
+    headers = {"Content-Type": "application/json", "apikey": SUPABASE_ANON}
+    body = json.dumps({"email": email, "password": password}).encode()
+    req = urllib.request.Request(f"{SUPABASE_URL}/auth/v1/token?grant_type=password", data=body, headers=headers)
+    r = urllib.request.urlopen(req, timeout=15)
+    return json.loads(r.read())["access_token"]
+
+
+def call_rpc(jwt, fn, params=None):
+    headers = {"Content-Type": "application/json", "apikey": SUPABASE_ANON, "Authorization": f"Bearer {jwt}"}
+    body = json.dumps(params or {}).encode()
+    req = urllib.request.Request(f"{SUPABASE_URL}/rest/v1/rpc/{fn}", data=body, headers=headers)
+    r = urllib.request.urlopen(req, timeout=15)
+    return json.loads(r.read())
+
+
+async def main():
+    print("=== CURRENT STATE TEST ===\n")
+    
+    owner_jwt = login(OWNER_EMAIL, OWNER_PASS)
+    
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False, args=['--no-sandbox'])
+        ctx = await browser.new_context()
+        page = await ctx.new_page()
+        
+        errors = []
+        page.on('pageerror', lambda e: errors.append(str(e)))
+        
+        await page.goto(BASE_URL, wait_until='networkidle')
+        await page.wait_for_timeout(3000)
+        
+        # Check home elements
+        els = ["upcomingCount", "upcomingTrips", "historyCount", "historyTrips", "toGoList", "newTripBtn"]
+        for eid in els:
+            found = await page.evaluate(f'''() => !!document.getElementById("{eid}") ''')
+            print(f"  {eid}: {'OK' if found else 'MISSING'}")
+        
+        # Login
+        await page.click('button:has-text("Masuk")', timeout=5000)
+        await page.wait_for_timeout(1000)
+        await page.fill('input[type="email"]', OWNER_EMAIL)
+        await page.fill('input[type="password"]', OWNER_PASS)
+        await page.click('#authModal button:has-text("Masuk")', timeout=5000)
+        await page.wait_for_timeout(5000)
+        
+        # Create trip
+        await page.click('#newTripBtn', timeout=5000)
+        await page.wait_for_timeout(2000)
+        await page.fill('#tripName', 'Journey Test')
+        await page.fill('#tripDestination', 'Bali')
+        await page.fill('#tripStart', '2026-08-23')
+        await page.fill('#tripEnd', '2026-08-24')
+        await page.click('#newTripSubmit', timeout=5000)
+        await page.wait_for_timeout(8000)
+        
+        # Check group view
+        groupview = await page.evaluate('''() => {
+            const gv = document.getElementById('groupView');
+            return gv ? window.getComputedStyle(gv).display !== 'none' : false;
+        }''')
+        print(f"\n  Group view: {groupview}")
+        
+        # Check journey panel
+        journey = await page.evaluate('''() => {
+            const j = document.getElementById('journeyPanel');
+            return j ? j.innerHTML.substring(0, 200) : 'NOT FOUND';
+        }''')
+        print(f"  Journey panel: {journey[:100]}...")
+        
+        print(f"\n  Errors: {len(errors)}")
+        for e in errors[:3]:
+            print(f"    {e[:100]}")
+        
+        await browser.close()
+        print("\n=== COMPLETE ===")
+
+asyncio.run(main())

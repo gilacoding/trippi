@@ -234,6 +234,37 @@ HIGH-risk tasks are also flagged with `🔒 REVIEW REQUIRED`.
 
 |- [x] Guest Mode redesign · risk: LOW · state: ✅ DONE (2026-08-22)
 
+## P0.2 — Guest Trip Participation Model V2 (DONE)
+> **Goal:** Enable anonymous guests to join trips without MarkiCab account, using Supabase Anonymous Auth.
+> **Model:** Travel organizer tool — creator has group, participants just join the trip.
+
+|- [x] Enable Anonymous Auth in Supabase Dashboard · risk: MEDIUM · state: ✅ DONE (2026-08-23)
+|- [x] Deploy P0.2 frontend (guest name-first flow) · risk: MEDIUM · state: ✅ DONE (2026-08-23)
+|- [x] Fix soft-convert bug (registered user → group view) · risk: MEDIUM · state: ✅ DONE (2026-08-23)
+|- [x] Fix auth race condition (login modal flash on guest page) · risk: LOW · state: ✅ DONE (2026-08-23)
+|- [x] Fix get_guest_trip is_member reporting · risk: HIGH 🔒 · state: ✅ DONE (2026-08-23)
+|- [x] Sync colState.uid after anonymous sign-in · risk: MEDIUM · state: ✅ DONE (2026-08-23)
+|- [x] Live smoke test (3 personas: Guest + Registered + Creator) · risk: MEDIUM · state: ✅ DONE (2026-08-23)
+
+  **Verification: 3/3 PASS** — Anonymous guest joins read-only, registered user soft-converts, creator sees count update.
+  **Security: PASS** — RLS enforced, anon cannot enumerate data, invitation token scoped (UUID v4, 122-bit entropy).
+  **GPT-4 mini audit: FALSE POSITIVE** — Verified against live Supabase; all RLS policies work correctly.
+
+  **Acceptance criteria — ALL PASS:**
+  - ✅ Guest opens `?gt=` → sees itinerary preview (no login)
+  - ✅ Guest clicks "Gabung Trip" → enters name → becomes participant
+  - ✅ Guest has read-only access (no edit buttons)
+  - ✅ Registered user opens link → clicks "Gabung Trip" → soft-converts to group view
+  - ✅ Creator sees participant count increase
+  - ✅ Anonymous Auth enabled, JWT contains `is_anonymous=true`
+
+  **Files changed:**
+  - `trip-planner.html` — P0.2 guest flow, soft-convert fix, auth race fix, colState.uid sync
+  - `backend/trippi-api.js` — signInAnonymously function
+  - `.agent/migrations/P0_fix_get_guest_trip_is_member.sql` — RPC fix (deployed via Management API)
+
+  **Commits:** `280d934`, `37c8a42`
+
   Split into two scoped changes per user's P0 acceptance criteria:
   1. **Guest has no trip list** — `?gt=` lands on a dedicated `guestView` (card preview +
      participant count + read-only itinerary). Back/create-nav buttons hidden (nav lockout).

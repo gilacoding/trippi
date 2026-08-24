@@ -1,9 +1,9 @@
-// Trippi backend scaffold (M0). Inert until configured.
+// MarkiCab backend scaffold (M0). Inert until configured.
 // Configure by setting window.__TRIPPI_SUPABASE__ = { url, anonKey } before this
 // script loads, OR via meta tags in <head>:
 //   <meta name="trippi-supabase-url" content="...">
 //   <meta name="trippi-supabase-anon" content="...">
-// When unconfigured, Trippi stays in personal-only mode (no errors, no network).
+// When unconfigured, MarkiCab stays in personal-only mode (no errors, no network).
 (function () {
   var w = window;
   function meta(name) {
@@ -24,7 +24,7 @@
     init: function () {
       var self = this;
       if (!ready) {
-        console.info('[Trippi] backend not configured — running in personal mode only.');
+        console.info('[MarkiCab] backend not configured — running in personal mode only.');
         return Promise.resolve(false);
       }
       if (self.client) return Promise.resolve(true);

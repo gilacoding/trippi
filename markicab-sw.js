@@ -1,12 +1,12 @@
-// Trippi service worker — hardened cache
+// MarkiCab service worker — hardened cache
 // P1 fix: versioned cache + stale-cache cleanup on activate +
 //        network-first for API JS so backend/trippi-api.js is never permanently cached.
-const CACHE_VERSION = 'trippi-personal-v4';
+const CACHE_VERSION = 'markicab-personal-v1';
 const CORE_FILES = [
   './index.html',
   './trip-planner.html',
-  './trippi.webmanifest',
-  './trippi-icon.svg',
+  './markicab.webmanifest',
+  './markicab-icon.svg',
   './lzstring.js'
   // NOTE: backend/supabase-client.js and backend/trippi-api.js are intentionally
   // excluded from pre-cache AND served network-first (see fetch handler) so JS
@@ -19,7 +19,10 @@ const NETWORK_FIRST = [
   /trip-planner\.html(\?|$)/,
   /index\.html(\?|$)/,
   /\/backend\/trippi-api\.js(\?|$)/,
-  /\/backend\/supabase-client\.js(\?|$)/
+  /\/backend\/supabase-client\.js(\?|$)/,
+  /\/markicab-sw\.js(\?|$)/,
+  /\/markicab\.webmanifest(\?|$)/,
+  /\/markicab-icon\.svg(\?|$)/
 ];
 
 self.addEventListener('install', event => {

@@ -153,6 +153,33 @@ SQL Editor / psql connection**, NOT from the Management API SQL endpoint
 (pooled connection the listener doesn't see). Use Dashboard "Reload project"
 as fallback.
 
+### Pitfall 4b: Dead/rotated SUPABASE_ACCESS_TOKEN (401 on /v1/user)
+The token in `~/hermes/.env` (or your env file) may return **401** even though
+the project ref is correct — the token was rotated, expired, or has no Mgmt API scope.
+This is NOT a URL or scope issue (those return 403). **401 = bad token.**
+**Fix:** The token cannot be refreshed programmatically. Contact the project founder
+to generate a fresh `sbp_...` token via the Supabase dashboard (Account → API →
+Access Token). In this session a Founder-provided token (`sbp_f80b...`) was pasted
+and used to deploy via `POST /v1/projects/<ref>/database/query` — the function
+existed afterward (`SELECT * FROM pg_proc WHERE proname = ...`).
+**Do NOT hand-edit `.env` for the user** — write the token into the env file they
+designate, and document that `GET /v1/user` returning 401 (not 403) is the
+rotation signal.
+
+### Pitfall 4c: 404 (PGRST202/42883) fires only when the function body executes
+If the function routes early `raise exception` errors (P0001) correctly but
+returns 404/42883 *only when all security gates pass*, the body has a runtime
+PL/pgSQL error that PostgREST surfaces as a dispatch-level "no function matches".
+**Root-cause example from this session:** calling `isfinite(double precision)`
+inside a SECURITY DEFINER function — PostgreSQL's `isfinite()` only exists for
+`date`, `timestamp`, `interval`, and `numeric`, **NOT `float8`/`double precision`**.
+The `CREATE OR REPLACE` succeeds (definition-time); the 42883 fires at execution
+— which only happens when gates 1-4 pass first. Symptoms look like per-group
+routing flakiness, but it's deterministic: 404 ⟺ code path that reaches the bad call.
+**Fix:** use `x <> x` for NaN (NaN isn't equal to itself) + range checks (catch ±Inf).
+Verify the body directly via the Management API SQL endpoint with `auth.uid()`
+faked via `SET LOCAL` in a transaction.
+
 ### Pitfall 5: PGRST202 is not always "function missing"
 `Searched for the function ... but no matches were found in the schema cache`
 can mean:

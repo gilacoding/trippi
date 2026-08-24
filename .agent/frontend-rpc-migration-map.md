@@ -150,3 +150,26 @@ The RPCs return slightly different field names than the old `sb.from().insert()`
 | `data.name` | `data.group_name` |
 | `data.created_by` | same |
 | `data.created_at` | same |
+
+## Live Deployment Status (verified 2026-08-23)
+
+The following has been verified against the **live production** site (marki.cab)
+and Supabase project `ishflkcsdzlhhxtanhxf`:
+
+| Layer | Status | Detail |
+|---|---|---|
+| **`trip-planner.html`** (GitHub `master`) | **M2 P0** deployed | Guest flow forces login via `openAuth('login')` (line 309). No `signInAnonymously` in the deployed `<body>`. |
+| **`trippi-api.js`** (GitHub `master`) | **P0.2** code present | Has `signInAnonymously()` function (line 108). But P0.2 frontend flow NOT wired in deployed HTML. |
+| **Supabase DB functions** (live) | **P0.2** deployed | `get_guest_trip` returns `participant_limit` + `current_count`. `redeem_invitation` accepts authenticated users. |
+| **`invitations` table** (live) | **P0.2** schema | Has `participant_limit` column (verified via RPC behavior). |
+| **Anonymous Auth** | **DISABLED** (intentional) | `signInAnonymously()` → `422 anonymous_provider_disabled`. Guests use anon API key + token-scoped RPCs. |
+| **GitHub Pages** (marki.cab) | Does NOT match local repo | Local repo has P0.2 frontend code (commit `53d428f`) but `master` branch still deploys M2 flow. |
+
+**Conclusion**: P0.2 **DB migration is already deployed**. The gap is **frontend
+deployment only** — the P0.2 `trip-planner.html` (with `signInAnonymously` flow)
+needs to be pushed to GitHub Pages.
+
+**Known frontend bug** in registered-user soft-convert path (line 1285-1286):
+`pendingGuestToken` auto-redeem calls `openGroup(colState.group.id)` but
+`colState.group` is null when the app is in guest view mode. DB-level join
+succeeds (member_count increases) but UI doesn't transition to groupView.

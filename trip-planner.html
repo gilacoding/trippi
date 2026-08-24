@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#101219">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="trippi.webmanifest">
-<link rel="apple-touch-icon" href="trippi-icon.svg">
-<title>Trippi — Travel Planner</title>
+<link rel="manifest" href="markicab.webmanifest">
+<link rel="apple-touch-icon" href="markicab-icon.svg">
+<title>MarkiCab — Travel Planner</title>
 <script>
   // Supabase config (public anon key — safe in client because access is
   // enforced at the application layer; see supabase/schema.sql).
@@ -53,7 +53,7 @@
 </head>
 <body>
 <main class="app">
-  <header class="topbar"><div class="brand"><span class="dot"></span>Trippi</div><span class="offline">Tersimpan di perangkat</span><button class="btn secondary small" id="logoutBtn" style="display:none">Keluar</button></header>
+  <header class="topbar"><div class="brand"><span class="dot"></span>MarkiCab</div><span class="offline">Tersimpan di perangkat</span><button class="btn secondary small" id="logoutBtn" style="display:none">Keluar</button></header>
 
   <!-- Auth modal: login / signup (email + password) -->
   <div class="auth-modal" id="authModal" style="display:none">
@@ -645,7 +645,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)){clearTimeout(timer);resolve(status)}
       });
     });
-    console.log('[Trippi] realtime group:'+id+' status:',st);
+    console.log('[MarkiCab] realtime group:'+id+' status:',st);
     colState.channel=ch;
     if(colState.poll)clearInterval(colState.poll);
     colState.poll=setInterval(()=>{if(colState.group&&colState.group.id===id){loadShared(id);loadMembers(id);loadGroupExpenses(id);}},3000);
@@ -654,7 +654,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       if(agenda.length){
         const rows=agenda.map(i=>({group_id:id,title:i.title.trim(),note:i.note||'',link:i.link||'',date:i.date||'',time:i.time||'',budget:Number(i.budget)||0}));
         const {error:ce}=await API.addItemsBatch(rows);
-        if(ce)console.warn('[Trippi] copy agenda failed:',ce.message);
+        if(ce)console.warn('[MarkiCab] copy agenda failed:',ce.message);
       }
     }
     await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);renderGroupPlanner();
@@ -1279,7 +1279,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     dbg('startup: group param = '+(gid||'none')+' search='+location.search);
     if(gid){dbg('joinGroup invoked for '+gid);try{await joinGroup(gid);dbg('joinGroup resolved g='+JSON.stringify(colState.group?{id:colState.group.id,name:colState.group.name}:null));}catch(err){console.error('[startup] joinGroup error for '+gid+':',err);dbg('joinGroup error:'+err?.message);if(colState.group){openGroup(colState.group.id,false)}else{renderHome();show('homeView');alert('Trip tidak ditemukan. UUID '+gid+' tidak valid atau grup sudah dihapus.')}}}
   })();
-  if('serviceWorker' in navigator)navigator.serviceWorker.register('trippi-sw.js').catch(()=>{});
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('markicab-sw.js').catch(()=>{});
   if(!openFromHash()){load();renderHome();}
 </script>
 <script>

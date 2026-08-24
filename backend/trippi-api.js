@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────
-// Trippi API Boundary Layer (Phase 4 — RPC Migration)
+// MarkiCab API Boundary Layer (Phase 4 — RPC Migration)
 // ─────────────────────────────────────────────────────────────────────
 // All Supabase access is funneled through this module. The frontend
 // (trip-planner.html) never calls `sb.from(...)` directly — it calls
