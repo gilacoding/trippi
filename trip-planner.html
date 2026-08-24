@@ -229,6 +229,7 @@
   const LEGACY_STORE_KEY='trippi_personal_planner_v1';
   const state={trips:[],toGo:[],activeTripId:null,activeDate:null,pendingToGoId:null,editTripId:null,readOnlyTrip:null};
   const $=id=>document.getElementById(id);
+  const dbg=(msg)=>{};
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
   const API=window.TrippiAPI;
