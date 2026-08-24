@@ -376,6 +376,7 @@
           // Step 3: reload trip with isMember=true
           const tk = guestSession.token;
           guestSession.isMember = true; // render next frame as joined
+          if(name) colState.name = name; // Fase B: persist join name for identity display
           unlockNav();
           if(tk) await openGuestTrip(tk);
         }catch(e){
@@ -627,12 +628,12 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       g = (await API.getGroup(id)).data;
     }
     if(!g){alert('Grup tidak ditemukan.');return;}
-    // Reset ALL group state to prevent stale data from previous trip
-    colState.group=g;colState.items=[];colState.members=[];colState.expenses=[];colState.nameMap={};colState.activeDate=null;colState.journey=null;colState.perms=null;
+    // Fase A: tear down any previous group session BEFORE wiring the new one.
+    // Guarantees no leaked channel/interval and no stale trip-A data in trip B.
+    await teardownGroupSession();
+    colState.group=g;
     show('groupView');
     $('groupName').textContent=g.name;
-    if(colState.channel)await API._getSb().removeChannel(colState.channel);
-    stopJourneyRealtime();  // M4.5.6: cleanup previous group's location realtime
     const ch=API._getSb().channel('group:'+id);
     ch.on('postgres_changes',{event:'*',schema:'public',table:'shared_items',filter:'group_id=eq.'+id},()=>loadShared(id))
       .on('postgres_changes',{event:'*',schema:'public',table:'group_members',filter:'group_id=eq.'+id},()=>loadMembers(id))
@@ -674,7 +675,13 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     renderGroupPlanner();
   }
   async function loadGroupExpenses(id){const { data }=await API.getExpenses(id);colState.expenses=data||[];renderGroupExpenses();}
-  function nameOf(uid){return (colState.nameMap&&colState.nameMap[uid])||(uid===colState.uid?'kamu':(colState.members.find(m=>m.user_id===uid)||{}).display_name||'anggota');}
+  // Fase B: identity — always show real display name, never "(kamu)" suffix
+  function nameOf(uid){
+    if(colState.nameMap && colState.nameMap[uid]) return colState.nameMap[uid];
+    if(uid===colState.uid) return colState.name || 'kamu';
+    const m=colState.members.find(x=>x.user_id===uid);
+    return (m && m.display_name) || 'anggota';
+  }
   function renderGroupPlanner(){
     const g=colState.group;if(!g)return;
     const dates=daysBetween(g.start_date?String(g.start_date):'',g.end_date?String(g.end_date):'');
@@ -687,10 +694,12 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     document.querySelectorAll('[data-gday]').forEach(b=>b.onclick=()=>{colState.activeDate=b.dataset.gday;renderGroupPlanner();});
     const dayItems=colState.items.filter(i=>i.date===colState.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
     $('groupDayTitle').textContent=`Itinerary · ${colState.activeDate?dateText(colState.activeDate):'pilih hari'} · ${dayItems.length} titik`;
-    $('groupItineraryList').innerHTML=dayItems.length?dayItems.map(item=>`<article class="item">${item.link?`<div class="item-pin" title="Titik lokasi">📍</div>`:''}<div class="item-time" data-gtime="${item.id}" title="Klik ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'} · <span class="by">oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-gcost="${item.id}" title="Klik ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-gcost="${item.id}" title="Klik ubah biaya">biaya?</div>`}</div><button class="delete-item" data-gdel="${item.id}" aria-label="Hapus">×</button></article>`).join(''):'<div class="empty"><strong>Belum ada agenda hari ini.</strong>Tambah kegiatan bareng-bareng.</div>';
-    document.querySelectorAll('[data-gtime]').forEach(el=>el.onclick=()=>editGroupTime(el));
-    document.querySelectorAll('[data-gcost]').forEach(el=>el.onclick=()=>editGroupCost(el));
-    document.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>removeGroupItem(b.dataset.gdel));
+    $('groupItineraryList').innerHTML=dayItems.length?dayItems.map(item=>`<article class="item">${item.link?`<div class="item-pin" title="Titik lokasi">📍</div>`:''}<div class="item-time" data-gtime="${item.id}" title="Klik ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'} · <span class="by">oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-gcost="${item.id}" title="Klik ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-gcost="${item.id}" title="Klik ubah biaya">biaya?</div>`}</div>${canEditTrip()?`<button class="delete-item" data-gdel="${item.id}" aria-label="Hapus">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada agenda hari ini.</strong>Tambah kegiatan bareng-bareng.</div>';
+    if(canEditTrip()){
+      document.querySelectorAll('[data-gtime]').forEach(el=>el.onclick=()=>editGroupTime(el));
+      document.querySelectorAll('[data-gcost]').forEach(el=>el.onclick=()=>editGroupCost(el));
+      document.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>removeGroupItem(b.dataset.gdel));
+    }
     const wish=colState.items.filter(i=>!i.date);
     const groupWishListEl=$('groupWishList');
     if(groupWishListEl){
@@ -704,14 +713,16 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const sum=l=>l.reduce((s,i)=>s+(Number(i.amount)||0),0);
     $('groupDailyExpense').textContent=money(sum(dayExp));
     $('groupTripExpense').textContent=money(sum(colState.expenses));
-    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div><button class="expense-delete" data-gdelexp="${item.id}">×</button></article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
-    document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
+    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div>${canEditTrip()?`<button class="expense-delete" data-gdelexp="${item.id}">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
+    if(canEditTrip()){
+      document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
+    }
   }
   // M3 Phase 2: payer select on the expense form (member list)
   function populatePayerSelect(){
     const sel=document.getElementById('groupExpensePayer'); if(!sel) return;
     const cur=sel.value;
-    sel.innerHTML='<option value="">— saya —</option>'+(colState.members||[]).map(m=>`<option value="${m.user_id}">${esc(m.display_name)}${m.user_id===colState.uid?' (kamu)':''}</option>`).join('');
+    sel.innerHTML='<option value="">— saya —</option>'+(colState.members||[]).map(m=>`<option value="${m.user_id}">${esc(m.display_name)}</option>`).join('');
     if(cur) sel.value=cur;
   }
   // M3 Phase 2: Trip Identity — show creator ("Pembuat")
@@ -1079,7 +1090,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   function renderMembers(){ 
-    $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Pemilik</span>':''}</div><div class="link-field">${m.user_id===colState.uid?'kamu':''}</div></div>${m.user_id!==colState.uid&&canManageMembers()?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
+    $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Trip Creator</span>':''}</div><div class="link-field"></div></div>${m.user_id!==colState.uid&&canManageMembers()?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
     document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>removeMemberFromTrip(b.dataset.rm));
   }
   async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}
@@ -1100,10 +1111,33 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       const { error }=await API.leaveGroup(colState.group.id, colState.uid);
       if(error){ alert('Gagal: '+humanErr(error)); return; }
     }
-    if(colState.poll)clearInterval(colState.poll);
-    if(colState.channel)await API._getSb().removeChannel(colState.channel);
-    stopJourneyRealtime();  // M4.5.6: unsubscribe Realtime member_locations
-    colState.group=null; renderHome(); show('homeView');
+    await teardownGroupSession();
+    renderHome(); show('homeView');
+  }
+
+  // ── Group session lifecycle teardown (P0 Fase A) ──────────
+  // Single source of truth for leaving a group view. Guarantees:
+  //   1. Realtime group channel removed
+  //   2. Realtime member_locations channel removed
+  //   3. Polling interval stopped AND handle nulled
+  //   4. All per-group state cleared so trip B never renders trip A data
+  async function teardownGroupSession(){
+    if(colState.poll){ clearInterval(colState.poll); colState.poll=null; }
+    if(colState.channel){
+      const sb=API._getSb();
+      if(sb){ try{ await sb.removeChannel(colState.channel); }catch(e){ console.warn('[MarkiCab] removeChannel failed:',e&&e.message); } }
+      colState.channel=null;
+    }
+    await stopJourneyRealtime();
+    colState.group=null;
+    colState.items=[];
+    colState.members=[];
+    colState.expenses=[];
+    colState.nameMap={};
+    colState.activeDate=null;
+    colState.journey=null;
+    colState.perms=null;
+    colState.crewLocations=[];
   }
 
   // ── M4.2 Route (HIDDEN — UI removed, backend preserved for future) ──
@@ -1207,7 +1241,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
   function openFromHash(){if(location.hash.startsWith('#t=')){try{const json=LZString.decompressFromEncodedURIComponent(location.hash.slice(3));const trip=JSON.parse(json);if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}if(location.hash.startsWith('#trip=')){try{const trip=JSON.parse(decodeURIComponent(location.hash.slice(6)));if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}return false}
 
-  $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>{renderHome();show('homeView')});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=()=>{const t=getTrip();if(confirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)){state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;renderHome();show('homeView')}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;$('toGoSearch').oninput=renderToGo;
+  $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=async()=>{await teardownGroupSession();renderHome();show('homeView')});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=()=>{const t=getTrip();if(confirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)){state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;renderHome();show('homeView')}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;$('toGoSearch').oninput=renderToGo;
   // P2 collaborative wiring (elements may not exist if not in group view)
   const _makeGroupBtn=document.getElementById('makeGroupBtn'); if(_makeGroupBtn) _makeGroupBtn.onclick=()=>makeGroupFromTrip();
   const _inviteGroupBtn=document.getElementById('inviteGroupBtn'); if(_inviteGroupBtn) _inviteGroupBtn.onclick=shareGroup;
