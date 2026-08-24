@@ -282,7 +282,7 @@
       if(!data){ alert('Undangan tidak valid.'); renderHome(); show('homeView'); return; }
       guestSession = { token, trip: data, isMember: !!(colState.uid && data.is_member) };
       lockNavForGuest();
-      renderGuestView(data, guestSession.isMember);
+      await renderGuestView(data, guestSession.isMember);
       show('guestView');
     }catch(e){ console.error('[guest] open failed', e); alert('Gagal membuka undangan.'); renderHome(); show('homeView'); }
   }
@@ -296,7 +296,7 @@
     const tabs = document.getElementById('groupViewTabs'); if(tabs) tabs.style.display = '';
   }
 
-  function renderGuestView(t, isMember){
+  async function renderGuestView(t, isMember){
     $('guestTripName').textContent = t.name || 'Trip';
     $('guestTripMeta').textContent = [t.destination, t.start_date||'', t.end_date||''].filter(Boolean).join(' · ') || '';
     const memberCount = (t.members||[]).length;
@@ -326,14 +326,16 @@
       if(joinedView) joinedView.style.display = '';
       renderGuestItinerary(t);
       renderGuestParticipantList(t);
-      renderGuestLocationActions(t);
+      colState._guestTrip = t;
+      await renderGuestLocationActions(t);
       if(previewText) previewText.innerHTML = '<div class="empty">Kamu ikut sebagai <b>' + esc(colState.name || 'Guest') + '</b>. Berikut itinerary trip ini.</div>';
     } else {
       // PRE-JOIN: preview only (no itinerary)
       if(previewEl) previewEl.style.display = '';
       if(previewText) previewText.innerHTML = '<div class="empty"><strong>Kamu diundang ke:</strong><br>' + esc(t.name || 'Trip') + '<br><span style="font-size:12px">' + esc(t.destination||'') + ' · ' + esc(t.start_date||'') + (t.end_date ? ' – ' + esc(t.end_date) : '') + '</span></div>';
-      // Reset name form
-      if(nameInput) nameInput.value = '';
+      // Reset name form — but never clobber what the user is currently typing:
+      // this render can re-run while the join form is open.
+      if(nameInput && !nameInput.value.trim()) nameInput.value = '';
       if(joinBtn) joinBtn.style.display = '';
     }
 
@@ -357,7 +359,12 @@
     // Submit name → anonymous sign-in → redeem invitation
     if(nameSubmit && !isMember){
       nameSubmit.onclick = async()=>{
-        const name = (nameInput && nameInput.value.trim()) || 'Guest';
+        const name = (nameInput && nameInput.value.trim()) || '';
+        if(!name){
+          alert('Isi nama kamu dulu supaya anggota lain tahu siapa yang ikut.');
+          if(nameInput) nameInput.focus();
+          return;
+        }
         busyBtn(nameSubmit, 'Bergabung…');
         try{
           // Step 1: anonymous auth (creates auth.uid() without email/password)
@@ -412,12 +419,82 @@
   }
 
   // Render location actions (post-join, opt-in only)
-  function renderGuestLocationActions(t){
+  // Fase D: a joined guest is a real group member, so it gets the same Journey
+  // Mode loop as a registered member — crew status, simple map, own consent.
+  // The read path is get_crew_locations, which enforces every server gate.
+  async function renderGuestLocationActions(t){
     const el = $('guestLocationActions');
     if(!el) return;
-    // Location sharing only available if journey is active (same as member flow)
-    // For now, show a disabled hint — actual share button appears after creator starts journey
-    el.innerHTML = '<div class="empty" style="font-size:13px">Pembuat trip harus memulai Journey Mode agar kamu bisa berbagi lokasi.</div>';
+
+    // The journey/location APIs read colState.group.id and colState.uid, which the
+    // guest path never populated (it renders straight from the get_guest_trip
+    // payload). Seed them from that payload + the anonymous session so a joined
+    // guest can use exactly the same journey code path as a member.
+    if(t && t.id){
+      colState.group = colState.group && colState.group.id === t.id
+        ? colState.group
+        : { id: t.id, name: t.name, start_date: t.start_date, end_date: t.end_date };
+    }
+    if(!colState.uid){
+      try{
+        const sb = API._getSb && API._getSb();
+        if(sb){
+          const s = await sb.auth.getSession();
+          const u = s && s.data && s.data.session && s.data.session.user;
+          if(u) colState.uid = u.id;
+        }
+      }catch(e){ console.warn('[Fase D] cannot resolve guest uid:', e && e.message); }
+    }
+    if(!colState.group || !colState.group.id){
+      el.innerHTML = '<div class="empty" style="font-size:13px">Journey Mode belum tersedia.</div>';
+      return;
+    }
+
+    const locRes = await API.getCrewLocations();
+    const msg = (locRes && locRes.error && (locRes.error.message || '')) || '';
+
+    if(msg.indexOf('no active journey') !== -1){
+      colState.journey = {status:'planned'};
+      colState.crewLocations = [];
+      el.innerHTML = '<div class="empty" style="font-size:13px">Journey Mode belum dimulai oleh pembuat trip.</div>';
+      return;
+    }
+
+    // Journey IS active from here on: either we got data, or only consent is missing.
+    colState.journey = {status:'active'};
+    const needsConsent = msg.indexOf('location permission not granted') !== -1;
+    colState.crewLocations = needsConsent ? [] : ((locRes && locRes.data) || []);
+    colState.members = (t.members || []).filter(function(m){ return m.display_name; });
+    // get_crew_locations is the source of truth for consent here: if it refused
+    // with 'location permission not granted', this participant has NOT consented,
+    // whatever any local cache says.
+    colState.locationConsent = needsConsent ? 'unknown' : 'granted';
+    _setConsent(colState.locationConsent);
+
+    const consentHtml = (colState.locationConsent === 'granted')
+      ? '<div class="consent-banner consent-denied" id="consentBanner"><p>📍 Sedang membagikan lokasi ke grup.</p><div class="consent-actions"><button class="btn secondary small" id="stopSharingBtn">Stop berbagi</button></div></div>'
+      : '<div class="consent-banner" id="consentBanner"><p><b>Bagikan lokasi kamu ke grup?</b></p><div class="muted" style="font-size:12px;margin:4px 0 10px">Hanya selama Journey Mode aktif dan halaman ini terbuka.</div><div class="consent-actions"><button class="btn small" id="shareLocationBtn">Izinkan</button><button class="btn secondary small" id="denyLocationBtn">Nanti</button></div></div>';
+
+    el.innerHTML =
+      '<div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Journey Mode</h2><span class="count" id="crewStatus"></span></div>' +
+      consentHtml +
+      '<div id="crewMap" style="display:none;width:100%;height:240px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden;margin-top:12px"></div>' +
+      '<div class="empty" id="crewEmpty" style="margin-top:12px">Belum ada lokasi yang dibagikan.</div>' +
+      '<div class="section-head" style="margin-top:14px"><h3 style="font-size:13px">Crew</h3></div>' +
+      '<div class="to-go-list" id="crewStatusList"></div>';
+
+    var sh = document.getElementById('shareLocationBtn');
+    if(sh) sh.onclick = shareLocationHandler;
+    var dn = document.getElementById('denyLocationBtn');
+    if(dn) dn.onclick = denyLocationHandler;
+    var ss = document.getElementById('stopSharingBtn');
+    if(ss) ss.onclick = stopSharingHandler;
+
+    installLocationLifecycleHandlers();
+    await loadCrewMap();
+    if(colState.locationConsent === 'granted' && !colState.locationWatchId){
+      startLocationWatch();
+    }
   }
 
   // Render shared-trip itinerary (READ-ONLY — public-safe fields only via esc())
@@ -838,7 +915,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   var _crewRefresh = null;
 
   async function renderJourneyView(){
-    if(colState.isGuest){ return; }
+    // Fase D: joined guests are real group members (anonymous auth + group_members),
+    // so they get Journey Mode too: map, crew status, and their own consent.
+    // Only the pre-join preview visitor has no journey UI.
     const panel=document.getElementById('journeyPanel');
     if(!panel) return;
     panel.style.display='block';
@@ -855,22 +934,29 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // - If it errors with "no active journey", journey is not active.
     // - If it errors with "location permission not granted", the journey IS active
     //   (gates 1-3 passed; only consent is missing) — member sees consent banner.
-    if(locRes && locRes.error && locRes.error.message && locRes.error.message.includes('no active journey')){
+    var _msg = (locRes && locRes.error && locRes.error.message) || '';
+    if(_msg.includes('no active journey')){
       colState.journey = {status:'planned'};
       colState.crewLocations = [];
-    } else if(locRes && locRes.error && locRes.error.message && locRes.error.message.includes('location permission not granted')){
+      colState.locationConsent = _checkConsent();   // nothing to probe yet
+    } else if(_msg.includes('location permission not granted')){
       colState.journey = {status:'active'};  // journey IS active — consent just not granted
       colState.crewLocations = [];
+      // Server says NOT consented — this wins over any local cache, which can be
+      // stale or belong to a previous identity in this browser profile.
+      colState.locationConsent = 'unknown';
+      _setConsent('unknown');
     } else if(locRes && locRes.data){
       colState.journey = {status:'active'};
       colState.crewLocations = locRes.data;
+      // Passing the consent gate proves consent exists server-side.
+      colState.locationConsent = 'granted';
+      _setConsent('granted');
     } else {
       colState.journey = {status:'planned'};
       colState.crewLocations = [];
+      colState.locationConsent = _checkConsent();
     }
-
-    // Consent state: check local cache (server is authoritative on actual writes)
-    colState.locationConsent = _checkConsent();
 
     renderJourneyContent();
 
@@ -878,6 +964,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       loadCrewMap();
       startCrewRefresh();
       initJourneyRealtime();  // M4.5.6
+      installLocationLifecycleHandlers();
       if(colState.locationConsent === 'granted' && !colState.locationWatchId){
         startLocationWatch();
       }
@@ -907,17 +994,23 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       var _lbl = active ? ('Journey Mode aktif (oleh ' + esc(creatorName()) + ')') : 'Journey Mode belum dimulai';
       html.push('<div class="journey-controls"><span class="journey-badge ' + _bCls + '"><span class="dot ' + _dCls + '"></span>' + _lbl + '</span></div>');    }
 
-    // Consent banner — members opt in; guests see nothing
-    if(active && !colState.isGuest){
+    // Consent banner — every joined participant (member OR anonymous guest) opts in.
+    // Fase D: locked Indonesian copy. Sharing lives only while Journey Mode is
+    // active and this page can still run geolocation.
+    if(active){
       if(!hasConsent){
-        html.push('<div class="consent-banner" id="consentBanner"><p>Share your live location with this trip crew while Journey Mode is active.</p><div class="consent-actions"><button class="btn small" id="shareLocationBtn">Share my location</button><button class="btn secondary small" id="denyLocationBtn">Not now</button></div></div>');
+        html.push('<div class="consent-banner" id="consentBanner"><p><b>Bagikan lokasi kamu ke grup?</b></p><div class="muted" style="font-size:12px;margin:4px 0 10px">Hanya selama Journey Mode aktif dan halaman ini terbuka.</div><div class="consent-actions"><button class="btn small" id="shareLocationBtn">Izinkan</button><button class="btn secondary small" id="denyLocationBtn">Nanti</button></div></div>');
       } else {
-        html.push('<div class="consent-banner consent-denied" id="consentBanner"><p>📍 Sedang membagikan lokasi ke grup.</p><div class="consent-actions"><button class="btn secondary small" id="stopSharingBtn">Stop sharing</button></div></div>');
+        html.push('<div class="consent-banner consent-denied" id="consentBanner"><p>📍 Sedang membagikan lokasi ke grup.</p><div class="consent-actions"><button class="btn secondary small" id="stopSharingBtn">Stop berbagi</button></div></div>');
       }
     }
 
     // Crew map — shown when journey active + consent granted
-    html.push('<div id="crewMapContainer" style="display:' + (active && hasConsent ? 'block' : 'none') + ';margin-top:16px"><div class="section-head"><h2>Petualangan Grup</h2><span class="count" id="crewStatus"></span></div><div id="crewMap" style="width:100%;height:280px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden"></div><div class="empty" id="crewEmpty" style="margin-top:12px">Belum ada lokasi anggota yang tersedia.</div></div>');
+    // Fase D: the crew panel is visible to every joined participant while the
+    // journey is active — you do not have to share your own location to watch
+    // the crew. The map only renders when real coordinates exist (loadCrewMap
+    // decides); otherwise a clear empty state shows instead of a blank box.
+    html.push('<div id="crewMapContainer" style="display:' + (active ? 'block' : 'none') + ';margin-top:16px"><div class="section-head"><h2>Journey Mode</h2><span class="count" id="crewStatus"></span></div><div id="crewMap" style="display:none;width:100%;height:280px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden"></div><div class="empty" id="crewEmpty" style="margin-top:12px">Belum ada lokasi yang dibagikan.</div><div class="section-head" style="margin-top:14px"><h3 style="font-size:13px">Crew</h3></div><div class="to-go-list" id="crewStatusList"></div></div>');
 
     const jc = document.getElementById('journeyContent');
     if(jc) jc.innerHTML = html.join('');
@@ -935,6 +1028,17 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(ss) ss.onclick = stopSharingHandler;
 
     updateCrewStatus();
+  }
+
+  // Fase D: consent/sharing handlers are shared by the member panel and the
+  // guest view, which render into different containers. Route the refresh to
+  // whichever path is active instead of assuming the member panel exists.
+  function refreshJourneyUI(){
+    if(colState.isGuest){
+      if(colState._guestTrip) return renderGuestLocationActions(colState._guestTrip);
+      return;
+    }
+    return renderJourneyView();
   }
 
   // ── Journey Mode control (owner) ──────────────────────────
@@ -987,14 +1091,17 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
             pos.coords.speed || null
           );
           startLocationWatch();
-          renderJourneyView();
+          refreshJourneyUI();
         } finally { freeBtn(btn); }
       },
       function(err){
-        colState.locationConsent = 'denied';
-        alert('Geolokasi ditolak: ' + err.message);
+        // Browser/GPS refusal is a DEVICE state, not a consent withdrawal:
+        // the server-side grant stays untouched on purpose. The member simply
+        // shows up as not sharing until a fix arrives.
+        colState.locationBlocked = true;
+        alert('Lokasi tidak bisa diambil: ' + err.message + '\nConsent kamu tetap tersimpan.');
         freeBtn(btn);
-        renderJourneyView();
+        refreshJourneyUI();
       },
       {enableHighAccuracy: true, timeout: 10000, maximumAge: 30000}
     );
@@ -1005,7 +1112,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     try{
       const res = await API.revokeLocationConsent();
       colState.locationConsent = 'denied';
-      renderJourneyView();
+      refreshJourneyUI();
     } finally { freeBtn(btn); }
   }
 
@@ -1015,8 +1122,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       await API.revokeLocationConsent();
       stopLocationWatch();
       colState.locationConsent = 'denied';
-      hideCrewMap();
-      renderJourneyView();
+      if(!colState.isGuest) hideCrewMap();
+      refreshJourneyUI();
     } finally { freeBtn(btn); }
   }
 
@@ -1050,8 +1157,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       },
       function(err){
         console.warn('[M4.5] geolocation error:', err.code, err.message);
+        // Do NOT flip server consent here — GPS denied != consent revoked.
         if(err.code === err.PERMISSION_DENIED){
-          colState.locationConsent = 'denied';
+          colState.locationBlocked = true;
         }
       },
       {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000}
@@ -1065,41 +1173,137 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     colState.locationWatchId = null;
   }
 
+  // ── Fase D: background / closed-tab behaviour ─────────────
+  // MarkiCab has no background location service, and browsers stop geolocation
+  // for hidden or closed pages. We do not pretend otherwise: when the page goes
+  // away we release the watch and KEEP the server consent. The member's last
+  // fix simply ages out, so the crew sees them turn 🔴 Offline on timestamp —
+  // an honest model, not a fake "always live" one. Coming back to the tab
+  // resumes the watch when the journey is still active.
+  function installLocationLifecycleHandlers(){
+    if(colState._locLifecycleWired) return;
+    colState._locLifecycleWired = true;
+
+    document.addEventListener('visibilitychange', function(){
+      if(document.hidden){
+        stopLocationWatch();
+      } else if(colState.journey && colState.journey.status === 'active'
+                && colState.locationConsent === 'granted'){
+        startLocationWatch();
+      }
+    });
+
+    window.addEventListener('pagehide', function(){ stopLocationWatch(); });
+  }
+
   // ── Crew map (CSS-based markers, no external lib) ────────
   async function loadCrewMap(){
     const map = document.getElementById('crewMap');
     const empty = document.getElementById('crewEmpty');
-    if(map && empty) showLoading(map, 'Memuat lokasi grup...');
+    if(map && empty && map.style.display !== 'none') showLoading(map, 'Memuat lokasi grup...');
 
     const res = await API.getCrewLocations();
     colState.crewLocations = (res && res.data) || [];
-    if(!map || !empty) return;
 
-    if(colState.crewLocations.length === 0){
-      map.style.display = 'none';
-      empty.style.display = 'block';
-      empty.textContent = 'Belum ada lokasi anggota yang tersedia.';
-      return;
+    // Fase D: only positions with real coordinates can be plotted. Everything
+    // else (consent granted but no fix yet, stale, never shared) is expressed
+    // through the crew status list instead of a marker.
+    const plottable = colState.crewLocations.filter(function(m){
+      return typeof m.latitude === 'number' && typeof m.longitude === 'number';
+    });
+
+    if(map && empty){
+      if(plottable.length === 0){
+        // No blank map box for a demo — say plainly that nothing is shared yet.
+        map.style.display = 'none';
+        map.innerHTML = '';
+        empty.style.display = 'block';
+        empty.textContent = 'Belum ada lokasi yang dibagikan.';
+      } else {
+        map.style.display = 'block';
+        empty.style.display = 'none';
+        map.innerHTML = renderCrewMarkers(plottable);
+      }
     }
 
-    map.style.display = 'block';
-    empty.style.display = 'none';
+    renderCrewStatusList();
+    updateCrewStatus();
+  }
 
-    const meUid = colState.uid;
-    var markers = colState.crewLocations.map(function(m){
-      var isMe = m.user_id === meUid;
-      var isStale = m.updated_at && (Date.now() - new Date(m.updated_at).getTime()) > 300000;
-      var name = m.display_name || nameOf(m.user_id);
-      var staleClass = isStale ? ' stale' : '';
-      return '<div class="crew-member' + (isMe ? ' me' : '') + '">' +
-        '<span class="crew-dot' + staleClass + '" title="' + (isMe ? 'Kamu' : name) + '"></span>' +
-        '<div class="crew-info"><b>' + esc(name) + (isMe ? ' (kamu)' : '') + '</b>' +
-        '<div class="crew-meta">' + (m.latlng || (m.latitude ? m.latitude + ', ' + m.longitude : 'lokasi tersembunyi')) +
-        ' · ' + (m.updated_at ? 'update ' + new Date(m.updated_at).toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}) : '') + '</div></div></div>';
+  // Simple positional map: normalise lat/lng into the box, no tiles, no library.
+  function renderCrewMarkers(points){
+    const lats = points.map(function(p){ return p.latitude; });
+    const lngs = points.map(function(p){ return p.longitude; });
+    const minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+    const minLng = Math.min.apply(null, lngs), maxLng = Math.max.apply(null, lngs);
+    const spanLat = (maxLat - minLat) || 0.001;
+    const spanLng = (maxLng - minLng) || 0.001;
+
+    return points.map(function(m){
+      const isMe = m.user_id === colState.uid;
+      const name = m.display_name || nameOf(m.user_id);
+      // 12%..88% keeps markers off the very edge of the box
+      const left = 12 + ((m.longitude - minLng) / spanLng) * 76;
+      const top  = 88 - ((m.latitude  - minLat) / spanLat) * 76;
+      const fresh = isFreshLocation(m);
+      return '<div class="crew-member crew-pin' + (isMe ? ' me' : '') + '" style="position:absolute;left:' + left.toFixed(1) + '%;top:' + top.toFixed(1) + '%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;white-space:nowrap">' +
+        '<span class="crew-dot' + (fresh ? '' : ' stale') + '" title="' + (isMe ? 'Kamu' : esc(name)) + '" style="width:12px;height:12px;border-radius:50%;background:' + (fresh ? 'var(--accent)' : 'var(--muted)') + ';box-shadow:0 0 0 3px rgba(0,0,0,.25)"></span>' +
+        '<b style="font-size:12px">' + esc(name) + '</b></div>';
+    }).join('');
+  }
+
+  function isFreshLocation(m){
+    const ts = m.updated_at || m.timestamp;
+    if(!ts) return false;
+    return (Date.now() - new Date(ts).getTime()) < 120000; // fresh < 2 minutes
+  }
+
+  // Fase D: 3-state crew list.
+  //   🟢 Online         — has a location fix newer than 2 minutes
+  //   🔴 Offline        — consented / shared before, but the fix is stale or gone
+  //   ⚪ Tidak berbagi  — never shared a location in this journey
+  function renderCrewStatusList(){
+    const el = document.getElementById('crewStatusList');
+    if(!el) return;
+
+    const byUid = {};
+    (colState.crewLocations || []).forEach(function(m){
+      byUid[m.user_id] = m;
+      // Names travelling with the location row are authoritative for people who
+      // joined after openGroup() loaded the roster (e.g. a guest redeeming an
+      // invite mid-journey) — without this they render as the 'Guest' fallback.
+      if(m.display_name){
+        colState.nameMap = colState.nameMap || {};
+        colState.nameMap[m.user_id] = m.display_name;
+      }
+    });
+
+    // Union of the known roster and whoever is actually reporting a location.
+    const members = (colState.members || []).slice();
+    const known = {};
+    members.forEach(function(m){ known[m.user_id] = true; });
+    Object.keys(byUid).forEach(function(uid){
+      if(!known[uid]){
+        members.push({ user_id: uid, display_name: byUid[uid].display_name || nameOf(uid) });
+      }
+    });
+    const rows = members.map(function(mem){
+      const loc = byUid[mem.user_id];
+      let icon, label;
+      if(loc && isFreshLocation(loc)){
+        icon = '🟢'; label = 'Online';
+      } else if(loc){
+        icon = '🔴'; label = 'Offline';
+      } else {
+        icon = '⚪'; label = 'Tidak berbagi';
+      }
+      const name = mem.display_name || nameOf(mem.user_id);
+      return '<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">' +
+        icon + ' ' + esc(name) + '</div></div>' +
+        '<div class="to-go-actions"><span class="muted" style="font-size:12px">' + label + '</span></div></article>';
     }).join('');
 
-    map.innerHTML = markers;
-    updateCrewStatus();
+    el.innerHTML = rows || '<div class="empty">Belum ada anggota.</div>';
   }
 
   function hideCrewMap(){
@@ -1111,11 +1315,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     var el = document.getElementById('crewStatus');
     if(!el) return;
     var active = colState.journey && colState.journey.status === 'active';
-    if(active){
-      el.textContent = colState.crewLocations.length + ' anggota di jalan';
-    } else {
-      el.textContent = 'Journey belum dimulai';
-    }
+    if(!active){ el.textContent = 'Journey belum dimulai'; return; }
+    var online = (colState.crewLocations || []).filter(isFreshLocation).length;
+    el.textContent = online + ' online';
   }
 
   // ── Adaptive refresh (fallback; realtime M4.5.6 is primary) ─
@@ -1178,10 +1380,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
   // ── Local consent state cache (server is authoritative) ──
   function _checkConsent(){
-    return localStorage.getItem('trippi_consent_' + colState.group.id) || null;
+    // Cache key must be per (group, user): the same browser profile can hold
+    // several identities for one trip (e.g. successive anonymous guests), and a
+    // group-only key made a fresh guest inherit the previous guest's consent.
+    // This is only a UI hint — get_crew_locations on the server is authoritative.
+    return localStorage.getItem('trippi_consent_' + colState.group.id + '_' + (colState.uid || 'anon')) || null;
   }
   function _setConsent(v){
-    localStorage.setItem('trippi_consent_' + colState.group.id, v);
+    localStorage.setItem('trippi_consent_' + colState.group.id + '_' + (colState.uid || 'anon'), v);
   }
 
   function renderMembers(){ 
@@ -1522,7 +1728,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       if(metaName&&typeof saveName==='function'){ saveName(String(metaName).slice(0,40)); colState.name=String(metaName).slice(0,40); }
       // M3.5: soft-convert a guest (?gt=) viewer into a real member of the
       // trip they were viewing. redeem_invitation accepts authenticated users.
-      if(pendingGuestToken){
+      //
+      // Fase D fix: anonymous sign-in also fires SIGNED_IN, so this used to race
+      // the guest join flow — it redeemed FIRST with p_display_name=null, creating
+      // a 'Guest' member row, and the guest's own redeem with the typed name then
+      // hit an already-existing row. Soft-convert is only for a REAL account
+      // (email/OAuth) adopting a trip it was previewing, so skip anonymous users.
+      var _isAnon = !!(session && session.user && session.user.is_anonymous);
+      if(pendingGuestToken && !_isAnon){
         (async()=>{ 
           try{ 
             const token = pendingGuestToken;
