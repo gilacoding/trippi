@@ -361,6 +361,8 @@
             freeBtn(nameSubmit);
             return;
           }
+          // Ensure session is propagated (onAuthChange may lag)
+          await API.getSession();
           // CRITICAL: sync colState.uid so isMember evaluates correctly on re-render
           // (signInAnonymously sets cachedUid internally but colState is separate)
           colState.uid = authData.user.id;
@@ -373,7 +375,8 @@
           }
           // Step 3: reload trip with isMember=true
           const tk = guestSession.token;
-          guestSession = null; unlockNav();
+          guestSession.isMember = true; // render next frame as joined
+          unlockNav();
           if(tk) await openGuestTrip(tk);
         }catch(e){
           alert('Gagal bergabung: ' + (e.message || e));
