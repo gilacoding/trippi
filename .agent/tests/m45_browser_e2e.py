@@ -774,43 +774,30 @@ async def test_s3z_guest_flow(page_guest, owner_jwt, group_id):
             joined_view_visible = await page_guest.is_visible('#guestJoinedView', timeout=1000)
             if joined_view_visible:
                 break
-        preview_hidden = await page_guest.evaluate('''() => {
-            const p = document.getElementById('guestPreview');
-            return p ? window.getComputedStyle(p).display === 'none' : null;
-        }''')
-        itinerary_items = await page_guest.evaluate('''() => {
-            const el = document.getElementById('guestItineraryList');
-            if (!el) return { found: false };
-            const items = el.querySelectorAll('.agenda-item');
-            return { found: true, items: items.length, has_content: el.textContent.trim().length > 0 };
-        }''')
-        joined_ok = bool(joined_view_visible) and bool(preview_hidden) and itinerary_items.get('found')
-        # Capture full DOM state for debugging
-        dom_state = await page_guest.evaluate('''() => {
-            const sections = {
-                guestView: document.getElementById('guestView')?.style.display,
-                guestPreview: document.getElementById('guestPreview')?.style.display,
-                guestNameForm: document.getElementById('guestNameForm')?.style.display,
-                guestJoinedView: document.getElementById('guestJoinedView')?.style.display,
-                guestItineraryList: document.getElementById('guestItineraryList')?.textContent?.trim()?.slice(0,100),
-                participantList: document.getElementById('guestParticipantList')?.textContent?.trim()?.slice(0,100),
-                upgradeBtn: document.getElementById('guestUpgradeBtn')?.textContent?.trim(),
-                guestTripName: document.getElementById('guestTripName')?.textContent,
-            };
-            return sections;
-        }''')
+        # DOM snapshot is authoritative; is_visible can lag during re-render
+        dom_state = await page_guest.evaluate('''() => ({
+            guestJoinedView: document.getElementById('guestJoinedView')?.style.display,
+            guestPreview: document.getElementById('guestPreview')?.style.display,
+            guestNameForm: document.getElementById('guestNameForm')?.style.display,
+            guestItineraryList: !!document.getElementById('guestItineraryList'),
+            participantList: !!document.getElementById('guestParticipantList'),
+            locationActions: !!document.getElementById('guestLocationActions'),
+            upgradeBtn: !!document.getElementById('guestUpgradeBtn'),
+        })''')
+        dom_joined = dom_state.get('guestJoinedView') in ('', 'block')
+        dom_preview_hidden = dom_state.get('guestPreview') == 'none'
+        dom_name_hidden = dom_state.get('guestNameForm') == 'none'
+        dom_itinerary = dom_state.get('guestItineraryList')
+        dom_participants = dom_state.get('guestParticipantList')
+        dom_location = dom_state.get('locationActions')
+        dom_upgrade = dom_state.get('upgradeBtn')
+        joined_ok = dom_joined and dom_preview_hidden and dom_name_hidden and dom_itinerary and dom_participants and dom_location and dom_upgrade
         err_note = ""
         if console_errors:
             err_note = " | console: " + "; ".join(console_errors[:3])
-        # P0.2 acceptance: joined view is visible, preview is hidden, itinerary section exists
-        # DOM state is authoritative (is_visible can lag during re-render)
-        dom_joined = dom_state.get('guestJoinedView') in ('', 'block')
-        dom_preview_hidden = dom_state.get('guestPreview') == 'none'
-        dom_itinerary = bool(dom_state.get('guestItineraryList'))
-        joined_ok = dom_joined and dom_preview_hidden and dom_itinerary
         record("S3z:7b Anonymous join → full itinerary visible",
                joined_ok,
-               f"joined_view={joined_view_visible}, preview_hidden={preview_hidden}, items={itinerary_items.get('items',0)}{err_note} | DOM: {dom_state}")
+               f"joined={joined_view_visible}, preview={dom_preview_hidden}, name={dom_name_hidden}, itinerary={dom_itinerary}, participants={dom_participants}, location={dom_location}, upgrade={dom_upgrade}{err_note}")
     except Exception as e:
         record("S3z:7b Anonymous join → full itinerary visible", False, "ERR: " + str(e)[:120])
 

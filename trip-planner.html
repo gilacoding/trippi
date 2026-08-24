@@ -229,7 +229,7 @@
   const LEGACY_STORE_KEY='trippi_personal_planner_v1';
   const state={trips:[],toGo:[],activeTripId:null,activeDate:null,pendingToGoId:null,editTripId:null,readOnlyTrip:null};
   const $=id=>document.getElementById(id);
-  const dbg=(msg)=>{const e=document.getElementById('debugEl');if(e){e.style.display='block';e.textContent+=(e.textContent?'\n':'')+msg+' ['+Date.now()+']';}try{console.log('[dbg]',msg)}catch{}};
+  const dbg=(msg)=>{const e=document.getElementById('debugEl');if(e){e.style.display='block';e.textContent+=(e.textContent?'\n':'')+msg+' ['+Date.now()+'];}};
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
   const API=window.TrippiAPI;

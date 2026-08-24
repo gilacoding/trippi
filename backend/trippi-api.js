@@ -508,7 +508,10 @@
       // anon-safe read by token only (trip-scoped)
       return getClient().then(function (client) {
         if (!client) return { data: null, error: { message: 'Backend unavailable' } };
-        return client.rpc('get_guest_trip', { p_token: token });
+        return client.rpc('get_guest_trip', { p_token: token }).then(function (result) {
+          var row = (result && Array.isArray(result.data)) ? result.data[0] : (result ? result.data : null);
+          return { data: row, error: result ? result.error : null };
+        });
       });
     },
     revokeInvitation: function (token) {
