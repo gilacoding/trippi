@@ -1,245 +1,13 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#101219">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="markicab.webmanifest">
-<link rel="apple-touch-icon" href="markicab-icon.svg">
-<title>MarkiCab — Travel Planner</title>
-<script>
-  // Supabase config (public anon key — safe in client because access is
-  // enforced at the application layer; see supabase/schema.sql).
-  window.__TRIPPI_SUPABASE__ = {
-    url: 'https://ishflkcsdzlhhxtanhxf.supabase.co',
-    anonKey: 'sb_publishable_7g_crQO8fm0SVVIdqDU78w_gIglXx8Q'
-  };
-</script>
-<style>
- @font-face{font-family:'Inter';font-style:normal;font-weight:400;src:local('Inter'),url('https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuP9DqXoJU.woff2') format('woff2');font-display:swap}
-  :root{--bg:#101219;--surface:#1a1e27;--surface2:#242a36;--line:#303746;--text:#f3f5f8;--muted:#9ca6b8;--accent:#ff7a45;--accent2:#ffb35c;--green:#36d399;--danger:#ff7784}
-  *{box-sizing:border-box} body{margin:0;background:radial-gradient(800px 450px at 80% -10%,rgba(255,122,69,.15),transparent),var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
-  button,input,textarea{font:inherit} button{cursor:pointer} .app{max-width:720px;margin:0 auto;padding:24px 18px 48px}.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px}.brand{display:flex;align-items:center;gap:9px;font-size:22px;font-weight:850;letter-spacing:.2px}.dot{width:13px;height:13px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 20px rgba(255,122,69,.5)}
-  .offline{color:var(--green);font-size:12px;font-weight:700;background:rgba(54,211,153,.1);border:1px solid rgba(54,211,153,.22);padding:5px 9px;border-radius:99px}.view{display:none}.view.active{display:block;animation:show .22s ease}@keyframes show{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
-  h1{font-size:clamp(28px,6vw,40px);line-height:1.08;letter-spacing:-1px;margin:0}h2{font-size:21px;letter-spacing:-.45px;margin:0}.lead,.muted{color:var(--muted);line-height:1.55}.lead{font-size:15px;margin:10px 0 0}.section{margin-top:30px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}.count{color:var(--muted);font-size:13px}
-  .btn{border:0;border-radius:13px;padding:13px 16px;font-weight:760;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#221209;box-shadow:0 8px 24px rgba(255,122,69,.17)}.btn:active{transform:scale(.98)}.btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--line);box-shadow:none}.btn.small{padding:9px 12px;border-radius:10px;font-size:13px}.btn.danger{color:var(--danger);background:transparent;border:1px solid rgba(255,119,132,.4);box-shadow:none}.wide{width:100%}
-  .trip-grid{display:grid;gap:12px}.trip-card{position:relative;text-align:left;width:100%;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:18px;padding:17px;transition:transform .14s,border-color .14s}.trip-card:hover{transform:translateY(-2px);border-color:rgba(255,179,92,.6)}.trip-card .state{display:inline-block;padding:3px 8px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.3px;margin-bottom:10px}.state.upcoming{background:rgba(255,179,92,.12);color:var(--accent2)}.state.active{background:rgba(54,211,153,.13);color:var(--green)}.state.past{background:rgba(156,166,184,.12);color:var(--muted)}.trip-card h3{font-size:18px;margin:0 0 4px}.trip-meta{color:var(--muted);font-size:13px}.trip-summary{display:flex;gap:12px;color:var(--muted);font-size:12px;margin-top:14px}.empty{border:1px dashed var(--line);border-radius:18px;padding:26px 18px;text-align:center;color:var(--muted);line-height:1.6}.empty strong{display:block;color:var(--text);font-size:16px;margin-bottom:4px}.loading-skel{opacity:.5;color:var(--muted);font-style:italic;text-align:center;padding:18px}.guest-card{max-width:480px;margin:0 auto;text-align:center;padding:28px 22px}.guest-card h1{font-size:26px;font-weight:850;margin:0 0 6px}.participant-summary{font:600 14px var(--text);margin:14px 0}.participant-summary .count{color:var(--accent2)}.guest-actions{margin-top:18px}.guest-actions .btn{font-size:16px;padding:14px 20px}
-  .form-card,.planner-head,.item{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:17px}.form-grid{display:grid;gap:13px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:650}.field input,.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:11px;background:#11151d;color:var(--text);padding:12px;outline:none}.field textarea{resize:vertical;min-height:78px}.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent)}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form-actions{display:flex;gap:10px;margin-top:4px}.form-actions .btn{flex:1}
-  .back{border:0;background:transparent;color:var(--muted);padding:0;font-weight:700;margin-bottom:19px}.planner-head{background:linear-gradient(135deg,rgba(255,122,69,.14),rgba(255,179,92,.05)),var(--surface);margin-bottom:15px}.planner-head h1{font-size:28px}.planner-head .trip-meta{margin-top:7px}.stats{display:flex;gap:16px;margin-top:17px}.stat b{display:block;font-size:16px}.stat span{color:var(--muted);font-size:11px}
-  .day-tabs{display:flex;gap:8px;overflow:auto;padding:2px 0 8px;margin:18px 0 14px}.day-tab{white-space:nowrap;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:9px 12px;border-radius:11px;font-size:12px;font-weight:700}.day-tab.active{border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#211207}.itinerary{display:grid;gap:10px}.item{display:grid;grid-template-columns:50px 1fr auto;gap:12px;align-items:start;padding:14px}.item-time{color:var(--accent2);font-weight:800;font-size:13px;padding-top:2px}.item-title{font-weight:760;line-height:1.3}.item-detail{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}.item-cost{font-size:12px;color:var(--green);font-weight:700;margin-top:6px}.delete-item{border:0;background:transparent;color:var(--muted);font-size:17px;padding:0 2px}.delete-item:hover{color:var(--danger)}
-  .add-panel{margin-top:14px}.add-panel summary{list-style:none}.add-panel summary::-webkit-details-marker{display:none}.add-panel summary .btn{display:block;text-align:center}.add-panel[open] summary{margin-bottom:13px}.export-row{display:flex;gap:9px;margin-top:22px}.export-row .btn{flex:1}.notice{margin:16px 0 0;padding:11px 12px;background:rgba(54,211,153,.07);border:1px solid rgba(54,211,153,.17);border-radius:11px;color:#b5eed9;font-size:12px;line-height:1.5}
-  /* M4.2 Route tab */
 
-  /* M4.5: Journey Mode & Location Sharing */
-  .journey-badge{border:1px solid var(--line);border-radius:11px;padding:10px 12px;font-size:13px;display:inline-flex;align-items:center;gap:7px}.journey-badge.active{background:rgba(54,211,153,.08);border-color:rgba(54,211,153,.17);color:#b9f3db}.journey-badge.inactive{color:var(--muted)}.journey-badge .dot{width:8px;height:8px;border-radius:50%;display:inline-block}.journey-badge .dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}.journey-badge .dot.off{background:var(--line)}.consent-banner{border:1px solid var(--accent);border-radius:14px;padding:16px;margin:12px 0;background:linear-gradient(135deg,rgba(255,122,69,.08),rgba(255,179,92,.05))}.consent-banner p{font-size:13px;line-height:1.5;margin:0 0 12px;color:var(--text)}.consent-banner .consent-actions{display:flex;gap:8px}.consent-banner .btn{width:auto}.consent-banner .btn.secondary{border:1px solid var(--line)}.journey-controls{display:flex;gap:10px;align-items:center;margin:12px 0;flex-wrap:wrap}.journey-controls .btn{width:auto}.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);margin-right:6px}.map-marker{position:absolute;width:10px;height:10px;border-radius:50%;border:2px solid var(--text);background:var(--accent);box-shadow:0 0 6px rgba(255,122,69,.5);transform:translate(-50%,-50%)}.map-marker.stale{opacity:.4;border-color:var(--muted);background:var(--muted)}.crew-member{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}.crew-member:last-child{border-bottom:0}.crew-dot{width:22px;height:22px;border-radius:50%;display:inline-block;background:var(--accent2);box-shadow:0 0 6px rgba(255,179,92,.5)}.crew-dot.me{border:2px solid var(--green);background:var(--green)}.crew-info{flex:1;min-width:0}.crew-info b{font-size:13px}.crew-info .muted{font-size:11px}.crew-meta{color:var(--muted);font-size:11px;margin-top:4px}.consent-denied{background:rgba(255,119,132,.08);border-color:rgba(255,119,132,.17);color:#f87171}
-  .view-tabs{display:flex;gap:8px;padding:2px 0 8px;margin:10px 0 14px}.view-tab{white-space:nowrap;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:9px 12px;border-radius:11px;font-size:12px;font-weight:700}.view-tab.active{border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#211207}.view-panel{display:none}.view-panel.active{display:block}
-  .route-list{display:grid;gap:10px}.route-card{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:start;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px}.route-seq{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;font-size:11px;font-weight:800;color:#221209;background:linear-gradient(135deg,var(--accent),var(--accent2))}.route-seq.start{background:#34d399}.route-seq.end{background:#f87171}.route-copy .route-cat{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:800;letter-spacing:.3px;background:rgba(156,166,184,.1);color:var(--muted);margin-bottom:5px}.route-copy .route-name{font-weight:760;font-size:15px;line-height:1.25}.route-copy .route-meta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}.route-actions{display:flex;flex-direction:column;gap:5px;align-items:center;padding-top:4px}.route-actions .btn.icon{min-height:30px;padding:6px 9px;font-size:12px}
-  .history-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}.history-card:last-child{border:0}.history-card h3{font-size:15px;margin:0 0 3px}.history-card button{flex:0 0 auto}.to-go{margin-top:30px}.to-go-list{display:grid;gap:9px}.to-go-item{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);padding:13px;border-radius:14px}.to-go-copy{min-width:0;flex:1}.to-go-name{font-size:14px;font-weight:750}.to-go-source{display:block;color:var(--accent2);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}.to-go-actions{display:flex;gap:7px;flex:0 0 auto}.link-field{font-size:12px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.item-link{display:inline-block;color:var(--accent2);font-size:12px;font-weight:700;margin-top:6px;text-decoration:none}.item-link:hover{text-decoration:underline}.add-togo{margin-top:12px}.expense{margin-top:30px}.expense-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.expense-total{padding:14px;background:linear-gradient(135deg,rgba(54,211,153,.13),rgba(54,211,153,.03)),var(--surface);border:1px solid rgba(54,211,153,.25);border-radius:14px}.expense-total span{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}.expense-total b{font-size:16px;color:#b9f3db}.expense-list{display:grid;gap:8px}.expense-item{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px 13px}.expense-icon{width:31px;height:31px;display:grid;place-items:center;background:var(--surface2);border-radius:10px;font-size:15px}.expense-copy{flex:1;min-width:0}.expense-name{font-size:13px;font-weight:720}.expense-meta{font-size:11px;color:var(--muted);margin-top:3px}.expense-amount{font-size:13px;font-weight:800;color:#b9f3db}.expense-delete{border:0;background:transparent;color:var(--muted);font-size:16px;padding-left:5px}.expense-delete:hover{color:var(--danger)}.tools{margin-top:30px}.tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tool-grid .btn{box-shadow:none}.tool-note{font-size:12px;color:var(--muted);margin:10px 0 0;line-height:1.5}
-  /* Visual polish: clearer hierarchy, tactile cards, and a calmer mobile rhythm. */
-  body{background:radial-gradient(700px 420px at 90% -5%,rgba(255,122,69,.17),transparent 66%),radial-gradient(520px 300px at -10% 52%,rgba(70,101,170,.1),transparent 70%),var(--bg)}
-  .app{max-width:760px;padding:28px 22px 64px}.topbar{position:sticky;top:0;z-index:5;padding:10px 0 18px;margin:-10px 0 30px;background:linear-gradient(to bottom,rgba(16,18,25,.96) 72%,transparent)}.brand{font-size:23px;letter-spacing:-.4px}.dot{width:12px;height:12px}.offline{padding:6px 10px;font-size:11px;letter-spacing:.1px}
-  h1{max-width:610px;font-size:clamp(34px,6vw,48px);letter-spacing:-1.7px}.lead{max-width:570px;font-size:16px;line-height:1.65}.section,.to-go,.expense,.tools{margin-top:38px}.section-head{margin-bottom:14px}.section-head h2,.to-go h2,.expense h2,.tools h2{font-size:20px;letter-spacing:-.65px}.count{font-size:12px;background:rgba(156,166,184,.09);border:1px solid rgba(156,166,184,.12);padding:4px 8px;border-radius:99px}.to-go-search{width:100%;margin-top:8px;border:1px solid var(--line);border-radius:11px;background:#11151d;color:var(--text);padding:10px 12px;outline:none}.to-go-search:focus{border-color:var(--accent)}
-  .btn{min-height:48px;border-radius:14px;letter-spacing:-.1px;transition:transform .16s ease,filter .16s ease,box-shadow .16s ease}.btn:hover{filter:brightness(1.04);box-shadow:0 12px 30px rgba(255,122,69,.24);transform:translateY(-1px)}.btn.secondary{background:linear-gradient(180deg,#282f3c,#222833);border-color:#363f50}.btn.secondary:hover{border-color:#555f71;box-shadow:0 8px 20px rgba(0,0,0,.2)}.btn.small{min-height:36px;padding:8px 10px}.btn.danger:hover{box-shadow:none;border-color:var(--danger)}
-  .trip-grid{gap:14px}.trip-card{overflow:hidden;padding:19px 18px 17px;border-radius:20px;background:linear-gradient(120deg,rgba(255,179,92,.07),transparent 38%),var(--surface);border-color:#343c4c;box-shadow:0 10px 28px rgba(0,0,0,.15)}.trip-card:after{content:'›';position:absolute;right:17px;top:50%;transform:translateY(-50%);font-size:28px;font-weight:300;color:var(--accent2);opacity:.75}.trip-card:hover{border-color:rgba(255,179,92,.72);box-shadow:0 16px 35px rgba(0,0,0,.25)}.trip-card h3{font-size:19px;letter-spacing:-.35px;margin-bottom:6px;padding-right:30px}.trip-card .state{margin-bottom:11px}.trip-summary{gap:7px;flex-wrap:wrap;margin-top:16px;padding-right:28px}.trip-summary span{padding:5px 8px;border-radius:8px;background:rgba(156,166,184,.09);border:1px solid rgba(156,166,184,.1);font-size:11px}.trip-summary span:last-child{color:#aef0d4;background:rgba(54,211,153,.08);border-color:rgba(54,211,153,.17)}
-  .form-card,.planner-head,.item{border-color:#343c4c;box-shadow:0 10px 28px rgba(0,0,0,.12)}.form-card{padding:19px}.field label{letter-spacing:.1px}.field input,.field textarea,.field select{background:#11151d;border-color:#343c4c;padding:13px;border-radius:12px;transition:border .16s ease,box-shadow .16s ease}.field input:focus,.field textarea:focus,.field select:focus{box-shadow:0 0 0 3px rgba(255,122,69,.13)}.back{padding:8px 0;margin-bottom:17px;transition:color .15s ease}.back:hover{color:var(--text)}.planner-actions{display:flex;gap:9px;margin-top:16px;flex-wrap:wrap}
-  .planner-head{border-radius:21px;padding:21px;background:linear-gradient(125deg,rgba(255,122,69,.19),rgba(255,179,92,.06) 52%,transparent),var(--surface)}.planner-head h1{font-size:31px}.stats{gap:0;margin-top:19px;border-top:1px solid rgba(255,255,255,.08);padding-top:15px}.stat{flex:1}.stat+.stat{border-left:1px solid rgba(255,255,255,.08);padding-left:15px}.stat b{font-size:17px}.day-tabs{margin-top:22px;gap:9px}.day-tab{min-width:84px;border-radius:13px;padding:10px 12px;transition:transform .15s ease,border .15s ease}.day-tab:hover{border-color:#626d82}.day-tab.active{box-shadow:0 8px 20px rgba(255,122,69,.19)}
-  .item{border-radius:16px;padding:15px;background:linear-gradient(90deg,rgba(255,179,92,.07),transparent 26%),var(--surface)}.item-time{font-size:12px;background:rgba(255,179,92,.1);padding:5px 7px;border-radius:8px;text-align:center}.item-title{font-size:15px}.item-pin{font-size:18px;line-height:1;flex:0 0 auto;filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}.empty{background:rgba(255,255,255,.018);border-color:#384153;border-radius:18px;padding:30px 20px}.add-panel{margin-top:15px}.add-panel summary .btn{border:1px dashed rgba(255,179,92,.45)}
-  .expense-summary{gap:12px}.expense-total{border-radius:16px;padding:16px}.expense-total b{font-size:18px}.expense-item,.to-go-item{border-color:#343c4c;border-radius:16px;padding:14px}.expense-icon{width:34px;height:34px}.to-go-item{background:linear-gradient(90deg,rgba(255,122,69,.07),transparent 35%),var(--surface)}.to-go-name{font-size:15px}.to-go-actions .btn{min-height:37px}.tools{padding-top:4px}.tool-grid .btn{min-height:46px}.tool-note{padding:11px 13px;background:rgba(156,166,184,.055);border-radius:11px}
-  @media(max-width:480px){.app{padding:20px 14px 35px}.twocol{grid-template-columns:1fr}.form-actions{flex-direction:column}.item{grid-template-columns:43px 1fr auto}.topbar{margin-bottom:25px}.stats{gap:14px}}
-  .expense-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0}.expense-row+.expense-row{border-top:1px solid rgba(255,255,255,.08)}.item-time,.item-cost{cursor:pointer}.item-cost.muted{opacity:.55}.inline-edit{background:#11151d;border:1px solid var(--accent);border-radius:8px;color:var(--text);padding:4px 6px;font:inherit;max-width:130px}
-</style>
-</head>
-<body>
-<main class="app">
-  <header class="topbar"><div class="brand"><span class="dot"></span>MarkiCab</div><span class="offline">Tersimpan di perangkat</span><button class="btn secondary small" id="logoutBtn" style="display:none">Keluar</button></header>
-
-  <!-- Auth modal: login / signup (email + password) -->
-  <div class="auth-modal" id="authModal" style="display:none">
-    <div class="auth-card">
-      <h2 id="authTitle">Masuk</h2>
-      <p class="muted" id="authLead">Masuk untuk membuat dan bergabung dengan grup perjalanan.</p>
-      <div class="auth-social">
-        <button type="button" class="btn google" id="googleBtn"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Lanjut dengan Google</button>
-        <div class="auth-divider"><span>atau</span></div>
-      </div>
-      <form class="form-card form-grid" id="authForm" style="border:0;padding:0;background:none">
-        <div class="field"><label for="authEmail">Email</label><input id="authEmail" type="email" required maxlength="200" placeholder="you@example.com" autocomplete="email"></div>
-        <div class="field" id="authNameField" style="display:none"><label for="authName">Nama</label><input id="authName" type="text" maxlength="40" placeholder="Nama lengkap / panggilan" autocomplete="name"></div>
-        <div class="field"><label for="authPassword">Password</label><input id="authPassword" type="password" required minlength="6" maxlength="100" placeholder="••••••••" autocomplete="current-password"><label class="show-pw"><input type="checkbox" id="showPw"> Tampilkan sandi</label></div>
-        <div class="auth-error" id="authError"></div>
-        <div class="form-actions">
-          <button type="button" class="btn secondary" id="authCancel">Batal</button>
-          <button type="submit" class="btn" id="authSubmit">Masuk</button>
-        </div>
-      </form>
-      <p class="auth-switch muted" id="authSwitch">Belum punya akun? <a href="#" id="authToggle">Daftar</a></p>
-      <p class="auth-note muted" id="authNote" style="display:none"></p>
-    </div>
-  </div>
-
-  <section class="view active" id="homeView">
-    <h1>Rencanakan trip-mu,<br><span style="color:var(--accent2)">tanpa lupa detailnya.</span></h1>
-    <p class="lead">Satu tempat untuk menyusun agenda, waktu, catatan, dan perkiraan biaya perjalananmu.</p>
-    <div class="section"><button class="btn wide" id="newTripBtn">+ Buat trip baru</button></div>
-
-    <div class="section"><div class="section-head"><h2>Trip mendatang</h2><span class="count" id="upcomingCount"></span></div><div class="trip-grid" id="upcomingTrips"></div></div>
-    <div class="section" id="historySection"><div class="section-head"><h2>Riwayat trip</h2><span class="count" id="historyCount"></span></div><div class="form-card" id="historyTrips"></div></div>
-
-  </section>
-
-  <section class="view" id="newTripView">
-    <button class="back" data-home>← Kembali ke semua trip</button>
-    <h1 id="newTripTitle">Buat trip baru</h1><p class="lead" id="newTripLead">Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.</p>
-    <div class="notice" id="selectedToGo" style="display:none"></div>
-    <form class="form-card section form-grid" id="tripForm">
-      <div class="field"><label for="tripName">Nama trip</label><input id="tripName" required maxlength="70" placeholder="Contoh: Long weekend Jogja"></div>
-      <div class="field"><label for="tripDestination">Destinasi</label><input id="tripDestination" required maxlength="80" placeholder="Contoh: Yogyakarta"></div>
-      <div class="twocol"><div class="field"><label for="tripStart">Mulai</label><input id="tripStart" required type="date"></div><div class="field"><label for="tripEnd">Selesai</label><input id="tripEnd" required type="date"></div></div>
-      <div class="field"><label for="tripNote">Catatan awal <span style="font-weight:400">(opsional)</span></label><textarea id="tripNote" maxlength="240" placeholder="Misalnya: fokus kuliner dan museum, tanpa jadwal terlalu padat."></textarea></div>
-      <div class="form-actions"><button type="button" class="btn secondary" data-home>Batal</button><button class="btn" type="submit" id="newTripSubmit">Buat planner</button></div>
-    </form>
-  </section>
-
-  <section class="view" id="plannerView">
-    <button class="back" data-home>← Semua trip</button>
-    <div class="planner-head"><h1 id="plannerName"></h1><div class="trip-meta" id="plannerMeta"></div><div class="stats"><div class="stat"><b id="placeTotal">0</b><span>agenda</span></div><div class="stat"><b id="budgetTotal">Rp0</b><span>estimasi biaya</span></div><div class="stat"><b id="dayTotal">0</b><span>hari</span></div></div><div class="planner-actions"><button class="btn secondary small" id="editTripBtn">Edit trip</button><button class="btn secondary small" id="shareTrip">Bagikan</button></div></div>
-    <div class="notice" id="readOnlyBanner" style="display:none">Mode lihat saja — trip ini dibuka dari link bagikan. <button class="btn secondary small" id="makeGroupBtn" style="margin-top:8px">Buat jadi grup</button></div>
-    <div class="day-tabs" id="dayTabs"></div>
-    <div class="itinerary" id="itineraryList"></div>
-    <details class="add-panel" id="addPanel"><summary><span class="btn wide">+ Tambah agenda</span></summary><form class="form-card form-grid" id="agendaForm">
-      <div class="field"><label for="agendaTitle">Tempat atau kegiatan</label><input id="agendaTitle" required maxlength="100" placeholder="Contoh: Sarapan di Pasar Beringharjo"></div>
-      <div class="twocol"><div class="field"><label for="agendaTime">Waktu</label><input id="agendaTime" type="time"></div><div class="field"><label for="agendaBudget">Estimasi biaya (Rp)</label><input id="agendaBudget" type="number" min="0" step="1000" placeholder="0"></div></div>
-      <div class="field"><label for="agendaLink">Link referensi <span style="font-weight:400">(Google Maps, Instagram, TikTok, situs lain)</span></label><input id="agendaLink" type="url" maxlength="500" placeholder="Paste link tempat di sini"></div>
-      <div class="field"><label for="agendaNote">Catatan</label><textarea id="agendaNote" maxlength="240" placeholder="Reservasi, alamat, daftar yang dibawa, atau detail penting."></textarea></div>
-      <div class="form-actions"><button type="button" class="btn secondary" id="cancelAgenda">Batal</button><button class="btn" type="submit">Simpan agenda</button></div>
-    </form></details>
-    <section class="expense"><div class="section-head"><div><h2>Pengeluaran</h2><div class="muted" style="font-size:13px;margin-top:4px">Catat uang yang benar-benar keluar selama trip.</div></div></div><div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="dailyExpenseTotal">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="tripExpenseTotal">Rp0</b></div></div><div class="expense-list" id="expenseList"></div>
-      <details class="add-panel" id="expensePanel"><summary><span class="btn secondary wide">+ Catat pengeluaran</span></summary><form class="form-card form-grid" id="expenseForm">
-        <div class="field"><label for="expenseName">Pengeluaran</label><input id="expenseName" required maxlength="100" placeholder="Contoh: Makan malam di Gudeg Yu Djum"></div>
-        <div class="twocol"><div class="field"><label for="expenseAmount">Nominal (Rp)</label><input id="expenseAmount" required type="number" min="1000" step="1000" placeholder="0"></div><div class="field"><label for="expenseCategory">Kategori</label><select id="expenseCategory"><option value="Makan">Makan</option><option value="Transport">Transport</option><option value="Hotel">Hotel</option><option value="Tiket">Tiket</option><option value="Belanja">Belanja</option><option value="Lainnya">Lainnya</option></select></div></div>
-        <div class="field"><label for="expenseNote">Catatan <span style="font-weight:400">(opsional)</span></label><input id="expenseNote" maxlength="160" placeholder="Contoh: dibayar tunai"></div>
-        <div class="form-actions"><button type="button" class="btn secondary" id="cancelExpense">Batal</button><button class="btn" type="submit">Simpan pengeluaran</button></div>
-      </form></details>
-    </section>
-    <div class="notice">Planner ini bekerja tanpa akun dan tersimpan di browser perangkat ini. Jangan hapus data browser sebelum mengekspor itinerary.</div>
-    <div class="export-row" id="exportRow"><button class="btn secondary" id="copyTrip">Salin itinerary</button><button class="btn secondary" id="printTrip">Cetak / simpan PDF</button></div>
-    <button class="btn danger wide" style="margin-top:14px" id="deleteTrip">Hapus trip ini</button>
-  </section>
-
-  <section class="view" id="guestView">
-    <div class="guest-card">
-      <h1 id="guestTripName">Bagikan trip</h1>
-      <div class="trip-meta muted" id="guestTripMeta"></div>
-      <div class="participant-summary" id="guestParticipantSummary"></div>
-      <!-- PRE-JOIN: preview only -->
-      <div id="guestPreview" style="margin-top:16px">
-        <div class="empty" id="guestPreviewText" style="margin-bottom:12px"></div>
-        <button class="btn wide" id="guestJoinBtn">Gabung Trip</button>
-        <div style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center">Tidak perlu akun MarkiCab. Masukkan nama untuk ikut.</div>
-      </div>
-      <!-- NAME FORM (hidden until Gabung Trip clicked) -->
-      <div id="guestNameForm" style="display:none;margin-top:16px">
-        <div class="form-card form-grid">
-          <div class="field"><label for="guestNameInput">Nama kamu</label><input id="guestNameInput" required maxlength="40" placeholder="Contoh: Budi"></div>
-          <div class="form-actions"><button class="btn secondary" id="guestNameCancel">Batal</button><button class="btn" id="guestNameSubmit">Ikut Trip</button></div>
-        </div>
-      </div>
-      <!-- POST-JOIN: full itinerary (hidden pre-join) -->
-      <div id="guestJoinedView" style="display:none">
-        <div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Itinerary</h2></div>
-        <div class="itinerary-list" id="guestItineraryList" style="text-align:left"></div>
-        <div class="expenses-summary" id="guestExpenses" style="margin-top:16px"></div>
-        <div id="guestParticipantList" style="margin-top:16px"></div>
-        <div id="guestLocationActions" style="margin-top:16px"></div>
-        <div style="margin-top:16px;padding:14px;background:rgba(54,211,153,.06);border:1px solid rgba(54,211,153,.18);border-radius:14px;font-size:13px">
-          <strong>Mau menyimpan perjalanan ini ke akun MarkiCab?</strong><br>
-          <span style="color:var(--muted)">Daftar gratis untuk menyimpan trip, mengikuti creator, dan mendapatkan Trip History.</span>
-          <button class="btn secondary" style="margin-top:10px" id="guestUpgradeBtn">Daftar MarkiCab</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="view" id="groupView">
-    <button class="back" data-home>← Semua trip</button>
-    <div class="planner-head"><h1 id="groupName"></h1><div class="trip-meta" id="groupMeta"></div>
-      <div class="planner-actions"><button class="btn secondary small" id="inviteGroupBtn">Bagikan grup</button><button class="btn secondary small" id="leaveGroupBtn">Keluar</button></div>
-    </div>
-    <div class="trip-stats" id="groupStats"></div>
-    <div class="view-tabs" id="groupViewTabs">
-      <button class="view-tab active" data-gview="itinerary">Itinerary</button>
-      <button class="view-tab" data-gview="expenses">Expenses</button>
-      <button class="view-tab" data-gview="wishlist">Wishlist</button>
-      <button class="view-tab" data-gview="journey">Journey Mode</button>
-    </div>
-    <div class="view-panel active" id="itineraryPanel">
-      <div class="day-tabs" id="groupDayTabs"></div>
-      <div class="section-head"><div><h2 id="groupDayTitle">Itinerary</h2></div></div>
-      <div class="itinerary-list" id="groupItineraryList"></div>
-      <details class="add-panel"><summary><span class="btn secondary wide">+ Tambah agenda grup</span></summary><form class="form-card form-grid" id="groupAgendaForm">
-        <div class="field"><label for="groupAgendaTitle">Kegiatan</label><input id="groupAgendaTitle" required maxlength="100" placeholder="Contoh: Malioboro"></div>
-        <div class="field"><label for="groupAgendaTime">Jam</label><input id="groupAgendaTime" type="time"></div>
-        <div class="field"><label for="groupAgendaBudget">Estimasi biaya</label><input id="groupAgendaBudget" type="number" min="0" placeholder="0"></div>
-        <div class="field"><label for="groupAgendaLink">Link referensi</label><input id="groupAgendaLink" type="url" maxlength="500" placeholder="Paste Google Maps"></div>
-        <div class="field" style="grid-column:1/-1"><label for="groupAgendaNote">Catatan</label><textarea id="groupAgendaNote" maxlength="240" placeholder="Reservasi, alamat, detail"></textarea></div>
-        <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupAgenda">Batal</button><button class="btn" type="submit">Tambah</button></div>
-      </form></details>
-    </div>
-    <div class="view-panel" id="expensesPanel">
-      <div class="section-head"><div><h2>Pengeluaran</h2></div></div>
-      <div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="groupDailyExpense">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="groupTripExpense">Rp0</b></div></div>
-      <div class="expense-list" id="groupExpenseList"></div>
-      <details class="add-panel"><summary><span class="btn secondary wide">+ Catat pengeluaran grup</span></summary><form class="form-card form-grid" id="groupExpenseForm">
-        <div class="field"><label for="groupExpenseName">Nama</label><input id="groupExpenseName" required maxlength="60" placeholder="Makan siang"></div>
-        <div class="field"><label for="groupExpenseAmount">Jumlah</label><input id="groupExpenseAmount" type="number" min="0" required placeholder="0"></div>
-        <div class="field"><label for="groupExpenseCategory">Kategori</label><select id="groupExpenseCategory"><option>Makan</option><option>Transport</option><option>Hotel</option><option>Tiket</option><option>Belanja</option><option>Lainnya</option></select></div>
-        <div class="field"><label for="groupExpensePayer">Dibayar oleh</label><select id="groupExpensePayer"><option value="">— saya —</option></select><div class="muted" style="font-size:12px;margin-top:4px">Kosongkan = kamu yang bayar.</div></div>
-        <div class="field"><label for="groupExpenseNote">Catatan</label><input id="groupExpenseNote" maxlength="120" placeholder="Opsional"></div>
-        <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupExpense">Batal</button><button class="btn" type="submit">Catat</button></div>
-      </form></details>
-      </div>
-
-      <!-- Fase C: Group Wishlist view panel -->
-      <div class="view-panel" id="wishlistPanel">
-        <div id="groupWishList" style="margin-top:12px"></div>
-        <details class="add-panel" id="wishlistAddPanel" style="margin-top:14px"><summary><span class="btn secondary wide">+ Tambah ke Wishlist</span></summary>
-          <form class="form-card form-grid" id="groupWishlistForm">
-            <div class="field"><label for="wishlistTitle">Nama tempat</label><input id="wishlistTitle" name="wishlistTitle" required maxlength="100" placeholder="Contoh: Kopi Kalyan"></div>
-            <div class="field"><label for="wishlistLink">Link referensi <span style="font-weight:400">(opsional)</span></label><input id="wishlistLink" name="wishlistLink" type="url" maxlength="500" placeholder="Paste Google Maps, Instagram, dll"></div>
-            <div class="field" style="grid-column:1/-1"><label for="wishlistNote">Catatan <span style="font-weight:400">(opsional)</span></label><textarea id="wishlistNote" name="wishlistNote" maxlength="240" placeholder="Rekomendasi, alasan, dll"></textarea></div>
-            <div class="form-actions"><button type="button" class="btn secondary" id="cancelWishlist">Batal</button><button class="btn" type="submit">Simpan ke Wishlist</button></div>
-          </form>
-        </details>
-      </div>
-
-      <!-- M4.5: Journey Mode view panel -->
-      <div class="view-panel" id="journeyPanel">
-      <div id="journeyContent">
-        <!-- Journey Mode control + consent banner + crew map (rendered by renderJourneyView) -->
-      </div>
-    </div>
-<section class="members"><div class="section-head"><div><h2>Anggota <span class="count" id="groupMemberCount"></span></h2></div></div>
-      <div class="to-go-list" id="memberList"></div>
-    </section>
-  </section>
-
-</main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="backend/supabase-client.js"></script>
-<script src="backend/trippi-api.js"></script>
-<script src="lzstring.js"></script>
-<script>
   const STORE_KEY='trippi_personal_planner_v2';
   const LEGACY_STORE_KEY='trippi_personal_planner_v1';
   const state={trips:[],toGo:[],activeTripId:null,activeDate:null,pendingToGoId:null,editTripId:null,readOnlyTrip:null};
   const $=id=>document.getElementById(id);
-  const dbg=(msg)=>{};
+  const dbg=(msg)=>{const e=document.getElementById('debugEl');if(e){e.style.display='block';e.textContent+=(e.textContent?'\n':'')+msg+' ['+Date.now()+'];}};
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
   const API=window.TrippiAPI;
-  const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null,poll:null,locationChannel:null};
+  const colState={uid:null,name:null,group:null,items:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null,poll:null,locationChannel:null};
   // Display name fallback chain: profile → metadata → localStorage → email prefix → Guest
   const loadName=()=>localStorage.getItem('trippi_display_name')||'';
   const saveName=n=>localStorage.setItem('trippi_display_name',n);
@@ -382,7 +150,6 @@
           // Step 3: reload trip with isMember=true
           const tk = guestSession.token;
           guestSession.isMember = true; // render next frame as joined
-          if(name) colState.name = name; // Fase B: persist join name for identity display
           unlockNav();
           if(tk) await openGuestTrip(tk);
         }catch(e){
@@ -530,8 +297,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   function renderExpenses(){const trip=getTrip();const expenses=trip.expenses||[],dayExpenses=expenses.filter(item=>item.date===state.activeDate);const sum=list=>list.reduce((total,item)=>total+(Number(item.amount)||0),0);$('dailyExpenseTotal').textContent=money(sum(dayExpenses));$('tripExpenseTotal').textContent=money(sum(expenses));$('expenseList').innerHTML=dayExpenses.length?dayExpenses.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)}</div><div class="expense-meta">${esc(item.category)}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div><button class="expense-delete" data-delete-expense="${item.id}" aria-label="Hapus pengeluaran">×</button></article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang benar-benar keluar.</div>';document.querySelectorAll('[data-delete-expense]').forEach(button=>button.onclick=()=>deleteExpense(button.dataset.deleteExpense))}
   function addExpense(event){event.preventDefault();const trip=getTrip();if(!trip.expenses)trip.expenses=[];trip.expenses.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,name:$('expenseName').value.trim(),amount:$('expenseAmount').value,category:$('expenseCategory').value,note:$('expenseNote').value.trim()});save();event.target.reset();$('expensePanel').open=false;renderExpenses()}
   function deleteExpense(id){const trip=getTrip();trip.expenses=(trip.expenses||[]).filter(item=>item.id!==id);save();renderExpenses()}
-  function renderToGo(){if(!$('toGoList'))return;const q=(($('toGoSearch')||{}).value||'').trim().toLowerCase();const list=q?state.toGo.filter(i=>(i.name||'').toLowerCase().includes(q)||(i.link||'').toLowerCase().includes(q)||(i.note||'').toLowerCase().includes(q)):state.toGo;if($('toGoCount'))$('toGoCount').textContent=state.toGo.length?`${state.toGo.length} tempat`:'';if($('toGoSearch'))$('toGoSearch').style.display=state.toGo.length?'block':'none';$('toGoList').innerHTML=list.length?list.map(item=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(item.name)}</div>${item.link?`<a class="to-go-source" href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.link)}</a>`:''}${item.note?`<div class="link-field">${esc(item.note)}</div>`:''}</div><div class="to-go-actions"><button class="btn small" data-schedule="${item.id}">Jadwalkan</button><button class="btn secondary small" data-remove-togo="${item.id}" aria-label="Hapus dari To Go List">×</button></div></article>`).join(''):'<div class="empty"><strong>Belum ada tempat tersimpan.</strong>Paste link atau simpan tempat yang ingin kamu datangi.</div>';document.querySelectorAll('[data-schedule]').forEach(b=>b.onclick=()=>scheduleToGo(b.dataset.schedule));document.querySelectorAll('[data-remove-togo]').forEach(b=>b.onclick=()=>{state.toGo=state.toGo.filter(item=>item.id!==b.dataset.removeTogo);save();renderToGo()})}
-  function addToGo(event){event.preventDefault();state.toGo.unshift({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$('toGoName').value.trim(),link:normalizeLink($('toGoLink').value),note:$('toGoNote').value.trim()});save();event.target.reset();if($('toGoPanel'))$('toGoPanel').open=false;renderToGo()}
+  function renderToGo(){const q=($('toGoSearch').value||'').trim().toLowerCase();const list=q?state.toGo.filter(i=>(i.name||'').toLowerCase().includes(q)||(i.link||'').toLowerCase().includes(q)||(i.note||'').toLowerCase().includes(q)):state.toGo;$('toGoCount').textContent=state.toGo.length?`${state.toGo.length} tempat`:'';$('toGoSearch').style.display=state.toGo.length?'block':'none';$('toGoList').innerHTML=list.length?list.map(item=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(item.name)}</div>${item.link?`<a class="to-go-source" href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.link)}</a>`:''}${item.note?`<div class="link-field">${esc(item.note)}</div>`:''}</div><div class="to-go-actions"><button class="btn small" data-schedule="${item.id}">Jadwalkan</button><button class="btn secondary small" data-remove-togo="${item.id}" aria-label="Hapus dari To Go List">×</button></div></article>`).join(''):'<div class="empty"><strong>Belum ada tempat tersimpan.</strong>Paste link atau simpan tempat yang ingin kamu datangi.</div>';document.querySelectorAll('[data-schedule]').forEach(b=>b.onclick=()=>scheduleToGo(b.dataset.schedule));document.querySelectorAll('[data-remove-togo]').forEach(b=>b.onclick=()=>{state.toGo=state.toGo.filter(item=>item.id!==b.dataset.removeTogo);save();renderToGo()})}
+  function addToGo(event){event.preventDefault();state.toGo.unshift({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$('toGoName').value.trim(),link:normalizeLink($('toGoLink').value),note:$('toGoNote').value.trim()});save();event.target.reset();$('toGoPanel').open=false;renderToGo()}
   function scheduleToGo(id){const item=state.toGo.find(x=>x.id===id);if(!item)return;state.editTripId=null;state.pendingToGoId=id;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';$('selectedToGo').innerHTML=`<strong>${esc(item.name)}</strong> akan ditambahkan ke agenda hari pertama setelah trip dibuat.`;$('selectedToGo').style.display='block';show('newTripView');$('tripName').focus()}
   function editTrip(){const trip=getTrip();if(!trip||state.readOnlyTrip)return;state.editTripId=trip.id;state.pendingToGoId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Edit trip';$('newTripLead').textContent='Perbarui tujuan atau rentang tanggal trip ini.';$('newTripSubmit').textContent='Simpan perubahan';$('tripName').value=trip.name;$('tripDestination').value=trip.destination;$('tripStart').value=trip.start;$('tripEnd').value=trip.end;$('tripNote').value=trip.note||'';show('newTripView');$('tripName').focus()}
   async function shareGroup(){
@@ -634,12 +401,12 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       g = (await API.getGroup(id)).data;
     }
     if(!g){alert('Grup tidak ditemukan.');return;}
-    // Fase A: tear down any previous group session BEFORE wiring the new one.
-    // Guarantees no leaked channel/interval and no stale trip-A data in trip B.
-    await teardownGroupSession();
-    colState.group=g;
+    // Reset ALL group state to prevent stale data from previous trip
+    colState.group=g;colState.items=[];colState.members=[];colState.expenses=[];colState.nameMap={};colState.activeDate=null;colState.journey=null;colState.perms=null;
     show('groupView');
     $('groupName').textContent=g.name;
+    if(colState.channel)await API._getSb().removeChannel(colState.channel);
+    stopJourneyRealtime();  // M4.5.6: cleanup previous group's location realtime
     const ch=API._getSb().channel('group:'+id);
     ch.on('postgres_changes',{event:'*',schema:'public',table:'shared_items',filter:'group_id=eq.'+id},()=>loadShared(id))
       .on('postgres_changes',{event:'*',schema:'public',table:'group_members',filter:'group_id=eq.'+id},()=>loadMembers(id))
@@ -664,9 +431,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         if(ce)console.warn('[MarkiCab] copy agenda failed:',ce.message);
       }
     }
-    await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);
-    if (document.getElementById('groupWishList')) { await loadWishlists(id); }
-    renderGroupPlanner();
+    await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);renderGroupPlanner();
     // M3 Phase 1: load permission matrix and apply to UI
     const permsRes=await API.getTripPermissions(id);
     colState.perms=(permsRes&&permsRes.data)||null;
@@ -683,105 +448,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     renderGroupPlanner();
   }
   async function loadGroupExpenses(id){const { data }=await API.getExpenses(id);colState.expenses=data||[];renderGroupExpenses();}
-  // ── Fase C: Group Wishlist ─────────────────────────────────
-  async function loadWishlists(id){
-    const wl = document.getElementById('groupWishList');
-    if (!wl) return;
-    showLoading(wl, 'Memuat wishlist...');
-    const { data, error } = await API.listWishlists(id);
-    colState.wishlists = error ? [] : (Array.isArray(data) ? data : (data ? [data] : []));
-    renderGroupWishlist();
-  }
-  function renderGroupWishlist(){
-    const wl = document.getElementById('groupWishList');
-    if (!wl) return;
-    const canConvert = canEditTrip();
-    const pending = (colState.wishlists || []).filter(w => w.status === 'suggested');
-    const history = (colState.wishlists || []).filter(w => w.status !== 'suggested');
-    let html = '';
-    if (pending.length){
-      html += '<div class="section-head"><div><h3>Group Wishlist</h3><div class="muted" style="font-size:12px">Ide tempat dari anggota. Creator yang memutuskan masuk itinerary.</div></div></div>';
-      html += '<div class="wishlist-list">';
-      html += pending.map(w => `<article class="to-go-item">
-        <div class="to-go-copy">
-          <div class="to-go-name">${esc(w.title)}</div>
-          ${w.link ? `<a class="to-go-source" href="${esc(w.link)}" target="_blank" rel="noopener">${esc(w.link)}</a>` : ''}
-          ${w.note ? `<div class="link-field">${esc(w.note)}</div>` : ''}
-          <div class="link-field muted" style="font-size:11px">· oleh ${esc(nameOf(w.suggested_by))}</div>
-        </div>
-        <div class="to-go-actions">
-          ${canConvert ? `<button class="btn small" data-convert="${w.id}">+ Add to Itin</button>` : ''}
-        </div>
-      </article>`).join('');
-      html += '</div>';
-    } else {
-      html += '<div class="section-head"><div><h3>Group Wishlist</h3></div></div>';
-      html += '<div class="empty">Belum ada wishlist. Ajukan tempat yang ingin kamu kunjungi.</div>';
-    }
-    if (history.length){
-      html += '<div class="section-head" style="margin-top:14px"><div><h4 style="font-size:13px;color:var(--muted)">Sudah diproses</h4></div></div>';
-      html += history.map(w => `<article class="to-go-item" style="opacity:.7">
-        <div class="to-go-copy">
-          <div class="to-go-name">${esc(w.title)} <span class="muted" style="font-size:11px">· ${w.status === 'approved' ? '✓ masuk itinerary' : 'ditolak'}</span></div>
-        </div>
-      </article>`).join('');
-    }
-    wl.innerHTML = html;
-    document.querySelectorAll('[data-convert]').forEach(b => b.onclick = () => showConvertDialog(b.dataset.convert));
-  }
-  function showConvertDialog(wishlistId){
-    const w = (colState.wishlists || []).find(x => x.id === wishlistId);
-    if (!w) return;
-    const g = colState.group;
-    if (!g) return;
-    const dates = daysBetween(String(g.start_date || ''), String(g.end_date || ''));
-    const html = `<div class="form-card" style="padding:16px">
-      <div style="font-weight:600;margin-bottom:10px">+ Add to Itin: ${esc(w.title)}</div>
-      <div class="field"><label>Hari</label><select id="convertDay">${dates.map((d, i) => `<option value="${d}">Hari ${i + 1} (${dateText(d)})</option>`).join('')}</select></div>
-      <div class="field"><label>Waktu <span style="font-weight:400;color:var(--muted)">(opsional)</span></label><input id="convertTime" type="time"></div>
-      <div class="form-actions"><button class="btn secondary" id="convertCancel">Batal</button><button class="btn" id="convertConfirm">Tambah ke Itinerary</button></div>
-    </div>`;
-    const existing = document.getElementById('convertDialog');
-    if (existing) existing.remove();
-    const dialog = document.createElement('div');
-    dialog.id = 'convertDialog';
-    dialog.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:60;padding:18px';
-    dialog.innerHTML = html;
-    document.body.appendChild(dialog);
-    dialog.querySelector('#convertCancel').onclick = () => dialog.remove();
-    dialog.querySelector('#convertConfirm').onclick = async () => {
-      const date = dialog.querySelector('#convertDay').value;
-      const time = dialog.querySelector('#convertTime').value || null;
-      dialog.remove();
-      const { error } = await API.convertWishlistToItinerary(wishlistId, date, time);
-      if (error) { alert('Gagal: ' + (error.message || error)); return; }
-      await Promise.all([loadWishlists(colState.group.id), loadShared(colState.group.id)]);
-    };
-  }
-  async function addWishlist(event){
-    event.preventDefault();
-    const g = colState.group;
-    if (!g) return;
-    const form = document.getElementById('groupWishlistForm');
-    if (!form) return;
-    const title = form.querySelector('[name="wishlistTitle"]').value.trim();
-    if (!title) { alert('Nama tempat wajib diisi'); return; }
-    const link = form.querySelector('[name="wishlistLink"]').value.trim() || null;
-    const note = form.querySelector('[name="wishlistNote"]').value.trim() || null;
-    const { error } = await API.addWishlistItem(g.id, title, link, note);
-    if (error) { alert('Gagal: ' + (error.message || error)); return; }
-    form.reset();
-    const panel = document.getElementById('wishlistPanel');
-    if (panel) panel.open = false;
-    await loadWishlists(g.id);
-  }
-  // Fase B: identity — always show real display name, never "(kamu)" suffix
-  function nameOf(uid){
-    if(colState.nameMap && colState.nameMap[uid]) return colState.nameMap[uid];
-    if(uid===colState.uid) return colState.name || 'kamu';
-    const m=colState.members.find(x=>x.user_id===uid);
-    return (m && m.display_name) || 'anggota';
-  }
+  function nameOf(uid){return (colState.nameMap&&colState.nameMap[uid])||(uid===colState.uid?'kamu':(colState.members.find(m=>m.user_id===uid)||{}).display_name||'anggota');}
   function renderGroupPlanner(){
     const g=colState.group;if(!g)return;
     const dates=daysBetween(g.start_date?String(g.start_date):'',g.end_date?String(g.end_date):'');
@@ -794,11 +461,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     document.querySelectorAll('[data-gday]').forEach(b=>b.onclick=()=>{colState.activeDate=b.dataset.gday;renderGroupPlanner();});
     const dayItems=colState.items.filter(i=>i.date===colState.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
     $('groupDayTitle').textContent=`Itinerary · ${colState.activeDate?dateText(colState.activeDate):'pilih hari'} · ${dayItems.length} titik`;
-    $('groupItineraryList').innerHTML=dayItems.length?dayItems.map(item=>`<article class="item">${item.link?`<div class="item-pin" title="Titik lokasi">📍</div>`:''}<div class="item-time" data-gtime="${item.id}" title="Klik ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'} · <span class="by">oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-gcost="${item.id}" title="Klik ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-gcost="${item.id}" title="Klik ubah biaya">biaya?</div>`}</div>${canEditTrip()?`<button class="delete-item" data-gdel="${item.id}" aria-label="Hapus">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada agenda hari ini.</strong>Tambah kegiatan bareng-bareng.</div>';
-    if(canEditTrip()){
-      document.querySelectorAll('[data-gtime]').forEach(el=>el.onclick=()=>editGroupTime(el));
-      document.querySelectorAll('[data-gcost]').forEach(el=>el.onclick=()=>editGroupCost(el));
-      document.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>removeGroupItem(b.dataset.gdel));
+    $('groupItineraryList').innerHTML=dayItems.length?dayItems.map(item=>`<article class="item">${item.link?`<div class="item-pin" title="Titik lokasi">📍</div>`:''}<div class="item-time" data-gtime="${item.id}" title="Klik ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'} · <span class="by">oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-gcost="${item.id}" title="Klik ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-gcost="${item.id}" title="Klik ubah biaya">biaya?</div>`}</div><button class="delete-item" data-gdel="${item.id}" aria-label="Hapus">×</button></article>`).join(''):'<div class="empty"><strong>Belum ada agenda hari ini.</strong>Tambah kegiatan bareng-bareng.</div>';
+    document.querySelectorAll('[data-gtime]').forEach(el=>el.onclick=()=>editGroupTime(el));
+    document.querySelectorAll('[data-gcost]').forEach(el=>el.onclick=()=>editGroupCost(el));
+    document.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>removeGroupItem(b.dataset.gdel));
+    const wish=colState.items.filter(i=>!i.date);
+    const groupWishListEl=$('groupWishList');
+    if(groupWishListEl){
+      groupWishListEl.innerHTML=wish.length?wish.map(item=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(item.title)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="to-go-source" href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.link)}</a>`:''}${item.note?`<div class="link-field">${esc(item.note)}</div>`:''}</div><div class="to-go-actions"><button class="btn secondary small" data-gdel="${item.id}">×</button></div></article>`).join(''):'<div class="empty">Belum ada wishlist.</div>';
     }
     renderMembers();
     populatePayerSelect();
@@ -808,16 +478,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const sum=l=>l.reduce((s,i)=>s+(Number(i.amount)||0),0);
     $('groupDailyExpense').textContent=money(sum(dayExp));
     $('groupTripExpense').textContent=money(sum(colState.expenses));
-    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div>${canEditTrip()?`<button class="expense-delete" data-gdelexp="${item.id}">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
-    if(canEditTrip()){
-      document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
-    }
+    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div><button class="expense-delete" data-gdelexp="${item.id}">×</button></article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
+    document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
   }
   // M3 Phase 2: payer select on the expense form (member list)
   function populatePayerSelect(){
     const sel=document.getElementById('groupExpensePayer'); if(!sel) return;
     const cur=sel.value;
-    sel.innerHTML='<option value="">— saya —</option>'+(colState.members||[]).map(m=>`<option value="${m.user_id}">${esc(m.display_name)}</option>`).join('');
+    sel.innerHTML='<option value="">— saya —</option>'+(colState.members||[]).map(m=>`<option value="${m.user_id}">${esc(m.display_name)}${m.user_id===colState.uid?' (kamu)':''}</option>`).join('');
     if(cur) sel.value=cur;
   }
   // M3 Phase 2: Trip Identity — show creator ("Pembuat")
@@ -1185,7 +853,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   function renderMembers(){ 
-    $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Trip Creator</span>':''}</div><div class="link-field"></div></div>${m.user_id!==colState.uid&&canManageMembers()?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
+    $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Pemilik</span>':''}</div><div class="link-field">${m.user_id===colState.uid?'kamu':''}</div></div>${m.user_id!==colState.uid&&canManageMembers()?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
     document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>removeMemberFromTrip(b.dataset.rm));
   }
   async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}
@@ -1206,33 +874,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       const { error }=await API.leaveGroup(colState.group.id, colState.uid);
       if(error){ alert('Gagal: '+humanErr(error)); return; }
     }
-    await teardownGroupSession();
-    renderHome(); show('homeView');
-  }
-
-  // ── Group session lifecycle teardown (P0 Fase A) ──────────
-  // Single source of truth for leaving a group view. Guarantees:
-  //   1. Realtime group channel removed
-  //   2. Realtime member_locations channel removed
-  //   3. Polling interval stopped AND handle nulled
-  //   4. All per-group state cleared so trip B never renders trip A data
-  async function teardownGroupSession(){
-    if(colState.poll){ clearInterval(colState.poll); colState.poll=null; }
-    if(colState.channel){
-      const sb=API._getSb();
-      if(sb){ try{ await sb.removeChannel(colState.channel); }catch(e){ console.warn('[MarkiCab] removeChannel failed:',e&&e.message); } }
-      colState.channel=null;
-    }
-    await stopJourneyRealtime();
-    colState.group=null;
-    colState.items=[];
-    colState.members=[];
-    colState.expenses=[];
-    colState.nameMap={};
-    colState.activeDate=null;
-    colState.journey=null;
-    colState.perms=null;
-    colState.crewLocations=[];
+    if(colState.poll)clearInterval(colState.poll);
+    if(colState.channel)await API._getSb().removeChannel(colState.channel);
+    stopJourneyRealtime();  // M4.5.6: unsubscribe Realtime member_locations
+    colState.group=null; renderHome(); show('homeView');
   }
 
   // ── M4.2 Route (HIDDEN — UI removed, backend preserved for future) ──
@@ -1336,7 +981,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
   function openFromHash(){if(location.hash.startsWith('#t=')){try{const json=LZString.decompressFromEncodedURIComponent(location.hash.slice(3));const trip=JSON.parse(json);if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}if(location.hash.startsWith('#trip=')){try{const trip=JSON.parse(decodeURIComponent(location.hash.slice(6)));if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}return false}
 
-  $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=async()=>{await teardownGroupSession();renderHome();show('homeView')});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;if($('toGoForm'))$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};if($('cancelToGo'))$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=()=>{const t=getTrip();if(confirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)){state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;renderHome();show('homeView')}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;if($('toGoSearch'))$('toGoSearch').oninput=renderToGo;
+  $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=()=>{renderHome();show('homeView')});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=()=>{const t=getTrip();if(confirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)){state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;renderHome();show('homeView')}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;$('toGoSearch').oninput=renderToGo;
   // P2 collaborative wiring (elements may not exist if not in group view)
   const _makeGroupBtn=document.getElementById('makeGroupBtn'); if(_makeGroupBtn) _makeGroupBtn.onclick=()=>makeGroupFromTrip();
   const _inviteGroupBtn=document.getElementById('inviteGroupBtn'); if(_inviteGroupBtn) _inviteGroupBtn.onclick=shareGroup;
@@ -1345,16 +990,12 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   const _cancelGroupAgenda=document.getElementById('cancelGroupAgenda'); if(_cancelGroupAgenda) _cancelGroupAgenda.onclick=()=>{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false};
   const _groupExpenseForm=document.getElementById('groupExpenseForm'); if(_groupExpenseForm) _groupExpenseForm.onsubmit=addGroupExpense;
   const _cancelGroupExpense=document.getElementById('cancelGroupExpense'); if(_cancelGroupExpense) _cancelGroupExpense.onclick=()=>{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false};
-  // Fase C: wishlist form wiring
-  const _groupWishlistForm=document.getElementById('groupWishlistForm'); if(_groupWishlistForm) _groupWishlistForm.onsubmit=addWishlist;
-  const _cancelWishlist=document.getElementById('cancelWishlist'); if(_cancelWishlist) _cancelWishlist.onclick=()=>{$('groupWishlistForm').reset();$('groupWishlistForm').parentElement.open=false};
   // M4.2 Route view wiring
   const _groupViewTabs=document.getElementById('groupViewTabs');
   const _routePanel=document.getElementById('routePanel');
   const _itineraryPanel=document.getElementById('itineraryPanel');
   const _expensesPanel=document.getElementById('expensesPanel');
   const _journeyPanel=document.getElementById('journeyPanel');
-  const _wishlistPanel=document.getElementById('wishlistPanel');
   if(_groupViewTabs){
     _groupViewTabs.querySelectorAll('.view-tab').forEach(btn=>{
       btn.onclick=()=>{
@@ -1365,7 +1006,6 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         if(_routePanel) _routePanel.classList.toggle('active', v==='route');
         if(_expensesPanel) _expensesPanel.classList.toggle('active', v==='expenses');
         if(_journeyPanel) _journeyPanel.classList.toggle('active', v==='journey');
-        if(_wishlistPanel) _wishlistPanel.classList.toggle('active', v==='wishlist');
         if(v==='route') loadRoute(colState.group.id);
         if(v==='journey') renderJourneyView();
       };
@@ -1415,152 +1055,3 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   })();
   if('serviceWorker' in navigator)navigator.serviceWorker.register('markicab-sw.js').catch(()=>{});
   if(!openFromHash()){load();renderHome();}
-</script>
-<script>
-/* === Auth UX (email + password). Conforms to existing RLS — no auth/RLS change. === */
-(function(){
-  // modal CSS (injected once; avoids editing the main <style> block)
-  var css=document.createElement('style');
-  css.textContent='.auth-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(8,10,15,.72);padding:18px}.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px}.auth-card h2{margin:0 0 4px}.auth-card .muted{font-size:13px;margin:0 0 16px}.auth-social{margin-bottom:14px}.btn.google{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f2330;font-weight:700;border:1px solid #d6dae2}.btn.google:hover{background:#f3f4f6}.auth-divider{display:flex;align-items:center;text-align:center;color:var(--muted);font-size:12px;margin:14px 0 4px}.auth-divider:before,.auth-divider:after{content:"";flex:1;height:1px;background:var(--line)}.auth-divider span{padding:0 12px}.auth-error{color:var(--danger);font-size:13px;min-height:18px;margin:2px 0 4px;font-weight:650}.auth-switch{font-size:13px;margin:14px 0 0}.auth-switch a{color:var(--accent2);font-weight:750}.auth-note{font-size:12px;line-height:1.5;margin:12px 0 0;padding:10px 12px;background:rgba(255,179,92,.08);border:1px solid rgba(255,179,92,.18);border-radius:11px}.show-pw{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--muted);margin-top:8px;cursor:pointer;user-select:none}.show-pw input{width:auto;margin:0;accent-color:var(--accent2);cursor:pointer}.role-badge{display:inline-block;font-size:11px;font-weight:700;color:var(--accent2);background:rgba(255,179,92,.12);border:1px solid rgba(255,179,92,.3);border-radius:8px;padding:1px 7px;margin-left:4px;vertical-align:middle}';
-  document.head.appendChild(css);
-
-  var pendingAction=null;          // action to run after successful login
-  var mode='login';                // 'login' | 'signup'
-  var modal=document.getElementById('authModal');
-  var form=document.getElementById('authForm');
-  var errEl=document.getElementById('authError');
-  var noteEl=document.getElementById('authNote');
-  var titleEl=document.getElementById('authTitle');
-  var leadEl=document.getElementById('authLead');
-  var submitBtn=document.getElementById('authSubmit');
-  var switchEl=document.getElementById('authSwitch');
-
-  function openAuth(m){ mode=m||'login'; renderMode(); errEl.textContent=''; noteEl.style.display='none';
-    document.getElementById('authEmail').value=''; document.getElementById('authPassword').value='';
-    var nameEl=document.getElementById('authName'); if(nameEl) nameEl.value='';
-    modal.style.display='flex'; document.getElementById('authEmail').focus(); }
-  function closeAuth(){ modal.style.display='none'; }
-  function renderMode(){
-    var nameField=document.getElementById('authNameField');
-    if(mode==='login'){ titleEl.textContent='Masuk'; leadEl.textContent='Masuk untuk membuat dan bergabung dengan grup perjalanan.'; submitBtn.textContent='Masuk'; switchEl.innerHTML='Belum punya akun? <a href="#" id="authToggle">Daftar</a>'; if(nameField) nameField.style.display='none'; }
-    else { titleEl.textContent='Daftar'; leadEl.textContent='Buat akun untuk mulai merencanakan trip bersama.'; submitBtn.textContent='Daftar'; switchEl.innerHTML='Sudah punya akun? <a href="#" id="authToggle">Masuk</a>'; if(nameField) nameField.style.display=''; }
-    var t=document.getElementById('authToggle'); if(t) t.onclick=function(e){e.preventDefault();mode=mode==='login'?'signup':'login';renderMode();};
-  }
-
-  form.onsubmit=async function(e){
-    e.preventDefault(); errEl.textContent=''; noteEl.style.display='none';
-    var email=document.getElementById('authEmail').value.trim();
-    var pw=document.getElementById('authPassword').value;
-    if(!email||pw.length<6){ errEl.textContent='Email valid dan password minimal 6 karakter.'; return; }
-    submitBtn.disabled=true;
-    if(mode==='login'){
-      var r=await API.signInWithEmail(email,pw);
-      if(r.error){ errEl.textContent=humanErr(r.error); submitBtn.disabled=false; return; }
-      // SIGNED_IN handled by onAuthChange
-    } else {
-      var s=await API.signUpWithEmail(email,pw);
-      if(s.error){ errEl.textContent=humanErr(s.error); submitBtn.disabled=false; return; }
-      // Capture display name at registration (so it's available when creating/joining trips)
-      var nm=document.getElementById('authName').value.trim();
-      if(nm && typeof saveName==='function'){ saveName(nm.slice(0,40)); if(colState) colState.name=nm.slice(0,40); }
-      // If a session is returned, user is signed in (mailer_autoconfirm). Otherwise needs email confirmation.
-      if(!s.data || !s.data.session){
-        noteEl.style.display='block';
-        noteEl.textContent='Pendaftaran berhasil. Silakan cek email '+email+' untuk konfirmasi, lalu masuk. (Konfirmasi email wajib di proyek ini.)';
-        submitBtn.disabled=false; closeAuth(); return;
-      }
-      // else SIGNED_IN handled by onAuthChange
-    }
-    submitBtn.disabled=false;
-  };
-  document.getElementById('authCancel').onclick=closeAuth;
-
-  // Show/hide password (login + daftar)
-  var showPwEl=document.getElementById('showPw');
-  if(showPwEl) showPwEl.onchange=function(){ document.getElementById('authPassword').type = showPwEl.checked ? 'text' : 'password'; };
-  // reset toggle whenever the auth modal opens (don't stay revealed across modes)
-  var _openAuth=openAuth;
-  openAuth=function(m){ var el=document.getElementById('showPw'); if(el){ el.checked=false; var p=document.getElementById('authPassword'); if(p) p.type='password'; } _openAuth(m); };
-
-  document.getElementById('logoutBtn').onclick=async function(){
-    await API.signOut(); // onAuthChange SIGNED_OUT will update UI
-  };
-
-  // M3.5: Google OAuth button (adds a login path; email/password stays).
-  // On success Supabase redirects to redirectTo; the returned session fires
-  // SIGNED_IN through onAuthChange, which runs onSessionReady + soft-converts
-  // a guest (?gt=) viewer into a member via redeem_invitation.
-  var googleBtn=document.getElementById('googleBtn');
-  if(googleBtn) googleBtn.onclick=async function(){
-    errEl.textContent='';
-    googleBtn.disabled=true;
-    var r=await API.signInWithOAuth('google');
-    if(r.error){ errEl.textContent=humanErr(r.error); googleBtn.disabled=false; return; }
-    // If a session is returned inline (no redirect, e.g. popup flows), handle it:
-    if(r.data&&r.data.session){ /* onAuthChange will fire */ }
-    // Otherwise the browser is redirecting to Google now — leave button disabled.
-  };
-
-  function humanErr(e){
-    var m=(e&&e.message)||'';
-    if(/invalid login/i.test(m)||/email or password/i.test(m)) return 'Email atau password salah.';
-    if(/user already registered/i.test(m)) return 'Email sudah terdaftar. Coba masuk.';
-    if(/password should be/i.test(m)) return 'Password minimal 6 karakter.';
-    if(/unable to validate email/i.test(m)) return 'Format email tidak valid.';
-    return m||'Terjadi kesalahan. Coba lagi.';
-  }
-
-  // Auth-state listener (acceptance #5/#6)
-  API.onAuthChange(function(event,session){
-    var uid=session&&session.user?session.user.id:null;
-    if(event==='SIGNED_IN'||(session&&uid)){
-      colState.uid=uid;
-      document.getElementById('logoutBtn').style.display='';
-      // M3.5: capture OAuth display name (Google/Apple) so it's available
-      // for trips/members without re-prompting. Falls back to existing.
-      var metaName=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.full_name||session.user.user_metadata&&session.user.user_metadata.name;
-      if(metaName&&typeof saveName==='function'){ saveName(String(metaName).slice(0,40)); colState.name=String(metaName).slice(0,40); }
-      // M3.5: soft-convert a guest (?gt=) viewer into a real member of the
-      // trip they were viewing. redeem_invitation accepts authenticated users.
-      if(pendingGuestToken){
-        (async()=>{ 
-          try{ 
-            const token = pendingGuestToken;
-            const nm = (colState.name)||''; 
-            const r = await API.redeemInvitation(token, nm || null);
-            pendingGuestToken = null;
-            const groupId = r && r.data ? r.data.id : null;
-            if(groupId){
-              openGroup(groupId, false);
-            } else {
-              console.warn('soft-convert: no group_id in response', r);
-            }
-          }catch(e){ 
-            console.warn('soft-convert failed', e); 
-          } 
-        })();
-      }
-      closeAuth();
-      onSessionReady(uid); // M2: backfill local trips to Supabase (idempotent, non-blocking)
-      if(pendingAction){ var a=pendingAction; pendingAction=null; if(typeof a==='function') a(); else if(a==='makeGroup') makeGroupFromTrip(); }
-    } else if(event==='SIGNED_OUT'||(!session)){
-      colState.uid=null;
-      document.getElementById('logoutBtn').style.display='none';
-      // signed-out: update UI in place (no navigation — avoids reload loop)
-      // Guests (?gt=) must NOT be forced into the login modal — they view read-only.
-      // Also check pendingGuestToken: guestSession may not be set yet (async openGuestTrip)
-      if(isGuest() || pendingGuestToken){ return; }
-      renderHome(); show('homeView'); openAuth('login');
-    }
-  });
-
-  // gate primary group-creation entry
-  var mg=document.getElementById('makeGroupBtn');
-  if(mg) mg.onclick=async function(){ var s=await API.getSession(); if(!(s.data&&s.data.session)){ pendingAction='makeGroup'; openAuth('login'); return; } makeGroupFromTrip(); };
-
-  // clear error message for invalid/expired group links (startup catch already shows one)
-})();
-</script>
-</body>
-<div id="debugEl" style="position:fixed;left:0;bottom:0;right:0;background:#1119;color:#ff6;padding:6px 8px;font:11px/1.4 monospace;z-index:99999;white-space:pre-wrap;display:none"></div>
-</html>

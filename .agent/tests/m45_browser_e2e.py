@@ -774,30 +774,51 @@ async def test_s3z_guest_flow(page_guest, owner_jwt, group_id):
             joined_view_visible = await page_guest.is_visible('#guestJoinedView', timeout=1000)
             if joined_view_visible:
                 break
-        # DOM snapshot is authoritative; is_visible can lag during re-render
-        dom_state = await page_guest.evaluate('''() => ({
-            guestJoinedView: document.getElementById('guestJoinedView')?.style.display,
-            guestPreview: document.getElementById('guestPreview')?.style.display,
-            guestNameForm: document.getElementById('guestNameForm')?.style.display,
-            guestItineraryList: !!document.getElementById('guestItineraryList'),
-            participantList: !!document.getElementById('guestParticipantList'),
-            locationActions: !!document.getElementById('guestLocationActions'),
-            upgradeBtn: !!document.getElementById('guestUpgradeBtn'),
-        })''')
-        dom_joined = dom_state.get('guestJoinedView') in ('', 'block')
+        # DOM snapshot is authoritative; is_visible can lag during re-render.
+        # Wait for the joined view to actually be revealed before snapshotting,
+        # so we never sample mid-transition.
+        try:
+            await page_guest.wait_for_function(
+                """() => {
+                    const j = document.getElementById('guestJoinedView');
+                    return !!j && getComputedStyle(j).display !== 'none';
+                }""",
+                timeout=15000,
+            )
+        except Exception:
+            pass
+        dom_state = await page_guest.evaluate('''() => {
+            const disp = id => {
+                const el = document.getElementById(id);
+                return el ? getComputedStyle(el).display : null;
+            };
+            return {
+                guestJoinedView: disp('guestJoinedView'),
+                guestPreview: disp('guestPreview'),
+                guestNameForm: disp('guestNameForm'),
+                guestItineraryList: !!document.getElementById('guestItineraryList'),
+                participantList: !!document.getElementById('guestParticipantList'),
+                locationActions: !!document.getElementById('guestLocationActions'),
+                upgradeBtn: !!document.getElementById('guestUpgradeBtn'),
+            };
+        }''')
+        dom_joined = dom_state.get('guestJoinedView') not in (None, 'none')
         dom_preview_hidden = dom_state.get('guestPreview') == 'none'
         dom_name_hidden = dom_state.get('guestNameForm') == 'none'
         dom_itinerary = dom_state.get('guestItineraryList')
-        dom_participants = dom_state.get('guestParticipantList')
+        dom_participants = dom_state.get('participantList')
         dom_location = dom_state.get('locationActions')
         dom_upgrade = dom_state.get('upgradeBtn')
         joined_ok = dom_joined and dom_preview_hidden and dom_name_hidden and dom_itinerary and dom_participants and dom_location and dom_upgrade
+        # NOTE: console/network errors are intentionally NOT part of this assertion.
+        # An anonymous guest legitimately gets 403 on `/rest/v1/trips` (personal-trip
+        # sync blocked by RLS) — that is correct security behaviour, not a join failure.
         err_note = ""
         if console_errors:
-            err_note = " | console: " + "; ".join(console_errors[:3])
+            err_note = " | console(non-fatal): " + "; ".join(console_errors[:3])
         record("S3z:7b Anonymous join → full itinerary visible",
                joined_ok,
-               f"joined={joined_view_visible}, preview={dom_preview_hidden}, name={dom_name_hidden}, itinerary={dom_itinerary}, participants={dom_participants}, location={dom_location}, upgrade={dom_upgrade}{err_note}")
+               f"joined={dom_joined}, preview_hidden={dom_preview_hidden}, name_hidden={dom_name_hidden}, itinerary={dom_itinerary}, participants={dom_participants}, location={dom_location}, upgrade={dom_upgrade}{err_note}")
     except Exception as e:
         record("S3z:7b Anonymous join → full itinerary visible", False, "ERR: " + str(e)[:120])
 

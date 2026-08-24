@@ -542,6 +542,34 @@
         return client.rpc('trip_permissions', { p_group_id: groupId });
       });
     },
+    // Fase C: Group Wishlist
+    listWishlists: function (groupId) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('list_wishlist_items', { p_group_id: groupId });
+      });
+    },
+    addWishlistItem: function (groupId, title, link, note) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('add_wishlist_item', {
+          p_group_id: groupId,
+          p_title: title,
+          p_link: link || null,
+          p_note: note || null
+        });
+      });
+    },
+    convertWishlistToItinerary: function (wishlistId, date, time) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('convert_wishlist_to_itinerary', {
+          p_wishlist_id: wishlistId,
+          p_date: date,
+          p_time: time || null
+        });
+      });
+    },
     // M3 Phase 1: owner-only member management
     removeMember: function (groupId, userId) {
       return getClient().then(function (client) {
