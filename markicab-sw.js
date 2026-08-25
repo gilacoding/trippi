@@ -1,7 +1,7 @@
 // MarkiCab service worker — hardened cache
 // P1 fix: versioned cache + stale-cache cleanup on activate +
 //        network-first for API JS so backend/trippi-api.js is never permanently cached.
-const CACHE_VERSION = 'markicab-personal-v1';
+const CACHE_VERSION = 'markicab-personal-v2';
 const CORE_FILES = [
   './index.html',
   './trip-planner.html',
@@ -16,6 +16,11 @@ const CORE_FILES = [
 // Files that must always reflect the latest deployed version (never stale-cached).
 // HTML shells are network-first so deploys propagate immediately (offline falls back to cache).
 const NETWORK_FIRST = [
+  // Bare directory paths ('/', '/sub/') resolve to an HTML shell but matched no
+  // pattern below, so they were served cache-first — that is the real cause of
+  // "I have to press F5 before I see the new version". Treat any navigation
+  // request as network-first.
+  /(^|\/)$/,
   /trip-planner\.html(\?|$)/,
   /index\.html(\?|$)/,
   /\/backend\/trippi-api\.js(\?|$)/,
@@ -47,7 +52,10 @@ self.addEventListener('fetch', event => {
   // Only handle same-origin GETs; let cross-origin (Supabase CDN, API) pass through.
   if (url.origin !== self.location.origin) return;
 
-  const isNetworkFirst = NETWORK_FIRST.some(re => re.test(url.pathname));
+  // A navigation (address bar, link, PWA launch) must always try the network,
+  // whatever its path shape.
+  const isNetworkFirst = event.request.mode === 'navigate'
+    || NETWORK_FIRST.some(re => re.test(url.pathname));
 
   if (isNetworkFirst) {
     // Network-first: always try the server; fall back to cache only if offline.
