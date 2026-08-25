@@ -1388,11 +1388,23 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(form) form.onsubmit = async function(ev){
       ev.preventDefault();
       if(!colState.group || !colState.group.id) return;
+      // Double-click / double submit guard: without this the same wishlist item
+      // was inserted twice before the first request came back.
+      if(colState._wishlistSubmitting) return;
       const title = (form.querySelector('[name="wishlistTitle"]').value || '').trim();
       if(!title){ alert('Judul wishlist wajib diisi.'); return; }
       const link = (form.querySelector('[name="wishlistLink"]').value || '').trim() || null;
       const note = (form.querySelector('[name="wishlistNote"]').value || '').trim() || null;
-      const res = await API.addWishlistItem(colState.group.id, title, link, note);
+      colState._wishlistSubmitting = true;
+      const sendBtn = form.querySelector('button[type="submit"]');
+      if(sendBtn) sendBtn.disabled = true;
+      let res;
+      try{
+        res = await API.addWishlistItem(colState.group.id, title, link, note);
+      } finally {
+        colState._wishlistSubmitting = false;
+        if(sendBtn) sendBtn.disabled = false;
+      }
       if(res && res.error){ alert('Gagal menambah wishlist: ' + (res.error.message || res.error)); return; }
       form.reset();
       const panel = document.getElementById('guestWishlistPanel');
