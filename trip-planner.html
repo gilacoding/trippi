@@ -240,9 +240,9 @@
         <!-- Journey Mode control + consent banner + crew map (rendered by renderJourneyView) -->
       </div>
     </div>
-<section class="members"><div class="section-head"><div><h2>Anggota <span class="count" id="groupMemberCount"></span></h2></div></div>
-      <div class="to-go-list" id="memberList"></div>
-    </section>
+<!-- P2: the separate "Anggota" section was removed. Crew (rendered inside
+         Journey Mode by renderCrewStatusList) is the single member roster for
+         creator and guest alike, including creator-only management controls. -->
   </section>
 
 </main>
@@ -358,6 +358,7 @@
       wireGuestWishlist();
       wireGuestLeave();
       await renderGuestWishlist();
+      await initGuestRealtime();
       await renderGuestLocationActions(t);
       if(previewText) previewText.innerHTML = '<div class="empty">Kamu ikut sebagai <b>' + esc(nameOfOrNull(colState.uid) || colState.name || 'peserta') + '</b>. Berikut itinerary trip ini.</div>';
     } else {
@@ -783,6 +784,11 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     ch.on('postgres_changes',{event:'*',schema:'public',table:'shared_items',filter:'group_id=eq.'+id},()=>loadShared(id))
       .on('postgres_changes',{event:'*',schema:'public',table:'group_members',filter:'group_id=eq.'+id},()=>loadMembers(id))
       .on('postgres_changes',{event:'*',schema:'public',table:'group_expenses',filter:'group_id=eq.'+id},()=>loadGroupExpenses(id))
+      // P2: wishlist_items was missing here, so a guest's new wishlist idea only
+      // showed up for the creator after a manual refresh.
+      .on('postgres_changes',{event:'*',schema:'public',table:'wishlist_items',filter:'group_id=eq.'+id},()=>{ if(document.getElementById('groupWishList')) loadWishlists(id); })
+      // P2: journey start/end by anyone must re-derive this side's journey UI too.
+      .on('postgres_changes',{event:'*',schema:'public',table:'journey_sessions',filter:'group_id=eq.'+id},()=>{ if(document.getElementById('journeyPanel')) renderJourneyView(); })
       .on('postgres_changes',{event:'*',schema:'public',table:'member_locations',filter:'group_id=eq.'+id},()=>{ if(colState.journey && colState.journey.status === 'active') loadCrewMap(); });
     const st=await new Promise((resolve)=>{
       const timer=setTimeout(()=>resolve('TIMED_OUT'),8000);
@@ -817,10 +823,15 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   const ad=colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'';
   colState.items=(data||[]).map(i=>i.date?i:{...i,date:ad});renderGroupPlanner();}
   async function loadMembers(id){
+    // #memberList belonged to the removed "Anggota" section — guard the element.
     const ml = document.getElementById('memberList');
-    showLoading(ml, 'Memuat anggota...');
+    if(ml) showLoading(ml, 'Memuat anggota...');
     const { data }=await API.getMembers(id);
-    colState.members=data||[];colState.nameMap={};data.forEach(m=>colState.nameMap[m.user_id]=m.display_name);
+    colState.members = data || [];
+    // Merge, do NOT reset: nameMap also carries names seeded from other sources
+    // (crew rows, guest payload). Wiping it made known people fall back to a
+    // placeholder until the next roster fetch.
+    seedIdentities(colState.members);
     renderGroupPlanner();
   }
   async function loadGroupExpenses(id){const { data }=await API.getExpenses(id);colState.expenses=data||[];renderGroupExpenses();}
@@ -964,7 +975,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     $('groupName').textContent=g.name;
     $('groupMeta').textContent=`${(g.destination||'')?g.destination+' · ':''}${g.start_date?dateText(String(g.start_date)):'?'}${g.end_date?' — '+dateText(String(g.end_date)):''} · Pembuat ${creatorName()}`;
     $('groupStats').innerHTML=`<span>${colState.items.length} agenda</span><span>${dates.length} hari</span><span>${colState.members.length} anggota</span><span>Est. ${money(colState.items.reduce((s,i)=>s+(Number(i.budget)||0),0))}</span>`;
-    $('groupMemberCount').textContent=colState.members.length?colState.members.length+' orang':'';
+    // #groupMemberCount belonged to the removed "Anggota" section; Crew now owns
+    // the roster, so only update it if some layout still provides the element.
+    const _gmc=document.getElementById('groupMemberCount');
+    if(_gmc) _gmc.textContent=colState.members.length?colState.members.length+' orang':'';
     $('groupDayTabs').innerHTML=dates.map((d,idx)=>`<button class="day-tab ${d===colState.activeDate?'active':''}" data-gday="${d}">Hari ${idx+1}<br><span style="font-weight:500;opacity:.8">${dateText(d).replace(/ \d{4}/,'')}</span></button>`).join('');
     document.querySelectorAll('[data-gday]').forEach(b=>b.onclick=()=>{colState.activeDate=b.dataset.gday;renderGroupPlanner();});
     const dayItems=colState.items.filter(i=>i.date===colState.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
@@ -977,6 +991,13 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     }
     renderMembers();
     populatePayerSelect();
+    // P2: Crew is the only roster, so make sure it exists as soon as the planner
+    // renders — not just after the Journey tab has been opened once.
+    if(!document.getElementById('crewStatusList') && typeof renderJourneyContent === 'function'){
+      try{ renderJourneyContent(); }
+      catch(e){ console.warn('[MarkiCab] crew prerender skipped:', e && e.message); }
+    }
+    renderCrewStatusList();
   }
   function renderGroupExpenses(){
     const dayExp=colState.expenses.filter(i=>i.date===colState.activeDate);
@@ -1108,7 +1129,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // journey is active — you do not have to share your own location to watch
     // the crew. The map only renders when real coordinates exist (loadCrewMap
     // decides); otherwise a clear empty state shows instead of a blank box.
-    html.push('<div id="crewMapContainer" style="display:' + (active ? 'block' : 'none') + ';margin-top:16px"><div class="section-head"><h2>Journey Mode</h2><span class="count" id="crewStatus"></span></div><div id="crewMap" style="display:none;width:100%;height:280px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden"></div><div class="empty" id="crewEmpty" style="margin-top:12px">Belum ada lokasi yang dibagikan.</div><div class="section-head" style="margin-top:14px"><h3 style="font-size:13px">Crew</h3></div><div class="to-go-list" id="crewStatusList"></div></div>');
+    // P2: Crew is the single member roster, so it must stay visible even before a
+    // journey starts. Only the map + consent banner depend on an active journey.
+    html.push('<div id="crewMapContainer" style="margin-top:16px"><div class="section-head"><h2>Journey Mode</h2><span class="count" id="crewStatus"></span></div><div id="crewMap" style="display:none;width:100%;height:280px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden"></div><div class="empty" id="crewEmpty" style="margin-top:12px">Belum ada lokasi yang dibagikan.</div><div class="section-head" style="margin-top:14px"><h3 style="font-size:13px">Crew</h3></div><div class="to-go-list" id="crewStatusList"></div></div>');
 
     const jc = document.getElementById('journeyContent');
     if(jc) jc.innerHTML = html.join('');
@@ -1343,6 +1366,99 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     }
   }
 
+  // ── P2: guest realtime ────────────────────────────────────
+  // The guest view previously had NO subscription at all (verified: the guest
+  // page reported zero Supabase channels), so a creator's change only appeared
+  // after a manual refresh. A joined guest is a real group member, so it can
+  // subscribe to exactly the same tables as the member planner.
+  //
+  // Every handler re-fetches from the server and re-renders by full replace, so
+  // an event delivered twice, or an event racing the initial fetch, still yields
+  // one card per database row (idempotent by primary key).
+  async function initGuestRealtime(){
+    const sb = API._getSb && API._getSb();
+    if(!sb || !colState.group || !colState.group.id) return;
+    const gid = colState.group.id;
+
+    // Never stack subscriptions. sb.channel(topic) hands back an EXISTING channel
+    // when one is still registered, and calling .on() on an already-subscribed
+    // channel throws and duplicates handlers — so remove by topic, not just the
+    // reference we happen to hold.
+    const topic = 'guest:' + gid;
+    if(colState.guestChannel){
+      try{ await sb.removeChannel(colState.guestChannel); }
+      catch(e){ console.warn('[guest rt] removeChannel failed:', e && e.message); }
+      colState.guestChannel = null;
+    }
+    const stale = sb.getChannels().filter(function(x){
+      return x.topic === topic || x.topic === 'realtime:' + topic;
+    });
+    for(let i = 0; i < stale.length; i++){
+      try{ await sb.removeChannel(stale[i]); }
+      catch(e){ console.warn('[guest rt] stale removeChannel failed:', e && e.message); }
+    }
+
+    const refreshTrip = async () => {
+      if(!guestSession || !guestSession.token) return;
+      const { data, error } = await API.getGuestTrip(guestSession.token);
+      if(error || !data) return;
+      colState._guestTrip = data;
+      seedIdentities(data.members);
+      renderGuestItinerary(data);
+    };
+
+    const ch = sb.channel(topic);
+    ch.on('postgres_changes', {event:'*', schema:'public', table:'shared_items',
+        filter:'group_id=eq.' + gid}, refreshTrip)
+      .on('postgres_changes', {event:'*', schema:'public', table:'group_expenses',
+        filter:'group_id=eq.' + gid}, refreshTrip)
+      .on('postgres_changes', {event:'*', schema:'public', table:'wishlist_items',
+        filter:'group_id=eq.' + gid}, () => renderGuestWishlist())
+      .on('postgres_changes', {event:'*', schema:'public', table:'group_members',
+        filter:'group_id=eq.' + gid}, async () => {
+          const mem = await API.getMembers(gid);
+          if(mem && !mem.error && Array.isArray(mem.data)){
+            colState.members = mem.data;
+            seedIdentities(mem.data);
+          }
+          renderCrewStatusList();
+        })
+      .on('postgres_changes', {event:'*', schema:'public', table:'member_locations',
+        filter:'group_id=eq.' + gid}, () => {
+          if(colState.journey && colState.journey.status === 'active') loadCrewMap();
+        })
+      .on('postgres_changes', {event:'*', schema:'public', table:'journey_sessions',
+        filter:'group_id=eq.' + gid}, () => {
+          // Journey started/ended by the creator: re-derive the whole journey UI.
+          if(colState._guestTrip) renderGuestLocationActions(colState._guestTrip);
+        });
+
+    ch.subscribe(function(status){
+      console.log('[MarkiCab] realtime guest:' + gid + ' status:', status);
+    });
+    colState.guestChannel = ch;
+
+    // Fallback poll, same idea as the member planner: realtime is primary, this
+    // only covers a dropped socket. Cleared by teardownGuestSession().
+    if(colState.guestPoll) clearInterval(colState.guestPoll);
+    colState.guestPoll = setInterval(function(){
+      if(guestSession && colState.group && colState.group.id === gid){
+        refreshTrip();
+        renderGuestWishlist();
+      }
+    }, 8000);
+  }
+
+  async function teardownGuestSession(){
+    const sb = API._getSb && API._getSb();
+    if(colState.guestChannel && sb){
+      try{ await sb.removeChannel(colState.guestChannel); }
+      catch(e){ console.warn('[guest rt] teardown failed:', e && e.message); }
+    }
+    colState.guestChannel = null;
+    if(colState.guestPoll){ clearInterval(colState.guestPoll); colState.guestPoll = null; }
+  }
+
   // ── Guest Group Wishlist (view + add; convert stays creator-only) ──
   async function renderGuestWishlist(){
     const el = document.getElementById('guestWishList');
@@ -1436,6 +1552,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         }
         stopLocationWatch();
         stopCrewRefresh();
+        await teardownGuestSession();
         guestSession = null;
         colState.group = null; colState.members = []; colState.wishlists = [];
         colState.crewLocations = []; colState.journey = null; colState.locationConsent = null;
@@ -1586,19 +1703,51 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const el = document.getElementById('crewStatusList');
     if(!el) return;
     const rows = crewRows();
-    // Full replace (not append) — this is what keeps refresh idempotent.
+    const canManage = canManageMembers();
+
+    // Full replace keeps this idempotent: rows are keyed by user_id inside
+    // crewRows(), so a repeated realtime event cannot append a second row.
+    // Layout: name on its own line, then "role · status" as metadata — a role or
+    // status word is never rendered as the person's name.
     el.innerHTML = rows.length ? rows.map(function(r){
-      return '<article class="to-go-item"><div class="to-go-copy">' +
-        '<div class="to-go-name">' + r.icon + ' ' + esc(r.name) + '</div>' +
-        '<div class="muted" style="font-size:11px">' + esc(r.role) + '</div>' +
-        '</div><div class="to-go-actions"><span class="muted" style="font-size:12px">' +
-        esc(r.status) + '</span></div></article>';
+      const meta = esc(r.role) + ' · ' + esc(r.status);
+      const removable = canManage && r.uid !== colState.uid && r.role !== 'Trip Creator';
+      return '<article class="to-go-item" data-uid="' + esc(r.uid) + '">' +
+        '<div class="to-go-copy">' +
+          '<div class="to-go-name">' + r.icon + ' ' + esc(r.name) + '</div>' +
+          '<div class="muted" style="font-size:11px">' + meta + '</div>' +
+        '</div>' +
+        (removable
+          ? '<div class="to-go-actions"><button class="btn secondary small remove-member" data-rm="' + esc(r.uid) + '" aria-label="Keluarkan dari trip">×</button></div>'
+          : '') +
+        '</article>';
     }).join('') : '<div class="empty">Belum ada anggota.</div>';
+
+    // Creator-only management lives inside Crew now (no second roster).
+    if(canManage){
+      el.querySelectorAll('[data-rm]').forEach(function(b){
+        b.onclick = function(){ removeMemberFromCrew(b.dataset.rm); };
+      });
+    }
+  }
+
+  async function removeMemberFromCrew(uid){
+    if(!colState.group || !uid) return;
+    const name = nameOf(uid);
+    if(!confirm('Keluarkan ' + name + ' dari trip ini?')) return;
+    const res = await API.removeMember(colState.group.id, uid);
+    if(res && res.error){ alert('Gagal: ' + (res.error.message || res.error)); return; }
+    await loadMembers(colState.group.id);
+    renderCrewStatusList();
   }
 
   function hideCrewMap(){
-    var c = document.getElementById('crewMapContainer');
-    if(c) c.style.display = 'none';
+    // Hide the map surface only: the Crew roster inside this container is the
+    // single member list and must stay visible when a journey is not running.
+    var m = document.getElementById('crewMap');
+    if(m){ m.style.display = 'none'; m.innerHTML = ''; }
+    var e = document.getElementById('crewEmpty');
+    if(e){ e.style.display = 'block'; e.textContent = 'Belum ada lokasi yang dibagikan.'; }
   }
 
   function updateCrewStatus(){
@@ -1636,7 +1785,20 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       colState.locationChannel = null;
     }
     var gid = colState.group.id;
-    var ch = sb.channel('member_locations:' + gid);
+    // P2: sb.channel(name) returns the EXISTING channel when one with that topic
+    // is still registered. renderJourneyView can run several times (tab switch,
+    // realtime event, consent change), and calling .on() on an already-subscribed
+    // channel throws "cannot add postgres_changes callbacks after subscribe()"
+    // and stacks duplicate handlers. Drop any stale channel with this topic first.
+    var topic = 'member_locations:' + gid;
+    var existing = sb.getChannels().filter(function(x){
+      return x.topic === topic || x.topic === 'realtime:' + topic;
+    });
+    for(var i = 0; i < existing.length; i++){
+      try{ await sb.removeChannel(existing[i]); }
+      catch(e){ console.warn('[M4.5.6] removeChannel failed:', e && e.message); }
+    }
+    var ch = sb.channel(topic);
     ch.on('postgres_changes', {
       event: '*',
       schema: 'public',
@@ -1680,8 +1842,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     localStorage.setItem('trippi_consent_' + colState.group.id + '_' + (colState.uid || 'anon'), v);
   }
 
-  function renderMembers(){ 
-    $('memberList').innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Trip Creator</span>':''}</div><div class="link-field"></div></div>${m.user_id!==colState.uid&&canManageMembers()?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
+  function renderMembers(){
+    // P2: there is no second roster any more. Keep the function as the single
+    // entry point callers already use, but route it to the Crew renderer so
+    // creator and guest share one component and one identity source.
+    renderCrewStatusList();
+    const legacy = document.getElementById('memberList');
+    if(!legacy) return;
+    legacy.innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Trip Creator</span>':''}</div><div class="link-field"></div></div>${m.user_id!==colState.uid&&canManageMembers()?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
     document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>removeMemberFromTrip(b.dataset.rm));
   }
   async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}

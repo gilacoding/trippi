@@ -28,7 +28,9 @@ async def probe(page):
             groupChannels: chans.filter(t => t.indexOf('group:') !== -1),
             locChannels: chans.filter(t => t.indexOf('member_locations') !== -1 || t.indexOf('journey') !== -1),
             groupName: (document.getElementById('groupName') || {}).textContent || '',
-            memberCount: document.querySelectorAll('#memberList article').length,
+            // P2: the separate '#memberList' (Anggota) section was removed on purpose;
+            // Crew is now the single roster. Count from colState, which both render.
+            memberCount: (colState.members || []).length,
             agendaCount: document.querySelectorAll('#sharedList .agenda-item, #sharedList article').length,
         };
     }""")

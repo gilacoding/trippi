@@ -43,13 +43,24 @@ async def probe(page):
             channels: chans,
             groupChannels: chans.filter(t => t.indexOf('group:') !== -1),
             groupName: (document.getElementById('groupName') || {}).textContent || '',
-            memberCount: document.querySelectorAll('#memberList article').length,
+            // P2: '#memberList' (Anggota) was removed; Crew is the single roster.
+            memberCount: (colState.members || []).length,
             agendaCount: document.querySelectorAll('#groupItineraryList article').length,
             expenseCount: exp ? exp.querySelectorAll('.expense-item').length : 0,
             hasDeleteButtons: !!document.querySelector('#groupItineraryList .delete-item'),
             hasEditTime: !!document.querySelector('#groupItineraryList [data-gtime]'),
             hasExpenseDelete: !!document.querySelector('#groupExpenseList .expense-delete'),
-            roleBadge: (document.querySelector('#memberList .role-badge') || {}).textContent || '',
+            // P2: role now lives as metadata on the Crew row ('Trip Creator · Online'),
+            // and the old '#memberList' roster was removed.
+            roleBadge: (function(){
+                var rows = Array.from(document.querySelectorAll('#crewStatusList .to-go-item'));
+                for (var i = 0; i < rows.length; i++) {
+                    var t = rows[i].innerText || '';
+                    if (t.indexOf('Trip Creator') !== -1) return 'Trip Creator';
+                }
+                var legacy = document.querySelector('#memberList .role-badge');
+                return legacy ? legacy.textContent : '';
+            })(),
             kamuCount: [...document.querySelectorAll('#memberList .link-field')].filter(el => el.textContent.includes('kamu')).length,
         };
     }""")

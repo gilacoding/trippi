@@ -90,7 +90,19 @@ async def main():
         })""")
         record("owner: Start Journey available", pre["startBtn"], pre)
         record("owner: no consent prompt before journey", not pre["consent"])
-        record("owner: crew panel hidden before journey", not pre["crewVisible"])
+        # P2 supersedes the original Fase D expectation: Crew is now the ONE member
+        # roster, so the panel stays visible before a journey starts. What must be
+        # absent beforehand is the MAP surface and the consent prompt, both asserted
+        # here and below.
+        pre_map = await op.evaluate(
+            """() => {
+                const m = document.getElementById('crewMap');
+                return { mapHidden: !m || getComputedStyle(m).display === 'none',
+                         crewRows: document.querySelectorAll('#crewStatusList .to-go-item').length };
+            }"""
+        )
+        record("owner: no map surface before journey", pre_map["mapHidden"], pre_map)
+        record("owner: Crew roster available before journey", pre_map["crewRows"] > 0, pre_map)
 
         # ---------- creator starts the journey ----------
         await op.evaluate("() => document.getElementById('startJourneyBtn').click()")
