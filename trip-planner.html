@@ -781,26 +781,37 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     show('groupView');
     $('groupName').textContent=g.name;
     const ch=API._getSb().channel('group:'+id);
-    ch.on('postgres_changes',{event:'*',schema:'public',table:'shared_items',filter:'group_id=eq.'+id},()=>loadShared(id))
-      .on('postgres_changes',{event:'*',schema:'public',table:'group_members',filter:'group_id=eq.'+id},()=>loadMembers(id))
-      .on('postgres_changes',{event:'*',schema:'public',table:'group_expenses',filter:'group_id=eq.'+id},()=>loadGroupExpenses(id))
-      // P2: wishlist_items was missing here, so a guest's new wishlist idea only
-      // showed up for the creator after a manual refresh.
-      .on('postgres_changes',{event:'*',schema:'public',table:'wishlist_items',filter:'group_id=eq.'+id},()=>{ if(document.getElementById('groupWishList')) loadWishlists(id); })
-      // P2: journey start/end by anyone must re-derive this side's journey UI too.
+    // P0.5: realtime is an INVALIDATION SIGNAL, not a data channel. No handler
+    // trusts its payload or patches a single row; each one just asks for a fresh
+    // authoritative snapshot, so a missed/duplicated/late event cannot corrupt state.
+    const invalidate = (why) => () => reconcileTrip('realtime:' + why);
+    ch.on('postgres_changes',{event:'*',schema:'public',table:'shared_items',filter:'group_id=eq.'+id}, invalidate('shared_items'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'group_members',filter:'group_id=eq.'+id}, invalidate('group_members'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'group_expenses',filter:'group_id=eq.'+id}, invalidate('group_expenses'))
+      .on('postgres_changes',{event:'*',schema:'public',table:'wishlist_items',filter:'group_id=eq.'+id}, invalidate('wishlist_items'))
+      // Journey start/end changes which surface is valid, so re-derive it too.
       .on('postgres_changes',{event:'*',schema:'public',table:'journey_sessions',filter:'group_id=eq.'+id},()=>{ if(document.getElementById('journeyPanel')) renderJourneyView(); })
       .on('postgres_changes',{event:'*',schema:'public',table:'member_locations',filter:'group_id=eq.'+id},()=>{ if(colState.journey && colState.journey.status === 'active') loadCrewMap(); });
     const st=await new Promise((resolve)=>{
       const timer=setTimeout(()=>resolve('TIMED_OUT'),8000);
       const unsub=ch.subscribe((status)=>{
-        if(status==='SUBSCRIBED'){clearTimeout(timer);resolve('SUBSCRIBED')}
+        if(status==='SUBSCRIBED'){
+          clearTimeout(timer);
+          // Every (re)subscribe reconciles: while the socket was down we received
+          // nothing, so the snapshot is the only way back to a correct state.
+          if(colState._subscribedOnce) reconcileTrip('resubscribe');
+          colState._subscribedOnce = true;
+          resolve('SUBSCRIBED');
+        }
         else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)){clearTimeout(timer);resolve(status)}
       });
     });
     console.log('[MarkiCab] realtime group:'+id+' status:',st);
     colState.channel=ch;
     if(colState.poll)clearInterval(colState.poll);
-    colState.poll=setInterval(()=>{if(colState.group&&colState.group.id===id){loadShared(id);loadMembers(id);loadGroupExpenses(id);}},3000);
+    // Safety net: same reconciliation path, not a parallel set of fetches.
+    colState.poll=setInterval(()=>{ if(colState.group&&colState.group.id===id) reconcileTrip('poll'); },5000);
+    installSyncRecovery();
     if(fresh&&trip&&trip.items){
       const agenda=trip.items.filter(i=>i.title&&i.title.trim());
       if(agenda.length){
@@ -834,6 +845,96 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     seedIdentities(colState.members);
     renderGroupPlanner();
   }
+  // ══════════════════════════════════════════════════════════
+  // P0.5 — Trip Sync Reliability: ONE reconciliation contract.
+  //
+  // Rule: the database is the source of truth. The client never patches state
+  // from an event payload; every path converges through the SAME function, which
+  // fetches an authoritative snapshot and replaces state wholesale:
+  //
+  //     realtime event ─┐
+  //     poll ───────────┤
+  //     window focus ───┼──► reconcileTrip() ──► fetch snapshot ──► replace ──► render
+  //     visibility ─────┤
+  //     reconnect ──────┘
+  //
+  // Realtime is treated as UNRELIABLE — it only speeds up convergence. If an
+  // event is missed, duplicated, late, or the socket dies, poll/focus/reconnect
+  // still reach the same state. F5 is never required.
+  //
+  // Idempotent by construction: state is replaced by the snapshot and rendered by
+  // full replace, keyed by primary key, so a duplicate trigger cannot duplicate a row.
+  async function reconcileTrip(reason){
+    const g = colState.group;
+    if(!g || !g.id) return;
+    const id = g.id;
+
+    // Collapse concurrent triggers (event + poll + focus can fire together).
+    if(colState._reconciling){ colState._reconcileAgain = true; return; }
+    colState._reconciling = true;
+    try{
+      do {
+        colState._reconcileAgain = false;
+
+        // One consistent snapshot of everything this view renders.
+        const [itemsRes, membersRes, expensesRes] = await Promise.all([
+          API.getItems(id),
+          API.getMembers(id),
+          API.getExpenses(id)
+        ]);
+
+        // A trip switch may have happened while we awaited — discard stale work.
+        if(!colState.group || colState.group.id !== id) return;
+
+        const ad = colState.activeDate
+          || daysBetween(String(g.start_date || ''), String(g.end_date || ''))[0] || '';
+
+        if(itemsRes && !itemsRes.error){
+          colState.items = (itemsRes.data || []).map(i => i.date ? i : Object.assign({}, i, {date: ad}));
+        }
+        if(membersRes && !membersRes.error){
+          colState.members = membersRes.data || [];
+          seedIdentities(colState.members);
+        }
+        if(expensesRes && !expensesRes.error){
+          colState.expenses = expensesRes.data || [];
+        }
+
+        renderGroupPlanner();
+        renderGroupExpenses();
+
+        if(document.getElementById('groupWishList')) await loadWishlists(id);
+        if(colState.journey && colState.journey.status === 'active') await loadCrewMap();
+      } while(colState._reconcileAgain);
+    } catch(e){
+      console.warn('[sync] reconcileTrip(' + reason + ') failed:', e && e.message);
+    } finally {
+      colState._reconciling = false;
+    }
+  }
+
+  // Recovery triggers that previously did nothing: coming back to a suspended
+  // tab, or regaining network/socket, must converge without a reload.
+  function installSyncRecovery(){
+    if(colState._syncRecoveryWired) return;
+    colState._syncRecoveryWired = true;
+
+    document.addEventListener('visibilitychange', function(){
+      if(!document.hidden) routeReconcile('visibility');
+    });
+    window.addEventListener('focus', function(){ routeReconcile('focus'); });
+    window.addEventListener('online', function(){ routeReconcile('online'); });
+  }
+
+  // Both surfaces (member planner and guest view) reconcile through one router.
+  function routeReconcile(reason){
+    if(colState.isGuest){
+      if(colState._guestTrip) reconcileGuestTrip(reason);
+      return;
+    }
+    if(colState.group && colState.group.id) reconcileTrip(reason);
+  }
+
   async function loadGroupExpenses(id){const { data }=await API.getExpenses(id);colState.expenses=data||[];renderGroupExpenses();}
   // ── Fase C: Group Wishlist ─────────────────────────────────
   async function loadWishlists(id){
@@ -1366,6 +1467,37 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     }
   }
 
+  // Guest counterpart of reconcileTrip: get_guest_trip IS the guest's snapshot.
+  async function reconcileGuestTrip(reason){
+    if(!guestSession || !guestSession.token) return;
+    if(colState._guestReconciling){ colState._guestReconcileAgain = true; return; }
+    colState._guestReconciling = true;
+    try{
+      do {
+        colState._guestReconcileAgain = false;
+        const { data, error } = await API.getGuestTrip(guestSession.token);
+        if(error || !data) return;
+        colState._guestTrip = data;
+        seedIdentities(data.members);
+        renderGuestItinerary(data);              // full replace, keyed by row
+        await renderGuestWishlist();
+        if(colState.group && colState.group.id){
+          const mem = await API.getMembers(colState.group.id);
+          if(mem && !mem.error && Array.isArray(mem.data) && mem.data.length){
+            colState.members = mem.data;
+            seedIdentities(mem.data);
+          }
+        }
+        renderCrewStatusList();
+        if(colState.journey && colState.journey.status === 'active') await loadCrewMap();
+      } while(colState._guestReconcileAgain);
+    } catch(e){
+      console.warn('[sync] reconcileGuestTrip(' + reason + ') failed:', e && e.message);
+    } finally {
+      colState._guestReconciling = false;
+    }
+  }
+
   // ── P2: guest realtime ────────────────────────────────────
   // The guest view previously had NO subscription at all (verified: the guest
   // page reported zero Supabase channels), so a creator's change only appeared
@@ -1398,31 +1530,18 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       catch(e){ console.warn('[guest rt] stale removeChannel failed:', e && e.message); }
     }
 
-    const refreshTrip = async () => {
-      if(!guestSession || !guestSession.token) return;
-      const { data, error } = await API.getGuestTrip(guestSession.token);
-      if(error || !data) return;
-      colState._guestTrip = data;
-      seedIdentities(data.members);
-      renderGuestItinerary(data);
-    };
+    // P0.5: identical contract to the member planner — events only invalidate.
+    const invalidate = (why) => () => reconcileGuestTrip('realtime:' + why);
 
     const ch = sb.channel(topic);
     ch.on('postgres_changes', {event:'*', schema:'public', table:'shared_items',
-        filter:'group_id=eq.' + gid}, refreshTrip)
+        filter:'group_id=eq.' + gid}, invalidate('shared_items'))
       .on('postgres_changes', {event:'*', schema:'public', table:'group_expenses',
-        filter:'group_id=eq.' + gid}, refreshTrip)
+        filter:'group_id=eq.' + gid}, invalidate('group_expenses'))
       .on('postgres_changes', {event:'*', schema:'public', table:'wishlist_items',
-        filter:'group_id=eq.' + gid}, () => renderGuestWishlist())
+        filter:'group_id=eq.' + gid}, invalidate('wishlist_items'))
       .on('postgres_changes', {event:'*', schema:'public', table:'group_members',
-        filter:'group_id=eq.' + gid}, async () => {
-          const mem = await API.getMembers(gid);
-          if(mem && !mem.error && Array.isArray(mem.data)){
-            colState.members = mem.data;
-            seedIdentities(mem.data);
-          }
-          renderCrewStatusList();
-        })
+        filter:'group_id=eq.' + gid}, invalidate('group_members'))
       .on('postgres_changes', {event:'*', schema:'public', table:'member_locations',
         filter:'group_id=eq.' + gid}, () => {
           if(colState.journey && colState.journey.status === 'active') loadCrewMap();
@@ -1435,18 +1554,22 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
     ch.subscribe(function(status){
       console.log('[MarkiCab] realtime guest:' + gid + ' status:', status);
+      if(status === 'SUBSCRIBED'){
+        // A resubscribe means we were deaf for a while — reconcile to catch up.
+        if(colState._guestSubscribedOnce) reconcileGuestTrip('resubscribe');
+        colState._guestSubscribedOnce = true;
+      }
     });
     colState.guestChannel = ch;
 
-    // Fallback poll, same idea as the member planner: realtime is primary, this
-    // only covers a dropped socket. Cleared by teardownGuestSession().
+    // Safety net + recovery, same single path.
     if(colState.guestPoll) clearInterval(colState.guestPoll);
     colState.guestPoll = setInterval(function(){
       if(guestSession && colState.group && colState.group.id === gid){
-        refreshTrip();
-        renderGuestWishlist();
+        reconcileGuestTrip('poll');
       }
-    }, 8000);
+    }, 5000);
+    installSyncRecovery();
   }
 
   async function teardownGuestSession(){
