@@ -259,7 +259,7 @@
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
   const API=window.TrippiAPI;
-  const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null,poll:null,locationChannel:null};
+  const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],nameMap:{},identities:{},activeDate:null,channel:null,poll:null,locationChannel:null};
   // Display name fallback chain: profile → metadata → localStorage → email prefix → Guest
   const loadName=()=>localStorage.getItem('trippi_display_name')||'';
   const saveName=n=>localStorage.setItem('trippi_display_name',n);
@@ -826,6 +826,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const permsRes=await API.getTripPermissions(id);
     colState.perms=(permsRes&&permsRes.data)||null;
     await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);
+    await loadIdentities(id);   // P0.7: canonical names before anything renders them
     if (document.getElementById('groupWishList')) { await loadWishlists(id); }
     renderGroupPlanner();
     applyPermsUI();
@@ -895,6 +896,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         if(membersRes && !membersRes.error){
           colState.members = membersRes.data || [];
           seedIdentities(colState.members);
+          await loadIdentities(id);   // P0.7: names can change without a row change
         }
         if(expensesRes && !expensesRes.error){
           colState.expenses = expensesRes.data || [];
@@ -1047,15 +1049,86 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     });
   }
 
+  // ── P0.7: placeholder blacklist (mirrors public.is_placeholder_name) ──
+  // A role word must never become a person's name. Kept in sync with the SQL
+  // function of the same purpose so client and server agree.
+  var PLACEHOLDER_NAMES = ['creator','owner','guest','testowner','member','anggota',
+                           'kamu','user','anonymous','tanpa nama','o','m','x'];
+  function isPlaceholderName(n){
+    if(n === null || n === undefined) return true;
+    var s = String(n).trim();
+    if(!s) return true;
+    return PLACEHOLDER_NAMES.indexOf(s.toLowerCase()) !== -1;
+  }
+
+  // colState.identities: uuid -> { name, role, is_anonymous, avatar_url }
+  // Filled from get_group_identities, which resolves profiles first and falls back
+  // to the per-trip snapshot, returning null for placeholders.
+  async function loadIdentities(groupId){
+    if(!groupId) return;
+    try{
+      const res = await API.getGroupIdentities(groupId);
+      if(res && !res.error && Array.isArray(res.data)){
+        const map = {};
+        res.data.forEach(function(row){
+          if(!row || !row.user_id) return;
+          map[row.user_id] = {
+            name: isPlaceholderName(row.name) ? null : row.name,
+            role: row.role,
+            is_anonymous: !!row.is_anonymous,
+            avatar_url: row.avatar_url || null
+          };
+        });
+        colState.identities = map;
+      }
+    }catch(e){ console.warn('[identity] loadIdentities failed:', e && e.message); }
+  }
+
+  // THE resolver. Every renderer must go through this instead of reading
+  // member.display_name directly, so name / role / status stay separate concerns.
+  //   { id, name, role, isGuest, isAnonymous, avatar, status }
+  function resolveIdentity(userId){
+    const ident = (colState.identities || {})[userId] || null;
+    const member = (colState.members || []).find(function(m){ return m.user_id === userId; }) || null;
+
+    // name: profile -> per-trip snapshot -> own session name. Placeholders rejected
+    // at every step; null means "genuinely unknown", never a role word.
+    var name = (ident && ident.name) || null;
+    if(!name && member && !isPlaceholderName(member.display_name)) name = member.display_name;
+    if(!name && colState.nameMap && !isPlaceholderName(colState.nameMap[userId])) name = colState.nameMap[userId];
+    if(!name && userId === colState.uid && !isPlaceholderName(colState.name)) name = colState.name;
+
+    const rawRole = (ident && ident.role) || (member && member.role) || null;
+    const isAnonymous = ident ? ident.is_anonymous : false;
+    var role;
+    if(rawRole === 'owner') role = 'Trip Creator';
+    else if(isAnonymous) role = 'Guest';
+    else role = 'Crew Member';
+
+    return {
+      id: userId,
+      name: name,                       // may be null — caller decides the wording
+      role: role,
+      isGuest: isAnonymous,
+      isAnonymous: isAnonymous,
+      avatar: (ident && ident.avatar_url) || null,
+      status: locationStatusOf(userId)  // Online / Offline / Tidak berbagi
+    };
+  }
+
+  // Location status is metadata, never part of the name.
+  function locationStatusOf(userId){
+    const loc = (colState.crewLocations || []).find(function(m){ return m.user_id === userId; });
+    if(!loc) return 'Tidak berbagi';
+    return isFreshLocation(loc) ? 'Online' : 'Offline';
+  }
+
   // Returns the real display name, or null when genuinely unknown. Callers
   // decide how to present an unknown identity — nameOf never invents a label.
   function nameOfOrNull(uid){
+    // P0.7: delegate to the one resolver so no renderer can drift.
     if(!uid) return null;
-    if(colState.nameMap && colState.nameMap[uid]) return colState.nameMap[uid];
-    var m = (colState.members || []).find(function(x){ return x.user_id === uid; });
-    if(m && m.display_name) return m.display_name;
-    if(uid === colState.uid && colState.name) return colState.name;
-    return null;
+    return resolveIdentity(uid).name;
   }
   function nameOf(uid){
     // 'Tanpa nama' is only ever used when no display name exists anywhere.
@@ -1063,11 +1136,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
   // Role label is separate metadata, never part of the name.
   function roleLabelOf(uid){
-    var m = (colState.members || []).find(function(x){ return x.user_id === uid; });
-    var role = m && m.role;
-    if(role === 'owner') return 'Trip Creator';
-    if(m && m.is_anonymous) return 'Guest';
-    return 'Member';
+    // P0.7: role comes from the resolver (profiles + group_members.role), and is
+    // always separate metadata — never merged into the displayed name.
+    return resolveIdentity(uid).role;
   }
   function renderGroupPlanner(){
     const g=colState.group;if(!g)return;
@@ -1118,7 +1189,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(cur) sel.value=cur;
   }
   // M3 Phase 2: Trip Identity — show creator ("Pembuat")
-  function creatorName(){ const o=(colState.members||[]).find(m=>m.role==='owner'); return o?o.display_name:''; }
+  function creatorName(){
+    const o=(colState.members||[]).find(m=>m.role==='owner');
+    return o ? (resolveIdentity(o.user_id).name || '') : '';
+  }
 
   /* ═══════════════════════════════════════════════════════════════════
    * M4.5 — Location Sharing UX
@@ -1453,6 +1527,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
           colState.members = mem.data;
           seedIdentities(mem.data);
         }
+        // P0.7: a joined guest resolves crew names through the same contract.
+        await loadIdentities(colState.group.id);
       }catch(e){ console.warn('[guest] roster load failed:', e && e.message); }
     }
     if(!colState.uid){
@@ -1487,6 +1563,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
             colState.members = mem.data;
             seedIdentities(mem.data);
           }
+          await loadIdentities(colState.group.id);
         }
         renderCrewStatusList();
         if(colState.journey && colState.journey.status === 'active') await loadCrewMap();
@@ -2309,6 +2386,19 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       // for trips/members without re-prompting. Falls back to existing.
       var metaName=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.full_name||session.user.user_metadata&&session.user.user_metadata.name;
       if(metaName&&typeof saveName==='function'){ saveName(String(metaName).slice(0,40)); colState.name=String(metaName).slice(0,40); }
+      // P0.7: every registered sign-in guarantees a canonical profile row.
+      // Anonymous sessions are skipped on purpose — guests keep their per-trip name.
+      if(!(session && session.user && session.user.is_anonymous)){
+        (async()=>{
+          try{
+            const pr = await API.ensureProfile(loadName() || null);
+            if(pr && !pr.error && pr.data && pr.data.display_name){
+              colState.name = pr.data.display_name;
+              if(typeof saveName==='function') saveName(pr.data.display_name);
+            }
+          }catch(e){ console.warn('[identity] ensureProfile failed:', e && e.message); }
+        })();
+      }
       // M3.5: soft-convert a guest (?gt=) viewer into a real member of the
       // trip they were viewing. redeem_invitation accepts authenticated users.
       //

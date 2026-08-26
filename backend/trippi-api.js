@@ -551,6 +551,28 @@
         return client.from('groups').update(fields).eq('id', groupId).select().single();
       });
     },
+    // P0.7 identity foundation: canonical per-user names.
+    // profiles is the source of truth; group_members.display_name stays as a
+    // per-trip legacy snapshot (and is the only name an anonymous guest has).
+    ensureProfile: function (displayName) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('ensure_profile', { p_display_name: displayName || null });
+      });
+    },
+    // One scoped round trip: uuid -> {name, role, is_anonymous, avatar_url}
+    getGroupIdentities: function (groupId) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('get_group_identities', { p_group_id: groupId });
+      });
+    },
+    updateMyProfile: function (displayName) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('ensure_profile', { p_display_name: displayName });
+      });
+    },
     // Fase C: Group Wishlist
     listWishlists: function (groupId) {
       return getClient().then(function (client) {
