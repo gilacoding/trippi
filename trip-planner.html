@@ -2279,7 +2279,56 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     dbg('startup: group param = '+(gid||'none')+' search='+location.search);
     if(gid){dbg('joinGroup invoked for '+gid);try{await joinGroup(gid);dbg('joinGroup resolved g='+JSON.stringify(colState.group?{id:colState.group.id,name:colState.group.name}:null));}catch(err){console.error('[startup] joinGroup error for '+gid+':',err);dbg('joinGroup error:'+err?.message);if(colState.group){openGroup(colState.group.id,false)}else{renderHome();show('homeView');alert('Trip tidak ditemukan. UUID '+gid+' tidak valid atau grup sudah dihapus.')}}}
   })();
-  if('serviceWorker' in navigator)navigator.serviceWorker.register('markicab-sw.js').catch(()=>{});
+  // ── Service worker: registration WITH update handling ──────────────────
+  // Audit finding: a bare register() means a long-lived tab never learns that a new
+  // build shipped. Measured on a tab that stayed open across a deploy: the SW kept
+  // serving the OLD asset (BUILD_ONE while the server had BUILD_TWO), and the page
+  // had no 'updatefound', no 'controllerchange' and never called reg.update().
+  // The new worker only took over once every tab was closed — which is exactly the
+  // "sometimes I still have to refresh" symptom.
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('markicab-sw.js').then(function(reg){
+      // 1. Ask the server for a new worker on load, when the tab regains focus, and
+      //    periodically — an open tab otherwise never checks.
+      var checking = false;
+      var checkForUpdate = function(){
+        if(checking) return;
+        checking = true;
+        Promise.resolve(reg.update())
+          .catch(function(e){ console.warn('[sw] update check failed:', e && e.message); })
+          .then(function(){ checking = false; });
+      };
+      checkForUpdate();
+      window.addEventListener('focus', checkForUpdate);
+      document.addEventListener('visibilitychange', function(){
+        if(!document.hidden) checkForUpdate();
+      });
+      setInterval(checkForUpdate, 15 * 60 * 1000);
+
+      // 2. When a new worker is installed and waiting, let it take over. The worker
+      //    already calls skipWaiting() on install, so this is belt-and-braces for a
+      //    worker that ends up waiting anyway.
+      reg.addEventListener('updatefound', function(){
+        var incoming = reg.installing;
+        if(!incoming) return;
+        incoming.addEventListener('statechange', function(){
+          if(incoming.state === 'installed' && navigator.serviceWorker.controller){
+            if(reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+    }).catch(function(){});
+
+    // 3. Once a new worker takes control, reload ONCE so the tab runs the new code.
+    //    Guarded against the reload loop this pattern is famous for.
+    var swReloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      if(swReloaded) return;
+      swReloaded = true;
+      // Give an in-flight render a moment to settle before swapping the document.
+      setTimeout(function(){ window.location.reload(); }, 150);
+    });
+  }
   if(!openFromHash()){load();renderHome();}
 </script>
 <script>

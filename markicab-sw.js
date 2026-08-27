@@ -1,7 +1,7 @@
 // MarkiCab service worker — hardened cache
 // P1 fix: versioned cache + stale-cache cleanup on activate +
 //        network-first for API JS so backend/trippi-api.js is never permanently cached.
-const CACHE_VERSION = 'markicab-personal-v2';
+const CACHE_VERSION = 'markicab-personal-v3';
 const CORE_FILES = [
   './index.html',
   './trip-planner.html',
@@ -45,6 +45,12 @@ self.addEventListener('activate', event => {
   );
 });
 
+// Let an open page promote a waiting worker instead of forcing the user to close
+// every tab. The page posts this after it sees 'updatefound'.
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
@@ -69,14 +75,20 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Cache-first for core offline assets.
+  // Stale-while-revalidate for offline assets. Audit finding: plain cache-first
+  // returned the OLD file to an already-open tab forever (measured: BUILD_ONE served
+  // while the server had BUILD_TWO). Now the cached copy is still returned instantly,
+  // but a background refresh updates the cache so the next read is current.
   event.respondWith(
-    caches.match(event.request).then(cached =>
-      cached || fetch(event.request).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
+    caches.match(event.request).then(cached => {
+      const network = fetch(event.request).then(response => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
+        }
         return response;
-      }).catch(() => caches.match('./trip-planner.html'))
-    )
+      }).catch(() => cached || caches.match('./trip-planner.html'));
+      return cached || network;
+    })
   );
 });
