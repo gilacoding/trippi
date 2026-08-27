@@ -154,6 +154,32 @@
     onAuthChange: onAuthChange,
     getSession: getSession,
 
+    // Returns the full auth user object {id, email, is_anonymous, ...} or null
+    getUserObject: function () {
+      return getClient().then(function (client) {
+        if (!client) return null;
+        return client.auth.getUser().then(function (res) {
+          return (res.data && res.data.user) || null;
+        }).catch(function () { return null; });
+      });
+    },
+
+    // Account linking: transfer anonymous identity to a new registered account.
+    // Migrates all attribution, memberships, then deletes the anon identity.
+    transferAnonymousIdentity: function (oldUserId, newUserId, displayName) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('transfer_anonymous_identity', {
+          p_old_user_id: oldUserId,
+          p_new_user_id: newUserId,
+          p_display_name: displayName || null
+        }).then(function (res) {
+          if (res.error) return { data: null, error: res.error };
+          return { data: res.data, error: null };
+        });
+      });
+    },
+
     // ── Groups ────────────────────────────────────────────────────
     // OLD: .from('groups').insert(payload) → returns {id, name, ...}
     // NEW: rpc('create_group') → returns {group_id, group_name, ...}

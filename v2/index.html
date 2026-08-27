@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F5F5DC">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>MarkiCab</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   MARKICAB V2 — DESIGN SYSTEM 1:1 PENPOT FOUNDATIONS
+   Font: Poppins (display/heading/nav/CTA) · Outfit (body/label/input)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Token ─────────────────────────────────────────────────────────────── */
+:root {
+  --cream:#F5F5DC;--cream2:#E0E4CC;--yellow:#FBC02D;--orange:#FA6900;
+  --red:#C62828;--ink:#1A1A1A;--muted:#8B8682;--border:#E0DBD5;
+  --white:#FFFFFF;--green:#2E7D32;
+  --bg:var(--cream);--surface:var(--white);--surface2:var(--cream2);
+  --text:var(--ink);--text-muted:var(--muted);--accent:var(--orange);
+  --accent2:var(--yellow);--danger:var(--red);--success:var(--green);
+  --line:var(--border);
+  --r-md:12;--r-lg:16;--r-xl:24;--r-pill:9999;
+}
+
+/* ── Fonts ─────────────────────────────────────────────────────────────── */
+@font-face{font-family:'Poppins';font-style:normal;font-weight:400;src:local('Poppins'),url('https://fonts.gstatic.com/s/poppins/v24/pxiEyp8kv8JHgFVrJJfecg.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Poppins';font-style:normal;font-weight:600;src:local('Poppins'),url('https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLEj6Z1xlFQ.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Poppins';font-style:normal;font-weight:700;src:local('Poppins'),url('https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLCz7Z1xlFQ.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Outfit';font-style:normal;font-weight:400;src:local('Outfit'),url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TC1O4a0Ew.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Outfit';font-style:normal;font-weight:500;src:local('Outfit'),url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4QK1O4a0Ew.woff2') format('woff2');font-display:swap}
+@font-face{font-family:'Outfit';font-style:normal;font-weight:600;src:local('Outfit'),url('https://fonts.gstatic.com/s/outfit/v15/QGYyz_MVcBeNP4NjuGObqx1XmO1I4TAyO4a0Ew.woff2') format('woff2');font-display:swap}
+
+/* ── Reset ─────────────────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Outfit',sans-serif;font-weight:400;font-size:16px;line-height:1.5;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit;border:0;background:none;outline:none;cursor:pointer}
+input[type=file]{position:absolute;opacity:0;inset:0;width:100%;height:100%}
+ul{list-style:none}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%}
+
+/* ── App Frame ─────────────────────────────────────────────────────────── */
+.app{position:relative;width:100%;max-width:390px;min-height:100vh;margin:0 auto;background:var(--bg);overflow-x:hidden;padding-bottom:64px}
+
+/* ── Typography ───────────────────────────────────────────────────────── */
+.t-display{font-family:'Poppins';font-size:32px;font-weight:700;line-height:1.2;letter-spacing:-.5px}
+.t-title{font-family:'Poppins';font-size:20px;font-weight:700;line-height:1.3;letter-spacing:-.3px}
+.t-heading{font-family:'Poppins';font-size:20px;font-weight:600;line-height:1.3}
+.t-body{font-family:'Outfit';font-size:16px;font-weight:400;line-height:1.5}
+.t-body-sm{font-family:'Outfit';font-size:14px;font-weight:400;line-height:1.45}
+.t-caption{font-family:'Outfit';font-size:13px;font-weight:400;line-height:1.4}
+.t-label{font-family:'Outfit';font-size:12px;font-weight:600;line-height:1.4}
+.t-section{font-family:'Outfit';font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)}
+.t-nav{font-family:'Poppins';font-size:11px;font-weight:500;line-height:1}
+.t-cta{font-family:'Outfit';font-size:14px;font-weight:600}
+.t-cta-lg{font-family:'Outfit';font-size:16px;font-weight:600}
+
+/* ── Section Label ─────────────────────────────────────────────────────── */
+.section-label{font-family:'Outfit';font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);padding:0 20px;margin-bottom:8px}
+.divider{height:1px;background:var(--line);margin:0 20px}
+
+/* ── Bottom Nav ────────────────────────────────────────────────────────── */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:390px;height:64px;background:var(--surface);border-top:1px solid var(--line);display:flex;align-items:stretch;z-index:100}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 0;position:relative;color:var(--text-muted)}
+.nav-tab .nav-icon{width:20px;height:20px;display:flex;align-items:center;justify-content:center}
+.nav-tab .nav-icon svg{width:20px;height:20px}
+.nav-tab .nav-icon svg path{fill:var(--text-muted)}
+.nav-tab .nav-label{font-family:'Poppins';font-size:11px;font-weight:500;line-height:1}
+.nav-tab.active{color:var(--ink)}
+.nav-tab.active .nav-icon svg path{fill:var(--ink)}
+.nav-tab.active::before{content:'';position:absolute;top:6px;width:44px;height:36px;background:var(--accent2);border-radius:9999px;z-index:-1}
+.nav-riwayat{display:none!important}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+.app-header{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:8px;height:64px;padding:0 20px;background:var(--bg)}
+.app-header .back-btn{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--ink);flex:0 0 auto}
+.app-header .back-btn svg{width:22px;height:22px}
+.app-header .back-btn svg path{fill:var(--ink)}
+.app-header .h-title{font-family:'Poppins';font-size:20px;font-weight:700;color:var(--ink);flex:0 0 auto}
+.app-header .h-spacer{flex:1}
+.app-header .h-actions{display:flex;gap:8px;align-items:center}
+.h-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-family:'Poppins';font-size:14px;font-weight:700;color:var(--ink);overflow:hidden;position:relative}
+.h-avatar img{width:100%;height:100%;object-fit:cover}
+
+/* ── Screen ────────────────────────────────────────────────────────────── */
+.screen{display:none;min-height:calc(100vh - 64px);background:var(--bg)}
+.screen.active{display:block}
+.content{padding:0 20px}
+
+/* ── Trip Card ─────────────────────────────────────────────────────────── */
+.trip-card{display:flex;gap:12px;padding:12px 20px;background:var(--surface);border-radius:12px;margin-bottom:12px}
+.trip-card .card-thumb{width:64px;height:64px;border-radius:12px;background:var(--surface2);flex:0 0 auto;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px}
+.trip-card .card-thumb img{width:100%;height:100%;object-fit:cover}
+.trip-card .card-body{flex:1;min-width:0}
+.trip-card .card-tag{display:inline-block;padding:2px 8px;border-radius:8px;background:var(--ink);color:var(--surface);font-family:'Outfit';font-size:12px;font-weight:500;margin-bottom:4px}
+.trip-card .card-tag.ghost{background:transparent;color:var(--text-muted);border:1px solid var(--line)}
+.trip-card .card-title{font-family:'Poppins';font-size:20px;font-weight:600;color:var(--ink);line-height:1.2;margin-bottom:2px}
+.trip-card .card-date{font-family:'Outfit';font-size:14px;font-weight:400;color:var(--text-muted);margin-bottom:4px}
+.trip-card .card-meta{display:flex;gap:12px;align-items:center;font-family:'Outfit';font-size:14px;color:var(--text-muted)}
+.trip-card .card-meta .meta-dot{width:4px;height:4px;border-radius:50%;background:var(--text-muted)}
+.trip-card .card-cta{display:flex;align-items:center;gap:8px;margin-top:8px}
+.trip-card .card-cta .cta-link{font-family:'Outfit';font-size:16px;font-weight:600;color:var(--accent);background:none;border:0;padding:0}
+
+/* ── Button ────────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:56px;padding:0 24px;border-radius:24px;font-family:'Outfit';font-size:14px;font-weight:600;border:0;transition:transform .15s ease}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--accent);color:var(--surface)}
+.btn-secondary{background:var(--surface);color:var(--accent);border:1.5px solid var(--accent)}
+.btn-ghost{background:transparent;color:var(--ink)}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+.btn-text{background:transparent;color:var(--accent);padding:0;height:auto;border-radius:0;font-weight:600}
+.btn-sm{height:44px;padding:0 16px;font-size:13px;border-radius:16px}
+.btn:disabled{opacity:.5;pointer-events:none}
+
+/* ── Input ─────────────────────────────────────────────────────────────── */
+.field{margin-bottom:16px}
+.field-label{display:block;font-family:'Outfit';font-size:12px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.field-input{width:100%;height:48px;padding:0 16px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-family:'Outfit';font-size:13px;color:var(--text);transition:border .15s ease}
+.field-input:focus{border-color:var(--accent)}
+.field-input::placeholder{color:var(--text-muted)}
+.field-hint{display:block;font-family:'Outfit';font-size:11px;color:var(--text-muted);margin-top:4px}
+.field-error{display:block;font-family:'Outfit';font-size:11px;color:var(--danger);margin-top:4px}
+.field-input.error{border-color:var(--danger)}
+
+/* ── Avatar ────────────────────────────────────────────────────────────── */
+.avatar{width:44px;height:44px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-family:'Poppins';font-size:18px;font-weight:700;color:var(--ink);overflow:hidden;flex:0 0 auto;position:relative}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.avatar-sm{width:32px;height:32px;font-size:14px}
+.avatar-lg{width:64px;height:64px;font-size:24px}
+.avatar-xl{width:72px;height:72px;font-size:26px}
+.avatar .avatar-edit{position:absolute;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s ease}
+.avatar:hover .avatar-edit{opacity:1}
+.avatar .avatar-edit svg{width:20px;height:20px}
+.avatar .avatar-edit svg path{fill:var(--white)}
+
+/* ── Status Badge ──────────────────────────────────────────────────────── */
+.status-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:9999px;font-family:'Outfit';font-size:12px;font-weight:600}
+.status-badge .badge-dot{width:8px;height:8px;border-radius:50%}
+.status-badge.online{background:rgba(46,125,50,.08);color:var(--success)}
+.status-badge.online .badge-dot{background:var(--success);box-shadow:0 0 6px var(--success)}
+.status-badge.offline{background:rgba(139,134,130,.08);color:var(--text-muted)}
+.status-badge.offline .badge-dot{background:var(--text-muted)}
+
+/* ── FAB ───────────────────────────────────────────────────────────────── */
+.fab{position:fixed;bottom:80px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--surface);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(250,105,0,.3);z-index:60;border:0}
+.fab svg{width:24px;height:24px}
+
+/* ── Modal / Bottom Sheet ──────────────────────────────────────────────── */
+.modal-backdrop{position:fixed;inset:0;background:rgba(26,26,26,.4);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal-backdrop.hidden{display:none}
+.modal-sheet{width:100%;max-width:390px;background:var(--surface);border-radius:12px 12px 0 0;padding:20px;max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.modal-header .modal-title{font-family:'Poppins';font-size:20px;font-weight:600;color:var(--ink)}
+.modal-close{width:22px;height:22px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text-muted)}
+.modal-footer{display:flex;gap:12px;margin-top:20px}
+.modal-footer .btn{flex:1}
+
+/* ── Empty State ───────────────────────────────────────────────────────── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;color:var(--text-muted)}
+.empty-state .empty-icon{width:64px;height:64px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:28px}
+.empty-state .empty-title{font-family:'Poppins';font-size:16px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.empty-state .empty-text{font-family:'Outfit';font-size:13px;color:var(--text-muted);line-height:1.5}
+
+/* ── Toast ─────────────────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:12px 20px;border-radius:12px;font-family:'Outfit';font-size:13px;font-weight:500;z-index:300;box-shadow:0 4px 16px rgba(0,0,0,.15);display:none}
+.toast.show{display:block}
+
+/* ── Utility ───────────────────────────────────────────────────────────── */
+.flex{display:flex}.flex-col{flex-direction:column}.items-center{align-items:center}
+.justify-between{justify-content:space-between}.text-center{text-align:center}
+.gap-1{gap:4px}.gap-2{gap:8px}.gap-3{gap:12px}.gap-4{gap:16px}
+.p-4{padding:16px}.p-5{padding:20px}.px-5{padding:0 20px}
+.mt-1{margin-top:4px}.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}
+.mb-1{margin-bottom:4px}.mb-2{margin-bottom:8px}.mb-3{margin-bottom:12px}.mb-4{margin-bottom:16px}
+.text-muted{color:var(--text-muted)}.text-accent{color:var(--accent)}.text-danger{color:var(--danger)}
+.font-600{font-weight:600}.font-700{font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     HOME SCREEN
+     ═══════════════════════════════════════════════════════════════════════ -->
+<header class="app-header" id="homeHeader">
+  <div class="h-title">Trip Kamu</div>
+  <div class="h-spacer"></div>
+  <div class="h-actions">
+    <div class="h-avatar" id="headerAvatar" onclick="showScreen('screenProfile')">R</div>
+  </div>
+</header>
+
+<div class="screen active" id="screenHome">
+  <div class="content" style="padding-top:8px">
+    <div class="t-body-sm text-muted mb-1">Hai, Ras 👋</div>
+    <div class="t-heading mb-3">Atur rencana jalan kamu.</div>
+    <div id="homeTripList"></div>
+    <button class="btn-text mt-2 mb-4 font-600" onclick="showScreen('screenHistory')">Lihat semua trip</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PROFILE SCREEN
+     ═══════════════════════════════════════════════════════════════════════ -->
+<header class="app-header" id="profileHeader" style="display:none">
+  <button class="back-btn" onclick="goBack()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="h-title">Profil</div>
+  <div class="h-spacer"></div>
+</header>
+
+<div class="screen" id="screenProfile">
+  <div class="content" style="padding-top:8px">
+    <!-- Avatar + Name -->
+    <div class="flex items-center gap-3 mb-4">
+      <div class="avatar avatar-xl" id="profileAvatar" onclick="document.getElementById('profilePicInput').click()">
+        <span id="profileAvatarText">R</span>
+        <img id="profileAvatarImg" style="display:none">
+        <span class="avatar-edit"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z M2 7a2 2 0 012-2h2l1.2-1.6a1 1 0 01.8-.4h8.4a1 1 0 01.8.4L18 5h2a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7z"/></svg></span>
+        <input type="file" id="profilePicInput" accept="image/*" onchange="handleProfilePic(this)">
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="t-title" id="profileName">Ras</div>
+        <div class="t-caption text-muted" id="profileEmail">ras@email.com</div>
+      </div>
+    </div>
+
+    <!-- Identitas -->
+    <div class="section-label">Identitas</div>
+    <div class="field">
+      <label class="field-label">Nama tampilan</label>
+      <input class="field-input" id="profileNameInput" type="text" placeholder="Nama lengkap / panggilan" maxlength="40" value="Ras" oninput="updateProfileCharCount()">
+      <div class="flex justify-between mt-1">
+        <span class="field-hint" id="profileNameHint">Nama ini akan muncul di trip kamu.</span>
+        <span class="t-caption text-muted" id="profileCharCount">4/40</span>
+      </div>
+      <span class="field-error" id="profileNameError" style="display:none"></span>
+    </div>
+    <button class="btn btn-primary" id="profileSave" style="width:100%;margin-bottom:24px" onclick="saveProfile()">Simpan</button>
+
+    <!-- Akun -->
+    <div class="divider mb-3"></div>
+    <div class="section-label">Akun</div>
+    <button class="btn btn-secondary" id="profileLogout" style="width:100%;margin-bottom:12px">Keluar</button>
+    <button class="btn btn-danger" id="profileDelete" style="width:100%" onclick="showDeleteConfirm()">Hapus akun</button>
+    <div class="t-caption text-muted mt-2">Menghapus akun akan menghapus semua trip kamu.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     CREATE TRIP MODAL
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop hidden" id="createTripModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title">Buat Trip</div>
+      <button class="modal-close" onclick="closeCreateTrip()">✕</button>
+    </div>
+    <div class="field">
+      <label class="field-label">Nama Trip</label>
+      <input class="field-input" id="newTripName" type="text" placeholder="e.g. Bandung Weekend" maxlength="70">
+    </div>
+    <div class="field">
+      <label class="field-label">Destinasi</label>
+      <input class="field-input" id="newTripDest" type="text" placeholder="e.g. Bandung, Jawa Barat" maxlength="80">
+    </div>
+    <div class="field">
+      <label class="field-label">Tanggal Mulai</label>
+      <input class="field-input" id="newTripStart" type="date">
+    </div>
+    <div class="field">
+      <label class="field-label">Tanggal Selesai</label>
+      <input class="field-input" id="newTripEnd" type="date">
+    </div>
+    <div class="field">
+      <label class="field-label">Jumlah Peserta</label>
+      <input class="field-input" id="newTripPax" type="number" placeholder="4" min="1" max="20">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCreateTrip()">Batal</button>
+      <button class="btn btn-primary" onclick="submitCreateTrip()">Buat Trip</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     TRIP CREATOR SCREEN (Plan / Rencana)
+     ═══════════════════════════════════════════════════════════════════════ -->
+<header class="app-header" id="plannerHeader" style="display:none">
+  <button class="back-btn" onclick="goBack()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="h-title" id="plannerTitle">Rencana</div>
+  <div class="h-spacer"></div>
+  <div class="h-actions">
+    <button class="btn btn-sm btn-secondary" id="plannerEdit">Edit</button>
+    <button class="btn btn-sm btn-secondary" id="plannerShare">Bagikan</button>
+  </div>
+</header>
+
+<div class="screen" id="screenPlanner">
+  <div class="content" style="padding-top:8px">
+    <div class="t-title mb-1" id="plannerTripName">Trip Musim Gugur Kyoto</div>
+    <div class="t-body-sm text-muted mb-3" id="plannerTripMeta">12–16 Sep · 4 orang</div>
+    <div class="flex gap-2 mb-3" style="overflow-x:auto;padding-bottom:4px" id="dayTabs"></div>
+    <div id="itineraryList"></div>
+    <button class="btn btn-secondary mt-3 mb-4" style="width:100%" id="addAgenda">+ Tambah aktivitas</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     JOURNEY MODE SCREEN
+     ═══════════════════════════════════════════════════════════════════════ -->
+<header class="app-header" id="journeyHeader" style="display:none">
+  <button class="back-btn" onclick="goBack()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="h-title">Lokasi Grup</div>
+  <div class="h-spacer"></div>
+</header>
+
+<div class="screen" id="screenJourney">
+  <div class="content" style="padding-top:8px">
+    <div style="width:100%;height:280px;border-radius:14px;background:var(--surface2);margin-bottom:16px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-family:'Outfit';font-size:14px">Map Area</div>
+    <div class="flex items-center gap-2 mb-3">
+      <div class="status-badge online"><span class="badge-dot"></span> Mode Perjalanan AKTIF</div>
+    </div>
+    <div class="section-label">Peserta</div>
+    <div id="crewList"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     TRIP HISTORY SCREEN
+     ═══════════════════════════════════════════════════════════════════════ -->
+<header class="app-header" id="historyHeader" style="display:none">
+  <button class="back-btn" onclick="goBack()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="h-title">Riwayat Trip</div>
+  <div class="h-spacer"></div>
+</header>
+
+<div class="screen" id="screenHistory">
+  <div class="content" style="padding-top:8px">
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     DELETE CONFIRM MODAL
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop hidden" id="deleteModal">
+  <div class="modal-sheet">
+    <div class="modal-header"><div class="modal-title">Hapus akun?</div><button class="modal-close" onclick="closeDeleteModal()">✕</button></div>
+    <div class="t-body-sm text-muted mb-2">Semua trip, rencana, dan pengeluaran kamu akan dihapus secara permanen. Tindakan ini tidak bisa dibatalkan.</div>
+    <div class="field">
+      <label class="field-label">Ketik HAPUS untuk konfirmasi</label>
+      <input class="field-input" id="deleteConfirmInput" type="text" placeholder="HAPUS">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">Batal</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn" disabled onclick="confirmDelete()">Hapus akun</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     BOTTOM NAV
+     ═══════════════════════════════════════════════════════════════════════ -->
+<nav class="bottom-nav" id="bottomNav">
+  <button class="nav-tab active" data-nav="trip" onclick="navTo('trip')">
+    <span class="nav-icon"><svg viewBox="0 0 20 20"><path d="M 10.0 10.0 C 8.625 10.0 7.4479 9.5104 6.4688 8.5312 C 5.4896 7.5521 5.0 6.375 5.0 5.0 C 5.0 3.625 5.4896 2.4479 6.4688 1.4688 C 7.4479 0.4896 8.625 0.0 10.0 0.0 C 11.375 0.0 12.5521 0.4896 13.5312 1.4688 C 14.5104 2.4479 15.0 3.625 15.0 5.0 C 15.0 6.375 14.5104 7.5521 13.5312 8.5312 C 12.5521 9.5104 11.375 10.0 10.0 10.0 L 10.0 10.0 M 0.0 20.0 L 0.0 16.5 C 0.0 15.7916 0.1823 15.1406 0.5469 14.5469 C 0.9115 13.9531 1.3958 13.5 2.0 13.1875 C 3.2917 12.5416 4.6042 12.0573 5.9375 11.7344 C 7.2708 11.4114 8.625 11.25 10.0 11.25 C 11.375 11.25 12.7291 11.4114 14.0625 11.7344 C 15.3959 12.0573 16.7084 12.5416 18.0 13.1875 C 18.6041 13.5 19.0885 13.9531 19.4531 14.5469 C 19.8178 15.1406 20.0 15.7916 20.0 16.5 L 20.0 20.0 L 0.0 20.0 L 0.0 20.0 M 2.5 17.5 L 17.5 17.5 L 17.5 16.5 C 17.5 16.2709 17.4427 16.0625 17.3281 15.875 C 17.2135 15.6875 17.0625 15.5416 16.875 15.4375 C 15.75 14.875 14.6146 14.4531 13.4687 14.1719 C 12.3229 13.8906 11.1667 13.75 10.0 13.75 C 8.8333 13.75 7.6771 13.8906 6.5313 14.1719 C 5.3854 14.4531 4.25 14.875 3.125 15.4375 C 2.9375 15.5416 2.7865 15.6875 2.6719 15.875 C 2.5573 16.0625 2.5 16.2709 2.5 16.5 L 2.5 17.5 L 2.5 17.5 M 10.0 7.5 C 10.6875 7.5 11.276 7.2552 11.7656 6.7656 C 12.2552 6.276 12.5 5.6875 12.5 5.0 C 12.5 4.3125 12.2552 3.724 11.7656 3.2344 C 11.276 2.7448 10.6875 2.5 10.0 2.5 C 9.3125 2.5 8.724 2.7448 8.2344 3.2344 C 7.7448 3.724 7.5 4.3125 7.5 5.0 C 7.5 5.6875 7.7448 6.276 8.2344 6.7656 C 8.724 7.2552 9.3125 7.5 10.0 7.5 L 10.0 7.5 M 10.0 5.0 L 10.0 5.0 L 10.0 5.0 L 10.0 5.0 L 10.0 5.0 L 10.0 5.0 L 10.0 5.0 L 10.0 5.0 L 10.0 5.0 L 10.0 5.0 M 10.0 17.5 L 10.0 17.5 L 10.0 17.5 L 10.0 17.5 L 10.0 17.5 L 10.0 17.5 L 10.0 17.5 L 10.0 17.5 L 10.0 17.5 L 10.0 17.5 L 10.0 17.5 L 10.0 17.5 L 10.0 17.5"/></svg></span>
+    <span class="nav-label">Trip</span>
+  </button>
+  <button class="nav-tab" data-nav="plan" onclick="navTo('plan')">
+    <span class="nav-icon"><svg viewBox="0 0 20 20"><path d="M 0.0 20.0 L 0.0 6.6667 L 10.0 0.0 L 20.0 6.6667 L 20.0 20.0 L 12.5 20.0 L 12.5 12.2222 L 7.5 12.2222 L 7.5 20.0 L 0.0 20.0 L 0.0 20.0"/></svg></span>
+    <span class="nav-label">Plan</span>
+  </button>
+  <button class="nav-tab" data-nav="journey" onclick="navTo('journey')">
+    <span class="nav-icon"><svg viewBox="0 0 20 20"><path d="M 5.5 14.5 L 12.5 12.5 L 14.5 5.5 L 7.5 7.5 L 5.5 14.5 L 5.5 14.5 M 10.0 11.5 C 9.5833 11.5 9.2291 11.3542 8.9375 11.0625 C 8.6458 10.7708 8.5 10.4167 8.5 10.0 C 8.5 9.5833 8.6458 9.2292 8.9375 8.9375 C 9.2291 8.6458 9.5833 8.5 10.0 8.5 C 10.4167 8.5 10.7708 8.6458 11.0625 8.9375 C 11.3542 9.2292 11.5 9.5833 11.5 10.0 C 11.5 10.4167 11.3542 10.7708 11.0625 11.0625 C 10.7708 11.3542 10.4167 11.5 10.0 11.5 L 10.0 11.5 M 10.0 20.0 C 8.6166 20.0 7.3167 19.7375 6.1 19.2125 C 4.8833 18.6875 3.825 17.975 2.925 17.075 C 2.025 16.175 1.3125 15.1167 0.7875 13.9 C 0.2625 12.6833 0.0 11.3833 0.0 10.0 C 0.0 8.6167 0.2625 7.3167 0.7875 6.1 C 1.3125 4.8833 2.025 3.825 2.925 2.925 C 3.825 2.025 4.8833 1.3125 6.1 0.7875 C 7.3167 0.2625 8.6166 0.0 10.0 0.0 C 11.3833 0.0 12.6833 0.2625 13.9 0.7875 C 15.1167 1.3125 16.175 2.025 17.075 2.925 C 17.975 3.825 18.6875 4.8833 19.2125 6.1 C 19.7375 7.3167 20.0 8.6167 20.0 10.0 C 20.0 11.3833 19.7375 12.6833 19.2125 13.9 C 18.6875 15.1167 17.975 16.175 17.075 17.075 C 16.175 17.975 15.1167 18.6875 13.9 19.2125 C 12.6833 19.7375 11.3833 20.0 10.0 20.0 L 10.0 20.0 M 10.0 18.0 C 12.2167 18.0 14.1042 17.2208 15.6625 15.6625 C 17.2208 14.1042 18.0 12.2167 18.0 10.0 C 18.0 7.7833 17.2208 5.8958 15.6625 4.3375 C 14.1042 2.7792 12.2167 2.0 10.0 2.0 C 7.7833 2.0 5.8958 2.7792 4.3375 4.3375 C 2.7791 5.8958 2.0 7.7833 2.0 10.0 C 2.0 12.2167 2.7791 14.1042 4.3375 15.6625 C 5.8958 17.2208 7.7833 18.0 10.0 18.0 L 10.0 18.0 M 10.0 10.0 L 10.0 10.0 L 10.0 10.0 L 10.0 10.0 L 10.0 10.0 L 10.0 10.0 L 10.0 10.0 L 10.0 10.0 L 10.0 10.0 L 10.0 10.0"/></svg></span>
+    <span class="nav-label">Journey</span>
+  </button>
+  <button class="nav-tab nav-riwayat" data-nav="riwayat" onclick="navTo('riwayat')">
+    <span class="nav-icon"><svg viewBox="0 0 16 16"><path d="M 8.0 8.0 C 6.9 8.0 5.9583 7.6083 5.175 6.825 C 4.3917 6.0417 4.0 5.1 4.0 4.0 C 4.0 2.9 4.3917 1.9583 5.175 1.175 C 5.9583 0.3917 6.9 0.0 8.0 0.0 C 9.1 0.0 10.0417 0.3917 10.825 1.175 C 11.6083 1.9583 12.0 2.9 12.0 4.0 C 12.0 5.1 11.6083 6.0417 10.825 6.825 C 10.0417 7.6083 9.1 8.0 8.0 8.0 L 8.0 8.0 M 0.0 16.0 L 0.0 13.2 C 0.0 12.6333 0.1458 12.1125 0.4375 11.6375 C 0.7292 11.1625 1.1166 10.8 1.6 10.55 C 2.6333 10.0333 3.6833 9.6458 4.75 9.3875 C 5.8167 9.1292 6.9 9.0 8.0 9.0 C 9.1 9.0 10.1833 9.1292 11.25 9.3875 C 12.3167 9.6458 13.3667 10.0333 14.4 10.55 C 14.8833 10.8 15.2708 11.1625 15.5625 11.6375 C 15.8542 12.1125 16.0 12.6333 16.0 13.2 L 16.0 16.0 L 0.0 16.0 L 0.0 16.0 M 2.0 14.0 L 14.0 14.0 L 14.0 13.2 C 14.0 13.0167 13.9542 12.85 13.8625 12.7 C 13.7708 12.55 13.65 12.4333 13.5 12.35 C 12.6 11.9 11.6917 11.5625 10.775 11.3375 C 9.8583 11.1125 8.9333 11.0 8.0 11.0 C 7.0667 11.0 6.1417 11.1125 5.225 11.3375 C 4.3083 11.5625 3.4 11.9 2.5 12.35 C 2.35 12.4333 2.2292 12.55 2.1375 12.7 C 2.0458 12.85 2.0 13.0167 2.0 13.2 L 2.0 14.0 L 2.0 14.0 M 8.0 6.0 C 8.55 6.0 9.0208 5.8042 9.4125 5.4125 C 9.8041 5.0208 10.0 4.55 10.0 4.0 C 10.0 3.45 9.8041 2.9792 9.4125 2.5875 C 9.0208 2.1958 8.55 2.0 8.0 2.0 C 7.45 2.0 6.9792 2.1958 6.5875 2.5875 C 6.1958 2.9792 6.0 3.45 6.0 4.0 C 6.0 4.55 6.1958 5.0208 6.5875 5.4125 C 6.9792 5.8042 7.45 6.0 8.0 6.0 L 8.0 6.0 M 8.0 4.0 L 8.0 4.0 L 8.0 4.0 L 8.0 4.0 L 8.0 4.0 L 8.0 4.0 L 8.0 4.0 L 8.0 4.0 L 8.0 4.0 L 8.0 4.0 M 8.0 14.0 L 8.0 14.0 L 8.0 14.0 L 8.0 14.0 L 8.0 14.0 L 8.0 14.0 L 8.0 14.0 L 8.0 14.0 L 8.0 14.0 L 8.0 14.0 L 8.0 14.0 L 8.0 14.0 L 8.0 14.0"/></svg></span>
+    <span class="nav-label">Riwayat</span>
+  </button>
+</nav>
+
+<!-- FAB -->
+<button class="fab" id="fabCreate" onclick="openCreateTrip()">
+  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+</button>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+</div><!-- /app -->
+
+<script>
+// ── Mock Data ──────────────────────────────────────────────────────────
+var trips = [
+  {id:1, title:"Trip Akhir Pekan", dest:"Bandung", date:"15–17 Okt 2024", pax:4, role:"Pembuat", status:"active", thumb:"🏔️"},
+  {id:2, title:"Trip Bali", dest:"Bali", date:"12–18 Okt 2025", pax:12, role:"Peserta", status:"past", thumb:"🏝️"},
+  {id:3, title:"Liburan Musim Panas", dest:"Yogyakarta, Indonesia", date:"10–15 Jan 2024", pax:4, role:"Pembuat", status:"past", thumb:"🌋"},
+  {id:4, title:"Petualangan Solo Bromo", dest:"Jawa Timur, Indonesia", date:"5–8 Des 2023", pax:6, role:"Peserta", status:"past", thumb:"🏕️"}
+];
+
+var itinerary = [
+  {day:1, time:"09:00", title:"Tiba di Bandara KIX", desc:"Bandara Internasional Kansai"},
+  {day:1, time:"13:30", title:"Check-in: Hoshinoya", desc:"Arashiyama, Kyoto — Konfirmasi: #KY-9982"},
+  {day:2, time:"08:00", title:"Fushimi Inari Taisha", desc:"Pagoda merah, jalur hiking"},
+  {day:2, time:"12:00", title:"Makan Siang Nishiki Market", desc:"Kyoto specialty foods"}
+];
+
+var crew = [
+  {name:"Ras", role:"Pembuat", status:"online", dist:"Pembuat", initial:"R"},
+  {name:"Budi", role:"Peserta", status:"online", dist:"2 km dari kamu", initial:"B"},
+  {name:"Sinta", role:"Peserta", status:"offline", dist:"Tidak berbagi", initial:"S"}
+];
+
+// ── Render Functions ──────────────────────────────────────────────────
+function renderHome(){
+  var html = '';
+  trips.slice(0,2).forEach(function(t){
+    html += '<div class="trip-card" onclick="openTrip('+t.id+')">' +
+      '<div class="card-thumb">'+t.thumb+'</div>' +
+      '<div class="card-body">' +
+        '<span class="card-tag'+(t.status==='past'?' ghost':'')+'">'+t.role+'</span>' +
+        '<div class="card-title">'+t.title+'<br>'+t.dest+'</div>' +
+        '<div class="card-date">'+t.date+'</div>' +
+        '<div class="card-meta"><span>'+t.pax+' orang</span><span class="meta-dot"></span><span>'+(t.status==='active'?'Berlangsung':'Selesai')+'</span></div>' +
+        '<div class="card-cta"><button class="cta-link" onclick="event.stopPropagation();openTrip('+t.id+')">'+(t.status==='active'?'Kelola':'Lihat Trip')+'</button></div>' +
+      '</div></div>';
+  });
+  document.getElementById('homeTripList').innerHTML = html;
+}
+
+function renderPlanner(){
+  var days = ['Hari 1','Hari 2','Hari 3','Hari 4'];
+  var tabs = '';
+  days.forEach(function(d,i){
+    tabs += '<button class="btn btn-sm '+(i===0?'btn-primary':'btn-secondary')+'" onclick="selectDay(this)">'+d+'</button>';
+  });
+  document.getElementById('dayTabs').innerHTML = tabs;
+
+  var items = '';
+  itinerary.forEach(function(it){
+    items += '<div class="flex gap-3 p-4" style="background:var(--surface);border-radius:12px;margin-bottom:8px">' +
+      '<div style="font-family:\'Outfit\';font-size:13px;font-weight:700;color:var(--accent);min-width:40px;padding-top:2px">'+it.time+'</div>' +
+      '<div style="flex:1"><div style="font-family:\'Outfit\';font-size:15px;font-weight:600;color:var(--ink)">'+it.title+'</div>' +
+      '<div style="font-family:\'Outfit\';font-size:13px;color:var(--text-muted);margin-top:2px">'+it.desc+'</div></div></div>';
+  });
+  document.getElementById('itineraryList').innerHTML = items;
+}
+
+function renderJourney(){
+  var html = '';
+  crew.forEach(function(c){
+    html += '<div class="flex items-center gap-3 p-4" style="background:var(--surface);border-radius:12px;margin-bottom:8px">' +
+      '<div class="avatar avatar-sm">'+c.initial+'</div>' +
+      '<div style="flex:1"><div style="font-family:\'Outfit\';font-size:14px;font-weight:600;color:var(--ink)">'+c.name+'</div>' +
+      '<div style="font-family:\'Outfit\';font-size:12px;color:var(--text-muted)">'+c.role+' · '+c.dist+'</div></div>' +
+      '<div class="status-badge '+c.status+'"><span class="badge-dot"></span>'+(c.status==='online'?'Online':'Offline')+'</div>' +
+      '</div>';
+  });
+  document.getElementById('crewList').innerHTML = html;
+}
+
+function renderHistory(){
+  var html = '';
+  trips.filter(function(t){return t.status==='past'}).forEach(function(t){
+    html += '<div class="trip-card">' +
+      '<div class="card-thumb">'+t.thumb+'</div>' +
+      '<div class="card-body">' +
+        '<div class="card-title">'+t.title+'</div>' +
+        '<div class="card-date">'+t.dest+'</div>' +
+        '<div class="card-meta"><span>Tanggal</span><span style="font-weight:600">'+t.date+'</span></div>' +
+        '<div class="card-meta"><span>Peserta</span><span style="font-weight:600">'+t.pax+' Orang</span></div>' +
+      '</div></div>';
+  });
+  document.getElementById('historyList').innerHTML = html;
+}
+
+// ── Navigation ────────────────────────────────────────────────────────
+var screenStack = ['screenHome'];
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
+  document.getElementById(id).classList.add('active');
+  screenStack.push(id);
+
+  // Toggle headers
+  document.getElementById('homeHeader').style.display = (id==='screenHome')?'flex':'none';
+  document.getElementById('profileHeader').style.display = (id==='screenProfile')?'flex':'none';
+  document.getElementById('plannerHeader').style.display = (id==='screenPlanner')?'flex':'none';
+  document.getElementById('journeyHeader').style.display = (id==='screenJourney')?'flex':'none';
+  document.getElementById('historyHeader').style.display = (id==='screenHistory')?'flex':'none';
+
+  // Toggle FAB
+  document.getElementById('fabCreate').style.display = (id==='screenHome')?'flex':'none';
+
+  // Toggle nav
+  document.getElementById('bottomNav').style.display = (id==='screenProfile')?'none':'flex';
+
+  // Render
+  if(id==='screenPlanner') renderPlanner();
+  if(id==='screenJourney') renderJourney();
+  if(id==='screenHistory') renderHistory();
+}
+
+function goBack(){
+  screenStack.pop();
+  var prev = screenStack[screenStack.length-1] || 'screenHome';
+  showScreen(prev);
+}
+
+function navTo(name){
+  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active')});
+  document.querySelector('[data-nav='+name+']').classList.add('active');
+  if(name==='trip') showScreen('screenHome');
+  else if(name==='plan') showScreen('screenPlanner');
+  else if(name==='journey') showScreen('screenJourney');
+  else if(name==='riwayat') showScreen('screenHistory');
+}
+
+function openTrip(id){
+  var t = trips.find(function(x){return x.id===id});
+  if(t){
+    document.getElementById('plannerTripName').textContent = t.title;
+    document.getElementById('plannerTripMeta').textContent = t.date+' · '+t.pax+' orang';
+  }
+  showScreen('screenPlanner');
+  document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active')});
+  document.querySelector('[data-nav=plan]').classList.add('active');
+}
+
+function selectDay(btn){
+  document.querySelectorAll('#dayTabs .btn').forEach(function(b){b.className='btn btn-sm btn-secondary'});
+  btn.className='btn btn-sm btn-primary';
+}
+
+// ── Profile ────────────────────────────────────────────────────────────
+function updateProfileCharCount(){
+  var len = document.getElementById('profileNameInput').value.length;
+  document.getElementById('profileCharCount').textContent = len+'/40';
+}
+
+function saveProfile(){
+  var name = document.getElementById('profileNameInput').value.trim();
+  var banned = ['guest','creator','owner','member','anggota','kamu','user','anonymous','tanpa nama'];
+  var error = document.getElementById('profileNameError');
+  var input = document.getElementById('profileNameInput');
+
+  if(name.length<2){ error.textContent='Nama terlalu minimal (minimal 2 karakter).'; error.style.display='block'; input.classList.add('error'); return; }
+  if(name.length>40){ error.textContent='Nama terlalu panjang (maksimal 40 karakter).'; error.style.display='block'; input.classList.add('error'); return; }
+  if(banned.indexOf(name.toLowerCase())!==-1){ error.textContent='Nama ini tidak bisa digunakan.'; error.style.display='block'; input.classList.add('error'); return; }
+
+  error.style.display='none';
+  input.classList.remove('error');
+  document.getElementById('profileName').textContent = name;
+  document.getElementById('headerAvatar').textContent = name.charAt(0).toUpperCase();
+  showToast('Tersimpan ✓');
+}
+
+function handleProfilePic(input){
+  if(input.files && input.files[0]){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      document.getElementById('profileAvatarImg').src = e.target.result;
+      document.getElementById('profileAvatarImg').style.display = 'block';
+      document.getElementById('profileAvatarText').style.display = 'none';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+function showDeleteConfirm(){
+  document.getElementById('deleteModal').classList.remove('hidden');
+}
+function closeDeleteModal(){
+  document.getElementById('deleteModal').classList.add('hidden');
+  document.getElementById('deleteConfirmInput').value='';
+  document.getElementById('confirmDeleteBtn').disabled=true;
+}
+document.getElementById('deleteConfirmInput').addEventListener('input', function(){
+  document.getElementById('confirmDeleteBtn').disabled = (this.value!=='HAPUS');
+});
+function confirmDelete(){
+  showToast('Akun dihapus');
+  closeDeleteModal();
+}
+
+// ── Create Trip ────────────────────────────────────────────────────────
+function openCreateTrip(){ document.getElementById('createTripModal').classList.remove('hidden') }
+function closeCreateTrip(){ document.getElementById('createTripModal').classList.add('hidden') }
+function submitCreateTrip(){
+  var name = document.getElementById('newTripName').value.trim();
+  if(!name){ showToast('Nama trip wajib diisi'); return; }
+  closeCreateTrip();
+  showToast('Trip berhasil dibuat');
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────
+function showToast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show')},2000);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────
+renderHome();
+</script>
+</body>
+</html>
