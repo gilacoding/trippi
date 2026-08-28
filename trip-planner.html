@@ -74,6 +74,23 @@
   .app-header .h-spacer{flex:1}
   .app-header .h-actions{display:flex;gap:8px;align-items:center}
   .expense-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0}.expense-row+.expense-row{border-top:1px solid rgba(255,255,255,.08)}.item-time,.item-cost{cursor:pointer}.item-cost.muted{opacity:.55}.inline-edit{background:var(--surface);border:1px solid var(--accent);border-radius:8px;color:var(--text);padding:4px 6px;font:inherit;max-width:130px}
+
+  .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .gallery-card{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1/1;background:var(--surface2);cursor:pointer}
+  .gallery-card img{width:100%;height:100%;object-fit:cover;display:block}
+  .gallery-card .caption{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.7));color:#fff;font-size:11px;padding:24px 8px 8px;pointer-events:none}
+  .gallery-card .delete-btn{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:24px;height:24px;font-size:14px;cursor:pointer;display:none;align-items:center;justify-content:center}
+  .gallery-card:hover .delete-btn{display:flex}
+  .gallery-card .delete-btn:hover{background:var(--danger)}
+  .gallery-empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px}
+  .gallery-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column}
+  .gallery-lightbox.active{display:flex}
+  .gallery-lightbox img{max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px}
+  .gallery-lightbox .caption{color:#fff;margin-top:12px;font-size:14px;max-width:80vw;text-align:center}
+  .gallery-lightbox .close-btn{position:absolute;top:16px;right:20px;color:#fff;font-size:32px;cursor:pointer;background:none;border:none}
+  .gallery-lightbox .nav-btn{position:absolute;top:50%;transform:translateY(-50%);color:#fff;font-size:36px;cursor:pointer;background:rgba(0,0,0,.4);border:none;border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center}
+  .gallery-lightbox .prev-btn{left:16px}
+  .gallery-lightbox .next-btn{right:16px}
 </style>
 </head>
 <body>
@@ -248,7 +265,8 @@
       <button class="view-tab" data-gview="expenses">Expenses</button>
       <button class="view-tab" data-gview="wishlist">Wishlist</button>
       <button class="view-tab" data-gview="journey">Journey Mode</button>
-    </div>
+            <button class="view-tab" data-gview="gallery">Gallery</button>
+          </div>
     <div class="view-panel active" id="itineraryPanel">
       <div class="day-tabs" id="groupDayTabs"></div>
       <div class="section-head"><div><h2 id="groupDayTitle">Itinerary</h2></div></div>
@@ -295,6 +313,19 @@
         <!-- Journey Mode control + consent banner + crew map (rendered by renderJourneyView) -->
       </div>
     </div>
+
+      <!-- Gallery v1: photo grid + upload + lightbox -->
+      <div class="view-panel" id="galleryPanel">
+        <div id="galleryContent">
+          <div id="galleryUpload" style="display:none">
+            <label class="btn secondary small" for="galleryFileInput" id="galleryUploadBtn">+ Upload Photo</label>
+            <input type="file" id="galleryFileInput" accept="image/jpeg,image/png,image/webp" style="display:none">
+            <input type="text" id="galleryCaption" placeholder="Caption (opsional)" maxlength="200" style="margin-left:8px;max-width:200px">
+            <span id="galleryUploadStatus" class="muted" style="font-size:12px;margin-left:8px"></span>
+          </div>
+          <div id="galleryGrid" class="gallery-grid"></div>
+        </div>
+      </div>
 <!-- P2: the separate "Anggota" section was removed. Crew (rendered inside
          Journey Mode by renderCrewStatusList) is the single member roster for
          creator and guest alike, including creator-only management controls. -->
@@ -314,7 +345,7 @@
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
   const API=window.TrippiAPI;
-  const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],nameMap:{},identities:{},activeDate:null,channel:null,poll:null,locationChannel:null};
+  const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],gallery:[],nameMap:{},identities:{},activeDate:null,channel:null,poll:null,locationChannel:null};
   // Display name fallback chain: profile → metadata → localStorage → email prefix → Guest
   const loadName=()=>localStorage.getItem('trippi_display_name')||'';
   const saveName=n=>localStorage.setItem('trippi_display_name',n);
@@ -2276,6 +2307,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   const _expensesPanel=document.getElementById('expensesPanel');
   const _journeyPanel=document.getElementById('journeyPanel');
   const _wishlistPanel=document.getElementById('wishlistPanel');
+  const _galleryPanel=document.getElementById('galleryPanel');
   if(_groupViewTabs){
     _groupViewTabs.querySelectorAll('.view-tab').forEach(btn=>{
       btn.onclick=()=>{
@@ -2287,8 +2319,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         if(_expensesPanel) _expensesPanel.classList.toggle('active', v==='expenses');
         if(_journeyPanel) _journeyPanel.classList.toggle('active', v==='journey');
         if(_wishlistPanel) _wishlistPanel.classList.toggle('active', v==='wishlist');
+        if(_galleryPanel) _galleryPanel.classList.toggle('active', v==='gallery');
         if(v==='route') loadRoute(colState.group.id);
         if(v==='journey') renderJourneyView();
+        if(v==='gallery') loadGallery(colState.group.id);
       };
     });
   }
@@ -2654,6 +2688,144 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu';
   window.resolveIdentity=resolveIdentity;
   window.loadIdentities=loadIdentities;
+
+  // ── Gallery v1 ─────────────────────────────────────────────────
+  async function loadGallery(id) {
+    window.loadGallery = loadGallery; // expose for tab click handler
+    const grid = document.getElementById('galleryGrid');
+    const upload = document.getElementById('galleryUpload');
+    if (!grid) return;
+    const uid = colState.uid;
+    const userObj = await API.getUserObject();
+    const isAnon = !uid || (userObj && userObj.is_anonymous);
+    const isMember = !!(colState.group && colState.members.some(m => m.user_id === uid));
+    if (upload) upload.style.display = (isMember && !isAnon) ? 'flex' : 'none';
+    showLoading(grid, 'Memuat gallery...');
+    const { data, error } = await API.listMedia(id);
+    if (error) { grid.innerHTML = '<div class="gallery-empty">Gagal memuat gallery.</div>'; return; }
+    colState.gallery = data || [];
+    renderGallery();
+  }
+
+  function renderGallery() {
+    const grid = document.getElementById('galleryGrid');
+    if (!grid) return;
+    const items = colState.gallery || [];
+    if (!items.length) {
+      grid.innerHTML = '<div class="gallery-empty">Belum ada foto. Upload foto pertama!</div>';
+      return;
+    }
+    // Idempotent: full replace keyed by media id
+    grid.innerHTML = items.map(function (it, idx) {
+      var safeCaption = (it.caption || '').replace(/[<>&]/g, function(c) { return {'<':'&lt;','>':'&gt;','&':'&amp;'}[c]; });
+      return '<div class="gallery-card" data-idx="' + idx + '" data-id="' + it.id + '">' +
+        '<img src="' + it.signed_url + '" alt="' + safeCaption + '" loading="lazy" onerror="this.style.display=\'none\'">' +
+        (it.caption ? '<div class="caption">' + safeCaption + '</div>' : '') +
+        '<button class="delete-btn" data-delgallery="' + it.id + '" title="Hapus">×</button>' +
+        '</div>';
+    }).join('');
+    // Click to open lightbox
+    grid.querySelectorAll('.gallery-card').forEach(function (card) {
+      card.addEventListener('click', function (e) {
+        if (e.target.closest('.delete-btn')) return;
+        openGalleryLightbox(parseInt(card.dataset.idx));
+      });
+    });
+    // Delete buttons
+    grid.querySelectorAll('[data-delgallery]').forEach(function (btn) {
+      btn.addEventListener('click', async function (e) {
+        e.stopPropagation();
+        var mediaId = btn.dataset.delgallery;
+        if (!confirm('Hapus foto ini?')) return;
+        var { error } = await API.deleteMedia(mediaId);
+        if (error) { alert('Gagal menghapus: ' + error.message); return; }
+        colState.gallery = colState.gallery.filter(g => g.id !== mediaId);
+        renderGallery();
+      });
+    });
+  }
+
+  function openGalleryLightbox(idx) {
+    const items = colState.gallery || [];
+    if (!items.length) return;
+    let lb = document.getElementById('galleryLightbox');
+    if (!lb) {
+      lb = document.createElement('div');
+      lb.id = 'galleryLightbox';
+      lb.className = 'gallery-lightbox';
+      lb.innerHTML = '<button class="close-btn" id="galleryLbClose">×</button><button class="nav-btn prev-btn" id="galleryLbPrev">‹</button><img id="galleryLbImg" src="" alt=""><button class="nav-btn next-btn" id="galleryLbNext">›</button><div class="caption" id="galleryLbCaption"></div>';
+      document.body.appendChild(lb);
+      lb.querySelector('#galleryLbClose').onclick = closeGalleryLightbox;
+      lb.querySelector('#galleryLbPrev').onclick = function() { navigateLightbox(-1); };
+      lb.querySelector('#galleryLbNext').onclick = function() { navigateLightbox(1); };
+      lb.onclick = function (e) { if (e.target === lb) closeGalleryLightbox(); };
+    }
+    lb.dataset.idx = idx;
+    lb.classList.add('active');
+    updateLightboxContent();
+  }
+
+  function closeGalleryLightbox() {
+    const lb = document.getElementById('galleryLightbox');
+    if (lb) lb.classList.remove('active');
+  }
+
+  function navigateLightbox(dir) {
+    const lb = document.getElementById('galleryLightbox');
+    if (!lb) return;
+    const items = colState.gallery || [];
+    let idx = parseInt(lb.dataset.idx) + dir;
+    if (idx < 0) idx = items.length - 1;
+    if (idx >= items.length) idx = 0;
+    lb.dataset.idx = idx;
+    updateLightboxContent();
+  }
+
+  function updateLightboxContent() {
+    const lb = document.getElementById('galleryLightbox');
+    if (!lb) return;
+    const items = colState.gallery || [];
+    const idx = parseInt(lb.dataset.idx);
+    const it = items[idx];
+    if (!it) return;
+    lb.querySelector('#galleryLbImg').src = it.signed_url;
+    lb.querySelector('#galleryLbCaption').textContent = it.caption || '';
+  }
+
+  // File input handler
+  const _galleryFileInput = document.getElementById('galleryFileInput');
+  if (_galleryFileInput) {
+    _galleryFileInput.addEventListener('change', async function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const status = document.getElementById('galleryUploadStatus');
+      const caption = document.getElementById('galleryCaption');
+      status.textContent = 'Mengupload...';
+      const { data, error } = await API.uploadMedia({
+        groupId: colState.group.id,
+        file: file,
+        caption: caption ? caption.value : ''
+      });
+      if (error) { status.textContent = 'Gagal: ' + error.message; return; }
+      status.textContent = 'Berhasil!';
+      if (caption) caption.value = '';
+      e.target.value = '';
+      colState.gallery.unshift({
+        id: data.id,
+        storage_path: data.storage_path,
+        signed_url: data.signed_url,
+        uploader_id: colState.uid,
+        caption: caption ? caption.value : '',
+        created_at: new Date().toISOString()
+      });
+      renderGallery();
+      setTimeout(function() { status.textContent = ''; }, 3000);
+    });
+  }
+  window.loadGallery = loadGallery;
+  window.renderGallery = renderGallery;
+  window.openGalleryLightbox = openGalleryLightbox;
+  window.closeGalleryLightbox = closeGalleryLightbox;
 })();
 </script>
 </body>

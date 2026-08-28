@@ -788,11 +788,142 @@
     // (see renderJourneyView in trip-planner.html). No separate
     // status RPC needed — avoids redundant side-effecting calls.
 
-    // ── Realtime ────────────────────────────────────────────────────
-    // The frontend creates a Supabase Realtime channel and manages its
-    // lifecycle. We expose the underlying client so the channel API
-    // can be used without the frontend touching `colState.sb` directly.
-    _getSb: function () { return cachedClient; },
+    // ── Gallery v1 ─────────────────────────────────────────────────
+        // Private bucket `gallery`, signed URLs only (1 hour expiry).
+        // Path: gallery/{group_id}/{user_id}/{YYYYMMDD}_{random8}.{ext}
+
+        _galleryAllowedMime: ['image/jpeg', 'image/png', 'image/webp'],
+        _galleryMaxSize: 10 * 1024 * 1024, // 10 MB
+
+        uploadMedia: function (payload) {
+          // payload = { groupId, file, caption }
+          // Returns { data: { id, storage_path, signed_url }, error }
+          var self = this;
+          var file = payload.file;
+          // Client-side validation (defense in depth — storage policy also enforces)
+          if (self._galleryAllowedMime.indexOf(file.type) === -1) {
+            return Promise.resolve({ data: null, error: { message: 'Tipe file tidak diizinkan. Hanya JPEG, PNG, WebP.' } });
+          }
+          if (file.size > self._galleryMaxSize) {
+            return Promise.resolve({ data: null, error: { message: 'Ukuran file melebihi 10 MB.' } });
+          }
+          return getClient().then(function (client) {
+            if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+            return client.auth.getUser().then(function (ures) {
+              var user = ures.data && ures.data.user;
+              if (!user) return { data: null, error: { message: 'Not authenticated' } };
+              // Build path: gallery/{group_id}/{user_id}/{YYYYMMDD}_{random8}.{ext}
+              var ext = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/png' ? 'png' : 'webp';
+              var now = new Date();
+              var ymd = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+              var rnd = Math.random().toString(36).slice(2, 10);
+              var storagePath = payload.groupId + '/' + user.id + '/' + ymd + '_' + rnd + '.' + ext;
+              return client.storage.from('gallery').upload(storagePath, file, {
+                contentType: file.type,
+                upsert: false
+              }).then(function (upRes) {
+                if (upRes.error) return { data: null, error: upRes.error };
+                // Insert metadata row
+                return client.from('gallery_media').insert({
+                  group_id: payload.groupId,
+                  uploader_id: user.id,
+                  storage_path: upRes.data.path,
+                  mime_type: file.type,
+                  file_size: file.size,
+                  caption: payload.caption || ''
+                }).select('id, storage_path').single().then(function (insRes) {
+                  if (insRes.error) {
+                    // Rollback storage insert on metadata failure
+                    client.storage.from('gallery').remove([upRes.data.path]);
+                    return { data: null, error: insRes.error };
+                  }
+                  // Generate signed URL (1 hour expiry)
+                  return client.storage.from('gallery').createSignedUrl(insRes.data.storage_path, 3600).then(function (urlRes) {
+                    return {
+                      data: {
+                        id: insRes.data.id,
+                        storage_path: insRes.data.storage_path,
+                        signed_url: urlRes.data ? urlRes.data.signedUrl : null
+                      },
+                      error: urlRes.error
+                    };
+                  });
+                });
+              });
+            });
+          });
+        },
+
+        deleteMedia: function (mediaId) {
+          // Returns { data: { deleted }, error }
+          return getClient().then(function (client) {
+            if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+            // Fetch the row first to get storage_path
+            return client.from('gallery_media').select('storage_path').eq('id', mediaId).single().then(function (selRes) {
+              if (selRes.error) return { data: null, error: selRes.error };
+              var storagePath = selRes.data.storage_path;
+              // Delete metadata row first
+              return client.from('gallery_media').delete().eq('id', mediaId).then(function (delRes) {
+                if (delRes.error) return { data: null, error: delRes.error };
+                // Delete storage object (best-effort, ignore if already gone)
+                return client.storage.from('gallery').remove([storagePath]).then(function () {
+                  return { data: { deleted: true }, error: null };
+                });
+              });
+            });
+          });
+        },
+
+        listMedia: function (groupId) {
+          // Returns { data: [{ id, storage_path, signed_url, uploader_id, caption, created_at }], error }
+          return getClient().then(function (client) {
+            if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+            return client.from('gallery_media')
+              .select('id, storage_path, uploader_id, caption, created_at')
+              .eq('group_id', groupId)
+              .order('created_at', { ascending: false })
+              .then(function (res) {
+                if (res.error) return { data: null, error: res.error };
+                var items = res.data || [];
+                // Generate signed URLs for each (1 hour expiry)
+                var signedPaths = items.map(function (it) { return it.storage_path; });
+                return client.storage.from('gallery').createSignedUrls(signedPaths, 3600).then(function (urlRes) {
+                  var signedMap = {};
+                  (urlRes.data || []).forEach(function (s) {
+                    if (s.signedUrl) signedMap[s.path] = s.signedUrl;
+                  });
+                  var enriched = items.map(function (it) {
+                    return {
+                      id: it.id,
+                      storage_path: it.storage_path,
+                      signed_url: signedMap[it.storage_path] || null,
+                      uploader_id: it.uploader_id,
+                      caption: it.caption,
+                      created_at: it.created_at
+                    };
+                  });
+                  return { data: enriched, error: null };
+                });
+              });
+          });
+        },
+
+        getSignedUrl: function (storagePath) {
+          // Returns { data: { signed_url }, error }
+          return getClient().then(function (client) {
+            if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+            return client.storage.from('gallery').createSignedUrl(storagePath, 3600).then(function (res) {
+              if (res.error) return { data: null, error: res.error };
+              return { data: { signed_url: res.data ? res.data.signedUrl : null }, error: null };
+            });
+          });
+        },
+
+        // ── Realtime ────────────────────────────────────────────────────
+        // The frontend creates a Supabase Realtime channel and manages its
+        // lifecycle. We expose the underlying client so the channel API
+        // can be used without the frontend touching `colState.sb` directly.
+        _getSb: function () { return cachedClient; },
 
   };
 
