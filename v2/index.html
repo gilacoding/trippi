@@ -97,6 +97,7 @@ img{display:block;max-width:100%}
 .avatar{width:44px;height:44px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center;font-family:'Poppins';font-size:18px;font-weight:700;color:var(--ink);overflow:hidden;flex:0 0 auto;position:relative}
 .avatar img{width:100%;height:100%;object-fit:cover}
 .avatar-sm{width:32px;height:32px;font-size:14px}
+.t-avatar-sm{width:32px;height:32px;border-radius:50%;background:var(--sage);display:inline-flex;align-items:center;justify-content:center;font-family:'Poppins';font-size:14px;font-weight:700;color:var(--ink);flex:0 0 auto}
 .avatar-lg{width:64px;height:64px;font-size:24px}
 .avatar-xl{width:72px;height:72px;font-size:26px}
 .avatar .avatar-edit{position:absolute;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s ease}
@@ -108,8 +109,8 @@ img{display:block;max-width:100%}
 .status-badge.online .badge-dot{background:var(--success);box-shadow:0 0 6px var(--success)}
 .status-badge.offline{background:rgba(139,134,130,.08);color:var(--text-muted)}
 .status-badge.offline .badge-dot{background:var(--text-muted)}
-.fab{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--surface);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(250,105,0,.3);z-index:60;border:0}
-.fab svg{width:24px;height:24px}
+.fab{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:175px;height:49px;border-radius:24.5px;background:var(--accent);color:var(--surface);display:inline-flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 16px rgba(250,105,0,.3);z-index:60;border:0;font-family:'Outfit';font-size:16px;font-weight:700}
+.fab svg{width:20px;height:20px}
 .modal-backdrop{position:fixed;inset:0;background:rgba(26,26,26,.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
 .modal-backdrop.hidden{display:none}
 .modal-sheet{width:100%;max-width:390px;background:var(--surface);border-radius:20px;padding:24px;max-height:calc(100vh - 40px);overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.12)}
@@ -149,9 +150,10 @@ img{display:block;max-width:100%}
 <div class="screen active" id="screenHome">
   <div class="content" style="padding-top:8px">
     <div class="flex items-center gap-3 mb-4">
+      <div class="t-avatar-sm"><span>H</span></div>
       <div style="flex:1">
-        <div class="t-body-sm text-muted mb-1">Hai, Ras 👋</div>
-        <div class="t-display" style="font-size:28px">Trip Kamu</div>
+        <div class="t-body-sm text-muted mb-1" style="font-family:Poppins;font-size:20px;font-weight:700">Hai, Ras 👋</div>
+        <div class="t-display" style="font-size:32px">Trip Kamu</div>
       </div>
     </div>
     <div class="t-body-sm text-muted mb-4">Atur rencana jalan kamu.</div>
@@ -338,7 +340,7 @@ img{display:block;max-width:100%}
 </nav>
 
 <button class="fab" id="fabCreate" onclick="openCreateTrip()">
-  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+  + Buat Trip
 </button>
 
 <div class="toast" id="toast"></div>
@@ -370,7 +372,7 @@ function renderHome(){
     html+='<div class="trip-card" onclick="openTrip('+t.id+')">'+
       '<div class="card-body">'+
         '<span class="card-tag '+t.status+'">'+(t.status==='active'?t.role:'Selesai')+'</span>'+
-        '<div class="card-title">'+t.title+'<br>'+t.dest+'</div>'+
+        '<div class="card-title" style="font-family:Poppins;font-size:20px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.title+', '+t.dest+'</div>'+
         '<div class="card-date">'+t.date+'</div>'+
         '<div class="card-meta"><span>'+t.pax+' orang</span><span class="meta-dot"></span><span>'+(t.status==='active'?'Berlangsung':'Selesai')+'</span></div>'+
         '<div class="card-cta"><button class="cta-link" onclick="event.stopPropagation();openTrip('+t.id+')">'+(t.status==='active'?'Kelola':'Lihat Trip')+'</button></div>'+
