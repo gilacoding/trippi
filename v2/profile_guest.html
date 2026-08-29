@@ -1,0 +1,30 @@
+<!-- PROFILE SCREEN - GUEST STATE -->
+<div class="screen" id="screenGuest">
+  <div class="content" style="padding-top:8px">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="avatar avatar-xl" style="background:var(--surface2);border:1.5px dashed var(--border)">
+        <span style="font-family:'Poppins';font-size:26px;font-weight:700;color:var(--text-muted)">?</span>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="t-title text-muted">Tamu</div>
+        <div class="t-caption text-muted">Belum terdaftar</div>
+      </div>
+    </div>
+    <div class="section-label">Identitas</div>
+    <div class="field">
+      <label class="field-label">Nama tampilan</label>
+      <input class="field-input" type="text" placeholder="Masuk atau daftar untuk mengisi" disabled>
+      <div class="t-caption text-muted mt-1">Masuk atau daftar untuk mengisi nama.</div>
+    </div>
+    <div class="divider mb-3"></div>
+    <div class="section-label">Akun</div>
+    <button class="btn btn-secondary" style="width:100%;margin-bottom:12px">Masuk / Daftar</button>
+    <button class="btn-text text-muted" style="width:100%;text-align:left">Keluar dari perangkat ini</button>
+    <div class="t-caption text-muted mt-2">Tamu tidak bisa membuat atau mengedit trip.</div>
+  </div>
+</div>
+
+<!-- REWIRE showScreen to include guest -->
+<script>
+  // Already defined in main script - just append guest handling
+</script>

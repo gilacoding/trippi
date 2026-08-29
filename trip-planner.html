@@ -2464,6 +2464,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     } else {
       // Capture the anonymous UID BEFORE signup (it changes after sign-in)
       var oldUid=colState.uid;
+      var oldUser = await API.getUserObject();
+      var wasAnon = !!(oldUser && oldUser.is_anonymous);
+      // Capture display name before signup changes session
+      var nm=document.getElementById('authName').value.trim();
       var s=await API.signUpWithEmail(email,pw);
       if(s.error){ errEl.textContent=humanErr(s.error); submitBtn.disabled=false; return; }
       // Capture display name at registration (so it's available when creating/joining trips)
@@ -2476,26 +2480,26 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         submitBtn.disabled=false; closeAuth(); return;
       }
             var wasGuest = colState.isGuest;
-      // Account linking: Supabase Auth upgrades the anonymous user IN-PLACE
-      // (same UID), so there is no separate identity to transfer. Instead:
-      //   1. Update group_members.role from 'Guest' → 'Crew Member'
-      //   2. Create a canonical profiles row for this user
-      if(wasGuest && s && s.data && s.data.user){
-        (async function(){
-          try{
-            var uid = s.data.user.id;
-            await API.ensureProfile(nm || colState.name || null);
-            // Upgrade role from Guest to Crew Member in all groups this user belongs to
-            var sb = API._getSb();
-            if(sb){
-              var { data: memberships } = await sb.from('group_members').select('id, group_id, role').eq('user_id', uid).eq('role', 'Guest');
-              if(memberships && memberships.length){
-                await sb.from('group_members').update({ role: 'Crew Member' }).eq('user_id', uid).eq('role', 'Guest');
-              }
-            }
-          }catch(e){ console.warn('[conversion] upgrade failed:', e && e.message); }
-        })();
-      }
+                  // Account linking: signUpWithEmail creates a NEW user (new UID).
+                  // Transfer the anonymous identity's memberships, attribution, and
+                  // profile to the new UID, then delete the anon identity.
+                  if(wasAnon && s && s.data && s.data.user){
+                    (async function(){
+                      try{
+                        var uid = s.data.user.id;
+                        await API.ensureProfile(nm || colState.name || null);
+                        // Transfer anonymous identity to the new registered account
+                        await API.transferAnonymousIdentity(oldUid, uid, nm || colState.name || null);
+                        // Reload identities from server so converted user shows as Crew Member
+                        if(typeof loadIdentities === 'function' && colState.group) await loadIdentities(colState.group.id);
+                        // Also refresh nameMap from members
+                        if(typeof loadMembers === 'function' && colState.group) await loadMembers(colState.group.id);
+                        // Refresh Crew list to reflect merged identity
+                        if(typeof loadMembers === 'function' && colState.group) await loadMembers(colState.group.id);
+                        if(typeof renderCrewStatusList === 'function') renderCrewStatusList();
+                      }catch(e){ console.warn('[conversion] transfer failed:', e && e.message); }
+                    })();
+                  }
       // else SIGNED_IN handled by onAuthChange
     }
     submitBtn.disabled=false;

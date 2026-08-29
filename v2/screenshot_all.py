@@ -1,119 +1,127 @@
-import subprocess, time, os, urllib.request, json
+#!/usr/bin/env python3
+"""Generate per-screen HTML versions for screenshot verification."""
 
-chrome = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
-profile = r"C:\Users\ASUS\AppData\Local\Temp\chrome_v2_verify"
+import subprocess, os, sys, time, shutil
 
-# Kill existing
-subprocess.run(["taskkill", "/F", "/IM", "chrome.exe"], capture_output=True)
-time.sleep(1)
+BASE_HTML = r"D:\HERMES WORKS\TRIPPi\TRIPPY\trippi-deploy\v2\index.html"
+SCREENS = [
+    ("screenHome", "home"),
+    ("screenProfile", "profile"),
+    ("createTripModal", "create-trip"),
+    ("screenPlanner", "planner"),
+    ("screenJourney", "journey"),
+    ("screenHistory", "history"),
+    ("deleteModal", "delete-confirm"),
+]
+SCREENS_WITH_SPLIT = {
+    "home": "screenHome",
+    "profile": "screenProfile", 
+    "planner": "screenPlanner",
+    "journey": "screenJourney",
+    "history": "screenHistory",
+}
 
-# Start Chrome
-proc = subprocess.Popen([
-    chrome,
-    "--remote-debugging-port=9222",
-    f"--user-data-dir={profile}",
-    "file:///D:/HERMES%20WORKS/TRIPPi/TRIPPY/trippi-deploy/v2/index.html"
-], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+def kill_chrome():
+    subprocess.run(["taskkill", "/F", "/IM", "chrome.exe"], capture_output=True)
+    time.sleep(1)
 
-time.sleep(3)
+def screenshot_html(html_path, output_path, window_size="390,844"):
+    """Open HTML file in Chrome headless and take screenshot."""
+    url = "file:///" + html_path.replace("\\", "/")
+    cmd = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        "--headless=new",
+        "--disable-gpu", 
+        f"--screenshot={output_path}",
+        f"--window-size={window_size}",
+        url
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+    if result.stderr:
+        print(f"  Stderr: {result.stderr[:100]}")
+    if os.path.exists(output_path):
+        size = os.path.getsize(output_path)
+        print(f"  Saved: {output_path} ({size} bytes)")
+        return size
+    else:
+        print(f"  FAILED: no output file")
+        return 0
 
-screenshots = {}
-
-for screen_id in ["screenHome", "screenProfile", "CreateTrip", "Planner", "Journey", "History", "DeleteConfirm"]:
-    # Open page and modify active class
-    try:
-        req = urllib.request.Request("http://127.0.0.1:9222/json")
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            pages = json.loads(resp.read().decode())
+def main():
+    kill_chrome()
+    
+    with open(BASE_HTML, "r", encoding="utf-8") as f:
+        base_content = f.read()
+    
+    results = []
+    
+    for screen_id, name in SCREENS:
+        print(f"\n--- {name} ({screen_id}) ---")
         
-        # Find the MarkiCab page
-        target = None
-        for p in pages:
-            if "MarkiCab" in p.get("title", ""):
-                target = p
-                break
+        # Modify HTML to show only this screen
+        modified = base_content
         
-        if not target:
-            print(f"No MarkiCab page found for {screen_id}")
-            continue
+        # Remove active class from all screens, add to target
+        # This is tricky because we need to handle both screen divs and modal divs
         
-        page_id = target["id"]
+        # Find and modify the target element
+        if screen_id.startswith("screen"):
+            # It's a screen div - make it active
+            target_pattern = f'class="screen"' + ('' if f'id="{screen_id}"' not in modified else '')
+            # Find the div with this id and add active class
+            import re
+            modified = re.sub(
+                f'(<div class="screen" id="{screen_id}")',
+                f'<div class="screen active" id="{screen_id}"',
+                modified
+            )
+            # Remove active from other screens
+            for other_id in ["screenHome", "screenProfile", "screenPlanner", "screenJourney", "screenHistory", "screenGuest"]:
+                if other_id != screen_id:
+                    modified = re.sub(
+                        f'(<div class="screen active" id="{other_id}")',
+                        f'<div class="screen" id="{other_id}"',
+                        modified
+                    )
+        elif screen_id.startswith("createTripModal") or screen_id.startswith("deleteModal"):
+            # It's a modal - make it visible (remove hidden class)
+            modified = re.sub(
+                f'(<div class="modal-backdrop hidden" id="{screen_id}")',
+                f'<div class="modal-backdrop" id="{screen_id}">',
+                modified
+            )
+            # Also hide screens
+            for sid in ["screenHome", "screenProfile", "screenPlanner", "screenJourney", "screenHistory", "screenGuest"]:
+                modified = re.sub(
+                    f'(<div class="screen active" id="{sid}")',
+                    f'<div class="screen" id="{sid}"',
+                    modified
+                )
         
-        # Use CDP to execute JS that shows the target screen and takes screenshot
-        ws_url = f"ws://127.0.0.1:9222/devtools/page/{page_id}"
+        # Write temp file
+        temp_html = f"C:/temp/v2_{name}.html"
+        with open(temp_html, "w", encoding="utf-8") as f:
+            f.write(modified)
         
-        # For simplicity, use the CDP HTTP endpoint
-        # Navigate to a data URL that has the screen shown
-        js_code = f"""
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById('{screen_id}').classList.add('active');
-        document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.add('hidden'));
-        """
+        # Take screenshot
+        output = f"C:/temp/v2_{name}.png"
+        size = screenshot_html(temp_html, output)
+        results.append((name, output, size))
         
-        if screen_id == "CreateTrip":
-            js_code = """
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.add('hidden'));
-            document.getElementById('createTripModal').classList.remove('hidden');
-            """
-        elif screen_id == "DeleteConfirm":
-            js_code = """
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.add('hidden'));
-            document.getElementById('deleteModal').classList.remove('hidden');
-            """
-        
-        cdp_req = urllib.request.Request(
-            f"http://127.0.0.1:9222/json",
-            data=json.dumps({"id": 1, "method": "Runtime.evaluate", "params": {"expression": js_code}}).encode(),
-            method="POST",
-            headers={"Content-Type": "application/json"}
-        )
-        
+        # Clean up temp HTML
         try:
-            with urllib.request.urlopen(cdp_req, timeout=5) as resp:
-                result = json.loads(resp.read().decode())
-                if result.get("result", {}).get("error"):
-                    print(f"JS error for {screen_id}: {result['result']['error']}")
-        except Exception as e:
-            print(f"CDP eval error for {screen_id}: {e}")
-        
-        time.sleep(0.5)
-        
-        # Get screenshot via CDP
-        cdp_screenshot = json.dumps({
-            "id": 2,
-            "method": "Page.getScreenshot",
-            "params": {"format": "png", "captureBeyondViewport": True}
-        }).encode()
-        
-        screenshot_req = urllib.request.Request(
-            f"http://127.0.0.1:9222/json",
-            data=cdp_screenshot,
-            method="POST",
-            headers={"Content-Type": "application/json"}
-        )
-        
-        try:
-            with urllib.request.urlopen(screenshot_req, timeout=10) as resp:
-                png_data = resp.read()
-                if png_data:
-                    path = f"C:/Users/ASUS/AppData/Local/Temp/v2_{screen_id}.png"
-                    with open(path, 'wb') as f:
-                        f.write(png_data)
-                    screenshots[screen_id] = path
-                    print(f"Screenshot {screen_id}: {len(png_data)} bytes")
-                else:
-                    print(f"Empty screenshot for {screen_id}")
-        except Exception as e:
-            print(f"Screenshot error for {screen_id}: {e}")
-            
-    except Exception as e:
-        print(f"Error for {screen_id}: {e}")
+            os.remove(temp_html)
+        except:
+            pass
+    
+    kill_chrome()
+    
+    print(f"\n=== Summary: {len(results)} screenshots ===")
+    for name, path, size in results:
+        status = "PASS" if size > 0 else "FAIL"
+        print(f"  {name}: {status} ({size} bytes)")
+    
+    return 0
 
-proc.terminate()
-proc.wait(timeout=5)
-
-print(f"\nTotal screenshots: {len(screenshots)}")
-for name, path in screenshots.items():
-    print(f"  {name}: {path} ({os.path.getsize(path)} bytes)")
+if __name__ == "__main__":
+    sys.exit(main())

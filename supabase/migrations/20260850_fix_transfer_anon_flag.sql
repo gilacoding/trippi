@@ -1,15 +1,7 @@
--- P0.7 part 5: account linking — transfer anonymous identity to a new registered account.
---
--- EVIDENCE that this is needed (measured by guest_conversion.py):
---   After a guest converts to a registered account, BOTH identities remain as members
---   of the same trip — one human carries two identities in one group:
---     anon_uuid  'Budi' Guest
---     new_uuid   'converted_xxx' Crew Member
---   The anon membership, wishlist suggestions, shared-item and expense attributions
---   should all migrate to the new UID, and the anon identity should be removed.
---
--- The transfer runs in a single transaction. It is idempotent: if the old UID has no
--- rows left to transfer, it is simply deleted.
+-- Fix: clear is_anonymous flag during anonymous-to-registered transfer
+-- The previous transfer updated user_id/display_name/role/joined_at but left
+-- is_anonymous = true on the membership row, so the converted user still
+-- rendered as "Guest" in the Crew list.
 
 create or replace function public.transfer_anonymous_identity(
   p_old_user_id uuid,
@@ -25,8 +17,6 @@ declare
   v_old_is_anon boolean;
   v_members     integer;
 begin
-  -- Guard: the source MUST be an anonymous user, otherwise we would let a
-  -- registered user overwrite someone else's data.
   select is_anonymous into v_old_is_anon
   from auth.users where id = p_old_user_id;
 
@@ -49,23 +39,36 @@ begin
   update public.invitations      set created_by     = p_new_user_id where created_by     = p_old_user_id;
   update public.journey_sessions set enabled_by     = p_new_user_id where enabled_by     = p_old_user_id;
 
-  -- 2. Membership: transfer the anon's memberships to the new UID.
-  --    For groups where the new UID is already a member → merge (update anon
-  --    row to new UID, keep earliest joined_at, prefer anon's role).
-  --    For groups where the new UID is NOT a member → update anon row to new UID.
-  with merged as (
+  -- 2. Membership: replace the anon row with the new UID. Keep the earliest
+  --    joined_at so tenure is preserved. Clear is_anonymous so the converted
+  --    user renders as "Crew Member", not "Guest".
+  with existing as (
+    select group_id, joined_at
+    from public.group_members
+    where user_id = p_new_user_id
+  ), merged as (
     update public.group_members gm
        set user_id = p_new_user_id,
            display_name = coalesce(p_display_name, gm.display_name),
-           joined_at = gm.joined_at
+           role = case when e.group_id is null then gm.role
+                       else (select role from public.group_members where user_id = p_new_user_id and group_id = gm.group_id limit 1)
+                  end,
+           joined_at = least(gm.joined_at, coalesce(e.joined_at, gm.joined_at)),
+           is_anonymous = false
+      from existing e
      where gm.user_id = p_old_user_id
+       and gm.group_id = e.group_id
     returning gm.group_id
+  ), deleted as (
+    delete from public.group_members
+     where user_id = p_old_user_id
+       and group_id not in (select group_id from merged)
+    returning group_id
   )
   select count(*) into v_members from public.group_members where user_id = p_new_user_id;
 
   -- 3. Profile: if the new UID has no profile yet, create one from the anon's
-  --    per-trip display names (most recent non-placeholder). The client will
-  --    upsert its own profile immediately after, so this is just a safety net.
+  --    per-trip display names (most recent non-placeholder).
   insert into public.profiles (id, display_name)
   select p_new_user_id, best.latest_good
   from (
@@ -78,8 +81,7 @@ begin
     and best.latest_good is not null
   on conflict (id) do nothing;
 
-  -- 4. Remove the anonymous identity itself. Cascades to auth.identities,
-  --    auth.sessions, etc. The anon has no profile row to delete (never created).
+  -- 4. Remove the anonymous identity itself.
   delete from auth.users where id = p_old_user_id;
 
   return jsonb_build_object(

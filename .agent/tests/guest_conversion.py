@@ -34,7 +34,7 @@ async def login(page, email, pw):
 
 
 async def poll(page, predicate, timeout=20, interval=0.5):
-    """Poll a predicate until it returns truthy or timeout. Returns (ok, last_value)."""
+    import time
     deadline = time.time() + timeout
     val = None
     while time.time() < deadline:
@@ -59,10 +59,12 @@ async def main():
 
         made = await op.evaluate("""async () => {
             const g = await window.TrippiAPI.createGroup({
-                name: 'Conversion ' + Date.now(), destination: 'Bali',
+                name: 'Conversion ' + Date.now(), destination: 'X',
                 start_date: '2026-09-01', end_date: '2026-09-02', display_name: 'Ras'});
             if (g.error) return { error: String(g.error.message || g.error) };
             const gid = g.data.id;
+            await window.TrippiAPI.addItem({group_id: gid, title: 'Sarapan',
+                date: '2026-09-01', time: '08:00', budget: 50000});
             const inv = await window.TrippiAPI.createInvitation(gid);
             const d = Array.isArray(inv.data) ? inv.data[0] : inv.data;
             return { id: gid, token: (d && d.token) || d };
@@ -71,7 +73,7 @@ async def main():
             record("setup", False, made["error"])
             summary_and_exit()
         gid, token = made["id"], made["token"]
-        record("setup: trip + invitation", True, gid[:8])
+        record("setup: trip + invitation", True)
 
         # ===== GUEST: join trip + add wishlist =====
         gctx = await browser.new_context()
@@ -97,40 +99,44 @@ async def main():
         await gp.evaluate("() => { const b = document.getElementById('guestUpgradeBtn'); if (b) b.click(); }")
         await gp.wait_for_timeout(1000)
 
-        await gp.wait_for_timeout(500)
-        title = await gp.evaluate("() => document.getElementById('authTitle').textContent")
-        if "Daftar" not in title:
-            await gp.evaluate("() => document.getElementById('authToggle').click()")
-            await gp.wait_for_timeout(200)
-
+        # Sign up (guestUpgradeBtn already opened auth in signup mode)
+        import time
         new_email = f"converted_{int(time.time())}@marki.cab"
         await gp.fill("#authEmail", new_email)
         await gp.fill("#authPassword", "Str0ngP@ss99!")
         await gp.locator("#authSubmit").click()
-        await gp.wait_for_timeout(5000)
+        await gp.wait_for_timeout(10000)
 
         new_uid = await gp.evaluate("() => colState.uid")
         record("CONVERSION signup completed", bool(new_uid), f"new_uid={new_uid[:8] if new_uid else 'null'}")
 
+        # Wait for transfer to complete
+        await gp.wait_for_timeout(3000)
+
+        # ===== VERIFY: identity merged (via API - deterministic) =====
+        async def check_merged_api():
+            result = await gp.evaluate("""async () => {
+                const sb = window.TrippiAPI._getSb();
+                const r = await sb.from('group_members').select('user_id, display_name, role, is_anonymous').eq('group_id', '%s');
+                return r.data || [];
+            }""" % gid)
+            if not result:
+                return None
+            ras = [m for m in result if m.get('role') == 'owner']
+            budi_non_anon = [m for m in result if m.get('display_name') == 'Budi' and not m.get('is_anonymous')]
+            budi_anon = [m for m in result if m.get('display_name') == 'Budi' and m.get('is_anonymous')]
+            if len(ras) == 1 and len(budi_non_anon) == 1 and len(budi_anon) == 0:
+                return result
+            return None
+
+        merged, member_rows = await poll(gp, check_merged_api, timeout=20, interval=0.5)
+        record("CONVERSION identity merged (no duplicate)", merged, member_rows)
+
         # ===== VERIFY: trip still accessible =====
         await gp.evaluate("(id) => openGroup(id, false)", gid)
-        await gp.wait_for_timeout(4000)
-
+        await gp.wait_for_timeout(3000)
         trip_name = await gp.evaluate("() => (document.getElementById('groupName')||{}).textContent || ''")
         record("CONVERSION trip still accessible", 'Conversion' in trip_name, trip_name)
-
-        # ===== VERIFY: identity merged (polling) =====
-        async def check_merged():
-            rows = await gp.evaluate("""() => {
-                const rows = document.querySelectorAll('#crewStatusList .to-go-item');
-                return Array.from(rows).map(r => r.innerText.replace(/\\s+/g, ' ').trim());
-            }""")
-            budi_count = sum(1 for r in rows if 'Budi' in r)
-            anon_guest = any('Guest' in r for r in rows)
-            return rows if (budi_count == 1 and not anon_guest) else None
-
-        merged, member_rows = await poll(gp, check_merged, timeout=20, interval=0.5)
-        record("CONVERSION identity merged (no duplicate)", merged, member_rows)
 
         # ===== VERIFY: wishlist attribution preserved =====
         wl = await gp.evaluate("() => (document.getElementById('groupWishList')||{}).innerText || ''")

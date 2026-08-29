@@ -83,13 +83,13 @@ async def main():
             """async () => {
                 const g = await window.TrippiAPI.createGroup({
                     name: 'Guest UI ' + Date.now(), destination: 'Nigeria',
-                    start_date: '2026-08-26', end_date: '2026-08-27', display_name: 'Ras'});
+                    start_date: '2026-09-26', end_date: '2026-09-27', display_name: 'Ras'});
                 if (g.error) return { error: String(g.error.message || g.error) };
                 const gid = g.data.id;
                 await window.TrippiAPI.addItem({group_id: gid, title: 'Hura-hura',
-                    date: '2026-08-26', time: '17:00', budget: 150000});
+                    date: '2026-09-26', time: '17:00', budget: 150000});
                 await window.TrippiAPI.addItem({group_id: gid, title: 'Kemana aja',
-                    date: '2026-08-27', time: '08:00', budget: 500000});
+                    date: '2026-09-27', time: '08:00', budget: 500000});
                 return { id: gid, name: g.data.name };
             }"""
         )

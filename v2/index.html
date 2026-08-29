@@ -118,7 +118,6 @@ img{display:block;max-width:100%}
 .modal-header .modal-title{font-family:'Poppins';font-size:20px;font-weight:600;color:var(--ink)}
 .modal-close{width:22px;height:22px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text-muted)}
 .modal-footer{display:flex;gap:12px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
-.modal-footer .btn{flex:1}
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;color:var(--text-muted)}
 .empty-state .empty-icon{width:64px;height:64px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:28px}
 .empty-state .empty-title{font-family:'Poppins';font-size:16px;font-weight:600;color:var(--ink);margin-bottom:4px}
@@ -372,7 +371,7 @@ function renderHome(){
     html+='<div class="trip-card" onclick="openTrip('+t.id+')">'+
       '<div class="card-body">'+
         '<span class="card-tag '+t.status+'">'+(t.status==='active'?t.role:'Selesai')+'</span>'+
-        '<div class="card-title" style="font-family:Poppins;font-size:20px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.title+', '+t.dest+'</div>'+
+        +'<div class="card-title" style="font-family:Poppins;font-size:20px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.title+', '+t.dest+'</div>'+
         '<div class="card-date">'+t.date+'</div>'+
         '<div class="card-meta"><span>'+t.pax+' orang</span><span class="meta-dot"></span><span>'+(t.status==='active'?'Berlangsung':'Selesai')+'</span></div>'+
         '<div class="card-cta"><button class="cta-link" onclick="event.stopPropagation();openTrip('+t.id+')">'+(t.status==='active'?'Kelola':'Lihat Trip')+'</button></div>'+
@@ -441,7 +440,8 @@ function showScreen(id){
   document.getElementById('journeyHeader').style.display=(id==='screenJourney')?'flex':'none';
   document.getElementById('historyHeader').style.display=(id==='screenHistory')?'flex':'none';
   document.getElementById('fabCreate').style.display=(id==='screenHome')?'flex':'none';
-  document.getElementById('bottomNav').style.display=(id==='screenProfile')?'flex':'flex';
+  document.getElementById('bottomNav').style.display=(id==='screenProfile'||id==='screenGuest')?'none':'flex';
+  if(id==='screenProfile'){renderProfile();updateProfileCharCount();}
   if(id==='screenPlanner')renderPlanner();
   if(id==='screenJourney')renderJourney();
   if(id==='screenHistory')renderHistory();
