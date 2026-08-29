@@ -441,7 +441,7 @@ function showScreen(id){
   document.getElementById('journeyHeader').style.display=(id==='screenJourney')?'flex':'none';
   document.getElementById('historyHeader').style.display=(id==='screenHistory')?'flex':'none';
   document.getElementById('fabCreate').style.display=(id==='screenHome')?'flex':'none';
-  document.getElementById('bottomNav').style.display=(id==='screenProfile')?'none':'flex';
+  document.getElementById('bottomNav').style.display=(id==='screenProfile')?'flex':'flex';
   if(id==='screenPlanner')renderPlanner();
   if(id==='screenJourney')renderJourney();
   if(id==='screenHistory')renderHistory();
