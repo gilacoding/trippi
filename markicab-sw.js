@@ -8,7 +8,7 @@ const CORE_FILES = [
   './markicab.webmanifest',
   './markicab-icon.svg',
   './lzstring.js'
-  // NOTE: backend/supabase-client.js and backend/trippi-api.js are intentionally
+  // NOTE: backend/supabase-client.js and backend/markicab-api.js are intentionally
   // excluded from pre-cache AND served network-first (see fetch handler) so JS
   // updates deploy without a manual SW cache clear.
 ];
@@ -23,7 +23,7 @@ const NETWORK_FIRST = [
   /(^|\/)$/,
   /trip-planner\.html(\?|$)/,
   /index\.html(\?|$)/,
-  /\/backend\/trippi-api\.js(\?|$)/,
+  /\/backend\/markicab-api\.js(\?|$)/,
   /\/backend\/supabase-client\.js(\?|$)/,
   /\/markicab-sw\.js(\?|$)/,
   /\/markicab\.webmanifest(\?|$)/,
