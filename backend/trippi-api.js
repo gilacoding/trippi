@@ -58,7 +58,7 @@
   }
 
   // Email + password sign up. Returns { data, error } (Supabase shape).
-  // NOTE: project requires email confirmation (mailer_autoconfirm=false).
+  // P1: mailer_autoconfirm=false (email confirmation required for public launch).
   // Caller must handle the "check your email" confirmation step.
   function signUpWithEmail(email, password) {
     return getClient().then(function (client) {

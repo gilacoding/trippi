@@ -2486,7 +2486,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         return;
       } else {
         // P1: Fresh registration — signUpWithEmail creates a new account.
-        // mailer_autoconfirm=false means no session returned; user must verify email.
+        // P1: mailer_autoconfirm=false means no session returned; user must verify email.
         var s = await API.signUpWithEmail(email, pw);
         if(s.error){ errEl.textContent=humanErr(s.error); submitBtn.disabled=false; return; }
         if(nm && typeof saveName==='function'){ saveName(nm.slice(0,40)); if(colState) colState.name=nm.slice(0,40); }
