@@ -12,16 +12,10 @@
 <script>
   // Supabase config (public anon key — safe in client because access is
   // enforced at the application layer; see supabase/schema.sql).
-  // Primary: window.__MARKICAB_SUPABASE__
-  // Legacy compat: window.__TRIPPI_SUPABASE__ is also accepted.
-  if (!window.__MARKICAB_SUPABASE__) {
-    window.__MARKICAB_SUPABASE__ = window.__TRIPPI_SUPABASE__;
-  }
   window.__MARKICAB_SUPABASE__ = window.__MARKICAB_SUPABASE__ || {
     url: 'https://ishflkcsdzlhhxtanhxf.supabase.co',
-    anonKey: 'sb_publishable_7g_crQO8fm0SVVIdqDU78w_gIglXx8Q'
+    anonKey: 'sb_publishable_7g_crQ08fm0SVVIdqDU78w_gIglXx8Q'
   };
-  window.__TRIPPI_SUPABASE__ = window.__MARKICAB_SUPABASE__;
 </script>
 <style>
  @font-face{font-family:'Poppins';font-style:normal;font-weight:400;src:local('Poppins'),url('https://fonts.gstatic.com/s/poppins/v21/pxiEyp8kv8JHgFVrJJfecg.woff2') format('woff2');font-display:swap}
@@ -351,7 +345,7 @@
   const dbg=(msg)=>{};
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
-  const API=window.MarkiAPI || window.TrippiAPI;
+  const API=window.MarkiAPI;
   const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],gallery:[],nameMap:{},identities:{},activeDate:null,channel:null,poll:null,locationChannel:null};
   // Display name fallback chain: profile → metadata → localStorage → email prefix → Guest
   const loadName=()=>localStorage.getItem('markicab_display_name')||'';

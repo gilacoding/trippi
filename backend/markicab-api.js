@@ -21,7 +21,7 @@
   'use strict';
 
   // Grab the backend loader that supabase-client.js exposes on window.
-  var SB = window.MarkiBackend || window.TrippiBackend;
+  var SB = window.MarkiBackend;
 
   // ── Auth singleton ────────────────────────────────────────────────
   // Session-aware auth. No anonymous sign-in (production model: email/password).
@@ -951,8 +951,6 @@
   };
 
   // Expose on window so trip-planner.html can call MarkiAPI.createGroup() etc.
-  // Legacy alias: window.TrippiAPI is kept for backward compatibility.
   window.MarkiAPI = API;
-  window.TrippiAPI = API;
 
 })();
