@@ -1,9 +1,15 @@
-"""Guest → Account Conversion acceptance test.
+"""Guest → Account Conversion acceptance test (P1: in-place via updateUser).
 
 Proves that an anonymous guest can convert to a registered account without
 losing access to trips they joined, and without creating duplicate memberships.
 
-Uses POLLING for async transfer verification (no fixed sleeps).
+P1 CHANGE: Uses updateUser (in-place) instead of signUpWithEmail + transfer RPC.
+- Same UID preserved (no new user created)
+- No conversion RPC needed
+- is_anonymous becomes false on the user record
+- Session stays valid throughout
+
+Uses POLLING for async verification (no fixed sleeps).
 """
 import asyncio, os, sys, time
 from playwright.async_api import async_playwright
@@ -99,7 +105,7 @@ async def main():
         await gp.evaluate("() => { const b = document.getElementById('guestUpgradeBtn'); if (b) b.click(); }")
         await gp.wait_for_timeout(1000)
 
-        # Sign up (guestUpgradeBtn already opened auth in signup mode)
+        # P1: updateUser (in-place) — same UID, no new user created
         import time
         new_email = f"converted_{int(time.time())}@marki.cab"
         await gp.fill("#authEmail", new_email)
@@ -108,9 +114,12 @@ async def main():
         await gp.wait_for_timeout(10000)
 
         new_uid = await gp.evaluate("() => colState.uid")
-        record("CONVERSION signup completed", bool(new_uid), f"new_uid={new_uid[:8] if new_uid else 'null'}")
+        record("CONVERSION completed", bool(new_uid), f"new_uid={new_uid[:8] if new_uid else 'null'}")
 
-        # Wait for transfer to complete
+        # P1: Verify in-place conversion — UID stays the same
+        record("CONVERSION in-place (same UID)", anon_uid == new_uid, f"{anon_uid[:8]} -> {new_uid[:8]}")
+
+        # Wait for conversion to propagate
         await gp.wait_for_timeout(3000)
 
         # ===== VERIFY: identity merged (via API - deterministic) =====
@@ -123,14 +132,15 @@ async def main():
             if not result:
                 return None
             ras = [m for m in result if m.get('role') == 'owner']
-            budi_non_anon = [m for m in result if m.get('display_name') == 'Budi' and not m.get('is_anonymous')]
-            budi_anon = [m for m in result if m.get('display_name') == 'Budi' and m.get('is_anonymous')]
-            if len(ras) == 1 and len(budi_non_anon) == 1 and len(budi_anon) == 0:
+            # P1: Budi's membership now has is_anonymous = false (converted in-place)
+            budi_rows = [m for m in result if m.get('display_name') == 'Budi']
+            budi_non_anon = [m for m in budi_rows if not m.get('is_anonymous')]
+            if len(ras) == 1 and len(budi_non_anon) == 1 and len(budi_rows) == 1:
                 return result
             return None
 
         merged, member_rows = await poll(gp, check_merged_api, timeout=20, interval=0.5)
-        record("CONVERSION identity merged (no duplicate)", merged, member_rows)
+        record("CONVERSION membership preserved (no duplicate)", merged, member_rows)
 
         # ===== VERIFY: trip still accessible =====
         await gp.evaluate("(id) => openGroup(id, false)", gid)
@@ -142,10 +152,7 @@ async def main():
         wl = await gp.evaluate("() => (document.getElementById('groupWishList')||{}).innerText || ''")
         record("CONVERSION wishlist attribution preserved", 'IdeBudi' in wl, wl[:100])
 
-        # ===== VERIFY: anon UID != new UID (identity changed) =====
-        record("CONVERSION identity changed", anon_uid != new_uid, f"{anon_uid[:8]} -> {new_uid[:8]}")
-
-        # ===== VERIFY: idempotency (call transfer again — should not duplicate) =====
+        # ===== VERIFY: idempotency (call transfer on non-existent anon - should be no-op) =====
         idempotency_ok = await gp.evaluate("""async () => {
             try {
                 const r = await window.TrippiAPI.transferAnonymousIdentity('00000000-0000-0000-0000-000000000000', colState.uid, null);

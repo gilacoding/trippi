@@ -67,6 +67,27 @@
     });
   }
 
+  // P1: Convert anonymous user to registered in-place via updateUser.
+  // Supabase natively supports this — same UID, session stays valid,
+  // is_anonymous becomes false, email_confirmed_at is null until confirmed.
+  // This is the recommended approach for anonymous → registered conversion
+  // when mailer_autoconfirm is false (no session returned from signUp).
+  function updateUserEmailAndPassword(email, password) {
+    return getClient().then(function (client) {
+      if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+      return client.auth.updateUser({ email: email, password: password });
+    });
+  }
+
+  // P1: Clear denormalized is_anonymous flag in group_members after in-place conversion.
+  // Called after updateUserEmailAndPassword for anonymous → registered conversion.
+  function clearMemberAnonFlag() {
+    return getClient().then(function (client) {
+      if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+      return client.rpc('clear_member_anon_flag', {});
+    });
+  }
+
   // Email + password sign in. Returns { data, error }.
   function signInWithEmail(email, password) {
     return getClient().then(function (client) {
@@ -147,6 +168,8 @@
     // ── Auth ──────────────────────────────────────────────────────
     ensureAuth: ensureAuth,
     signUpWithEmail: signUpWithEmail,
+    updateUserEmailAndPassword: updateUserEmailAndPassword,
+    clearMemberAnonFlag: clearMemberAnonFlag,
     signInWithEmail: signInWithEmail,
     signInWithOAuth: signInWithOAuth,
     signOut: signOut,
