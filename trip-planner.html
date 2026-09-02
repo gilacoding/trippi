@@ -339,12 +339,13 @@
 
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="markicab-ls-migrate.js"></script>
 <script src="backend/supabase-client.js"></script>
 <script src="backend/trippi-api.js"></script>
 <script src="lzstring.js"></script>
 <script>
-  const STORE_KEY='trippi_personal_planner_v2';
-  const LEGACY_STORE_KEY='trippi_personal_planner_v1';
+  const STORE_KEY='markicab_personal_planner_v2';
+  const LEGACY_STORE_KEY='markicab_personal_planner_v1';
   const state={trips:[],toGo:[],activeTripId:null,activeDate:null,pendingToGoId:null,editTripId:null,readOnlyTrip:null};
   const $=id=>document.getElementById(id);
   const dbg=(msg)=>{};
@@ -353,8 +354,8 @@
   const API=window.TrippiAPI;
   const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],gallery:[],nameMap:{},identities:{},activeDate:null,channel:null,poll:null,locationChannel:null};
   // Display name fallback chain: profile → metadata → localStorage → email prefix → Guest
-  const loadName=()=>localStorage.getItem('trippi_display_name')||'';
-  const saveName=n=>localStorage.setItem('trippi_display_name',n);
+  const loadName=()=>localStorage.getItem('markicab_display_name')||'';
+  const saveName=n=>localStorage.setItem('markicab_display_name',n);
   const displayName=(user)=>{
     // Priority 1: explicit display name from profile/members
     if(user.display_name) return user.display_name;
@@ -367,7 +368,7 @@
   };
   const money=value=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(value)||0);
   const dateText=value=>new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(new Date(value+'T12:00:00'));
-  const MIG_KEY='trippi_migration_v';
+  const MIG_KEY='markicab_migration_v';
   const SYNC_VERSION=1;
   const getMig=()=>parseInt(localStorage.getItem(MIG_KEY)||'0',10)||0;
   const setMig=v=>localStorage.setItem(MIG_KEY,String(v));
@@ -655,7 +656,7 @@
 
   // ── M2 Sync layer (Supabase = source of truth; localStorage = cache/draft) ──
   // Guardrails: idempotent (local_id upsert), per-trip failure isolation,
-  // never clears localStorage, keeps trippi_personal_planner_v2 until promoted.
+  // never clears localStorage, keeps markicab_personal_planner_v2 until promoted.
   async function syncTrip(trip){
     if(!colState.uid||!trip)return;
     try{
@@ -2128,10 +2129,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // several identities for one trip (e.g. successive anonymous guests), and a
     // group-only key made a fresh guest inherit the previous guest's consent.
     // This is only a UI hint — get_crew_locations on the server is authoritative.
-    return localStorage.getItem('trippi_consent_' + colState.group.id + '_' + (colState.uid || 'anon')) || null;
+    return localStorage.getItem('markicab_consent_' + colState.group.id + '_' + (colState.uid || 'anon')) || null;
   }
   function _setConsent(v){
-    localStorage.setItem('trippi_consent_' + colState.group.id + '_' + (colState.uid || 'anon'), v);
+    localStorage.setItem('markicab_consent_' + colState.group.id + '_' + (colState.uid || 'anon'), v);
   }
 
   function renderMembers(){
