@@ -6,7 +6,7 @@
   const dbg=(msg)=>{const e=document.getElementById('debugEl');if(e){e.style.display='block';e.textContent+=(e.textContent?'\n':'')+msg+' ['+Date.now()+'];}};
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
-  const API=window.TrippiAPI;
+  const API=window.MarkiAPI;
   const colState={uid:null,name:null,group:null,items:[],members:[],expenses:[],nameMap:{},activeDate:null,channel:null,poll:null,locationChannel:null};
   // Display name fallback chain: profile → metadata → localStorage → email prefix → Guest
   const loadName=()=>localStorage.getItem('trippi_display_name')||'';

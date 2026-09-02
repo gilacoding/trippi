@@ -81,14 +81,14 @@ async def main():
 
         made = await op.evaluate(
             """async () => {
-                const g = await window.TrippiAPI.createGroup({
+                const g = await window.MarkiAPI.createGroup({
                     name: 'Guest UI ' + Date.now(), destination: 'Nigeria',
                     start_date: '2026-09-26', end_date: '2026-09-27', display_name: 'Ras'});
                 if (g.error) return { error: String(g.error.message || g.error) };
                 const gid = g.data.id;
-                await window.TrippiAPI.addItem({group_id: gid, title: 'Hura-hura',
+                await window.MarkiAPI.addItem({group_id: gid, title: 'Hura-hura',
                     date: '2026-09-26', time: '17:00', budget: 150000});
-                await window.TrippiAPI.addItem({group_id: gid, title: 'Kemana aja',
+                await window.MarkiAPI.addItem({group_id: gid, title: 'Kemana aja',
                     date: '2026-09-27', time: '08:00', budget: 500000});
                 return { id: gid, name: g.data.name };
             }"""
@@ -113,7 +113,7 @@ async def main():
 
         renamed = await op.evaluate(
             """async (gid) => {
-                const r = await window.TrippiAPI.updateGroup(gid, {name: 'Guest UI Renamed'});
+                const r = await window.MarkiAPI.updateGroup(gid, {name: 'Guest UI Renamed'});
                 if (r.error) return { error: String(r.error.message || r.error) };
                 return { name: r.data && r.data.name };
             }""",
@@ -132,7 +132,7 @@ async def main():
         # ---------- guest joins ----------
         inv = await op.evaluate(
             """async (gid) => {
-                const r = await window.TrippiAPI.createInvitation(gid);
+                const r = await window.MarkiAPI.createInvitation(gid);
                 return r.data;
             }""",
             gid,
@@ -331,7 +331,7 @@ async def main():
         # ---------- guest leaves: membership row must disappear ----------
         members_before = await op.evaluate(
             """async (gid) => {
-                const r = await window.TrippiAPI.getMembers(gid);
+                const r = await window.MarkiAPI.getMembers(gid);
                 return (r.data || []).map(m => m.display_name);
             }""",
             gid,
@@ -344,7 +344,7 @@ async def main():
 
         members_after = await op.evaluate(
             """async (gid) => {
-                const r = await window.TrippiAPI.getMembers(gid);
+                const r = await window.MarkiAPI.getMembers(gid);
                 return (r.data || []).map(m => m.display_name);
             }""",
             gid,

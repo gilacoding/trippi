@@ -64,7 +64,7 @@ async def open_tab(page, label):
 async def members_of(page, gid):
     return await page.evaluate(
         """async (gid) => {
-            const r = await window.TrippiAPI.getMembers(gid);
+            const r = await window.MarkiAPI.getMembers(gid);
             return (r.data || []).map(m => ({ uid: m.user_id, name: m.display_name, role: m.role }));
         }""",
         gid,
@@ -87,14 +87,14 @@ async def main():
 
         made = await op.evaluate(
             """async () => {
-                const g = await window.TrippiAPI.createGroup({
+                const g = await window.MarkiAPI.createGroup({
                     name: 'Acceptance ' + Date.now(), destination: 'Bandung',
                     start_date: '2026-09-01', end_date: '2026-09-03', display_name: 'Ras'});
                 if (g.error) return { error: String(g.error.message || g.error) };
                 const gid = g.data.id;
-                await window.TrippiAPI.addItem({group_id: gid, title: 'Sarapan',
+                await window.MarkiAPI.addItem({group_id: gid, title: 'Sarapan',
                     date: '2026-09-01', time: '08:00', budget: 50000});
-                const inv = await window.TrippiAPI.createInvitation(gid);
+                const inv = await window.MarkiAPI.createInvitation(gid);
                 const d = Array.isArray(inv.data) ? inv.data[0] : inv.data;
                 return { id: gid, token: (d && d.token) || d };
             }"""
@@ -122,7 +122,7 @@ async def main():
         # retry redeem with the same token must not create a second row
         retry = await gp.evaluate(
             """async (token) => {
-                const r = await window.TrippiAPI.redeemInvitation(token, 'Budi');
+                const r = await window.MarkiAPI.redeemInvitation(token, 'Budi');
                 return r.error ? String(r.error.message || r.error) : 'ok';
             }""",
             token,
@@ -166,7 +166,7 @@ async def main():
 
         wl = await gp.evaluate(
             """async () => {
-                const r = await window.TrippiAPI.listWishlists(colState.group.id);
+                const r = await window.MarkiAPI.listWishlists(colState.group.id);
                 const rows = r.data || [];
                 return {
                     total: rows.length,
@@ -183,15 +183,15 @@ async def main():
         await op.wait_for_timeout(3000)
         conv = await op.evaluate(
             """async () => {
-                const r = await window.TrippiAPI.listWishlists(colState.group.id);
+                const r = await window.MarkiAPI.listWishlists(colState.group.id);
                 const target = (r.data || []).find(w => w.title === 'Museum Nasional' && w.status === 'suggested');
                 if (!target) return { error: 'no suggested Museum Nasional' };
-                const c1 = await window.TrippiAPI.convertWishlistToItinerary(target.id, '2026-09-02', '10:00');
+                const c1 = await window.MarkiAPI.convertWishlistToItinerary(target.id, '2026-09-02', '10:00');
                 // retry the same conversion — must not add a second agenda item
-                const c2 = await window.TrippiAPI.convertWishlistToItinerary(target.id, '2026-09-02', '10:00');
-                const after = await window.TrippiAPI.listWishlists(colState.group.id);
+                const c2 = await window.MarkiAPI.convertWishlistToItinerary(target.id, '2026-09-02', '10:00');
+                const after = await window.MarkiAPI.listWishlists(colState.group.id);
                 const row = (after.data || []).find(w => w.id === target.id);
-                const items = await window.TrippiAPI.getItems(colState.group.id);
+                const items = await window.MarkiAPI.getItems(colState.group.id);
                 return {
                     first: c1.error ? String(c1.error.message || c1.error) : 'ok',
                     second: c2.error ? String(c2.error.message || c2.error) : 'ok',
@@ -219,7 +219,7 @@ async def main():
                 const before = colState.locationWatchId;
                 startLocationWatch(); startLocationWatch(); startLocationWatch();
                 const after = colState.locationWatchId;
-                const sb = window.TrippiAPI._getSb();
+                const sb = window.MarkiAPI._getSb();
                 const chans = sb ? sb.getChannels().map(c => c.topic) : [];
                 await renderJourneyView();
                 await renderJourneyView();
@@ -239,10 +239,10 @@ async def main():
 
         consent_rows = await op.evaluate(
             """async () => {
-                const sb = window.TrippiAPI._getSb();
+                const sb = window.MarkiAPI._getSb();
                 // one consent row per (group_id, user_id) — grant twice, count once
-                await window.TrippiAPI.grantLocationConsent();
-                await window.TrippiAPI.grantLocationConsent();
+                await window.MarkiAPI.grantLocationConsent();
+                await window.MarkiAPI.grantLocationConsent();
                 const { data } = await sb.from('location_permissions')
                     .select('group_id,user_id,permission')
                     .eq('group_id', colState.group.id).eq('user_id', colState.uid);
@@ -260,20 +260,20 @@ async def main():
                     try { const r = await fn(); out[k] = r && r.error ? String(r.error.message || r.error) : 'ALLOWED'; }
                     catch (e) { out[k] = 'THREW: ' + (e && e.message); }
                 };
-                const wl = await window.TrippiAPI.listWishlists(gidv);
+                const wl = await window.MarkiAPI.listWishlists(gidv);
                 const first = (wl.data || [])[0];
-                await tryIt('view_itinerary', () => window.TrippiAPI.getItems(gidv));
-                await tryIt('add_itinerary', () => window.TrippiAPI.addItem(
+                await tryIt('view_itinerary', () => window.MarkiAPI.getItems(gidv));
+                await tryIt('add_itinerary', () => window.MarkiAPI.addItem(
                     {group_id: gidv, title: 'guest hack', date: '2026-09-01', time: '12:00'}));
-                await tryIt('add_wishlist', () => window.TrippiAPI.addWishlistItem(gidv, 'Guest idea', null, null));
+                await tryIt('add_wishlist', () => window.MarkiAPI.addWishlistItem(gidv, 'Guest idea', null, null));
                 await tryIt('convert_wishlist', () => first
-                    ? window.TrippiAPI.convertWishlistToItinerary(first.id, '2026-09-01', '09:00')
+                    ? window.MarkiAPI.convertWishlistToItinerary(first.id, '2026-09-01', '09:00')
                     : {error: {message: 'no wishlist row'}});
-                await tryIt('start_journey', () => window.TrippiAPI.startJourney());
-                await tryIt('stop_journey', () => window.TrippiAPI.endJourney());
-                await tryIt('view_crew', () => window.TrippiAPI.getCrewLocations());
-                await tryIt('share_location', () => window.TrippiAPI.grantLocationConsent());
-                await tryIt('edit_metadata', () => window.TrippiAPI.updateGroup(gidv, {name: 'guest renamed'}));
+                await tryIt('start_journey', () => window.MarkiAPI.startJourney());
+                await tryIt('stop_journey', () => window.MarkiAPI.endJourney());
+                await tryIt('view_crew', () => window.MarkiAPI.getCrewLocations());
+                await tryIt('share_location', () => window.MarkiAPI.grantLocationConsent());
+                await tryIt('edit_metadata', () => window.MarkiAPI.updateGroup(gidv, {name: 'guest renamed'}));
                 return out;
             }"""
         )
@@ -294,7 +294,7 @@ async def main():
 
         meta_after = await op.evaluate(
             """async (gid) => {
-                const sb = window.TrippiAPI._getSb();
+                const sb = window.MarkiAPI._getSb();
                 const { data } = await sb.from('groups').select('name').eq('id', gid).single();
                 return data && data.name;
             }""",
@@ -311,11 +311,11 @@ async def main():
                     try { const r = await fn(); out[k] = r && r.error ? String(r.error.message || r.error) : 'ALLOWED'; }
                     catch (e) { out[k] = 'THREW: ' + (e && e.message); }
                 };
-                await tryIt('add_itinerary', () => window.TrippiAPI.addItem(
+                await tryIt('add_itinerary', () => window.MarkiAPI.addItem(
                     {group_id: gidv, title: 'Creator agenda', date: '2026-09-03', time: '15:00'}));
-                await tryIt('add_wishlist', () => window.TrippiAPI.addWishlistItem(gidv, 'Creator idea', null, null));
-                await tryIt('edit_metadata', () => window.TrippiAPI.updateGroup(gidv, {destination: 'Bandung'}));
-                await tryIt('view_crew', () => window.TrippiAPI.getCrewLocations());
+                await tryIt('add_wishlist', () => window.MarkiAPI.addWishlistItem(gidv, 'Creator idea', null, null));
+                await tryIt('edit_metadata', () => window.MarkiAPI.updateGroup(gidv, {destination: 'Bandung'}));
+                await tryIt('view_crew', () => window.MarkiAPI.getCrewLocations());
                 return out;
             }"""
         )
@@ -335,7 +335,7 @@ async def main():
 
         gone = await gp.evaluate(
             """async (uid) => {
-                const r = await window.TrippiAPI.getCrewLocations();
+                const r = await window.MarkiAPI.getCrewLocations();
                 return { crewErr: r.error ? String(r.error.message || r.error) : 'ok' };
             }""",
             guest_uid,

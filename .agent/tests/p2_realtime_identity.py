@@ -87,14 +87,14 @@ async def main():
 
         made = await op.evaluate(
             """async () => {
-                const g = await window.TrippiAPI.createGroup({
+                const g = await window.MarkiAPI.createGroup({
                     name: 'P2 ' + Date.now(), destination: 'Bandung',
                     start_date: '2026-09-01', end_date: '2026-09-03', display_name: 'Ras'});
                 if (g.error) return { error: String(g.error.message || g.error) };
                 const gid = g.data.id;
-                await window.TrippiAPI.addItem({group_id: gid, title: 'Sarapan',
+                await window.MarkiAPI.addItem({group_id: gid, title: 'Sarapan',
                     date: '2026-09-01', time: '08:00', budget: 50000});
-                const inv = await window.TrippiAPI.createInvitation(gid);
+                const inv = await window.MarkiAPI.createInvitation(gid);
                 const d = Array.isArray(inv.data) ? inv.data[0] : inv.data;
                 return { id: gid, token: (d && d.token) || d };
             }"""
@@ -123,7 +123,7 @@ async def main():
         await gp.wait_for_timeout(8000)
 
         subs = await gp.evaluate(
-            "() => window.TrippiAPI._getSb().getChannels().map(c => c.topic)"
+            "() => window.MarkiAPI._getSb().getChannels().map(c => c.topic)"
         )
         record("guest is actually subscribed to realtime",
                any("guest:" in s for s in subs), subs)
@@ -133,7 +133,7 @@ async def main():
         record("guest sees the initial itinerary", "Sarapan" in base_titles, base_titles)
 
         await op.evaluate(
-            """async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'ItemRealtime', date: '2026-09-01', time: '10:00', budget: 1000}); }"""
         )
         ok = await wait_for(gp, """() => Array.from(
@@ -154,9 +154,9 @@ async def main():
         # deletion must propagate too
         await op.evaluate(
             """async () => {
-                const items = await window.TrippiAPI.getItems(colState.group.id);
+                const items = await window.MarkiAPI.getItems(colState.group.id);
                 const t = (items.data || []).find(i => i.title === 'ItemRealtime');
-                if (t) await window.TrippiAPI.deleteItem(t.id);
+                if (t) await window.MarkiAPI.deleteItem(t.id);
             }"""
         )
         ok = await wait_for(gp, """() => !Array.from(
@@ -182,9 +182,9 @@ async def main():
         # creator converts it; the guest must see the new agenda item live
         await op.evaluate(
             """async () => {
-                const r = await window.TrippiAPI.listWishlists(colState.group.id);
+                const r = await window.MarkiAPI.listWishlists(colState.group.id);
                 const t = (r.data || []).find(w => w.title === 'IdeGuest' && w.status === 'suggested');
-                if (t) await window.TrippiAPI.convertWishlistToItinerary(t.id, '2026-09-02', '11:00');
+                if (t) await window.MarkiAPI.convertWishlistToItinerary(t.id, '2026-09-02', '11:00');
             }"""
         )
         ok = await wait_for(gp, """() => Array.from(
@@ -200,7 +200,7 @@ async def main():
 
         # expense propagation
         await op.evaluate(
-            """async () => { await window.TrippiAPI.addExpense({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addExpense({group_id: colState.group.id,
                 name: 'MakanSiang', amount: 75000, category: 'Makan', date: '2026-09-01'}); }"""
         )
         ok = await wait_for(gp, """() => {
@@ -276,7 +276,7 @@ async def main():
             """() => ({
                 itin: document.querySelectorAll('#guestItineraryList article.item').length,
                 wish: document.querySelectorAll('#guestWishList .to-go-item').length,
-                channels: window.TrippiAPI._getSb().getChannels()
+                channels: window.MarkiAPI._getSb().getChannels()
                     .filter(c => c.topic.indexOf('guest:') !== -1).length,
             })"""
         )

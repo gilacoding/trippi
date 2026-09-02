@@ -54,7 +54,7 @@ async def main():
         await login(op, OWNER_EMAIL, OWNER_PASS)
 
         made = await op.evaluate("""async () => {
-            const g = await window.TrippiAPI.createGroup({
+            const g = await window.MarkiAPI.createGroup({
                 name: 'Fase D Journey ' + Date.now(),
                 destination: 'Jakarta',
                 start_date: '2026-09-01',
@@ -176,7 +176,7 @@ async def main():
 
         # ---------- anonymous guest joins and gets Journey Mode ----------
         inv = await op.evaluate("""async (gid) => {
-            const r = await window.TrippiAPI.createInvitation(gid);
+            const r = await window.MarkiAPI.createInvitation(gid);
             return { data: r.data, error: r.error ? String(r.error.message || r.error) : null };
         }""", gid)
         d = inv.get("data")
@@ -283,12 +283,12 @@ async def main():
         denied = await dp.evaluate("""async () => {
             // Consent on the server, then make the browser refuse the fix and run
             // the real handler (not just the button, which may not be mounted yet).
-            const grant = await window.TrippiAPI.grantLocationConsent();
+            const grant = await window.MarkiAPI.grantLocationConsent();
             navigator.geolocation.getCurrentPosition = (ok, err) =>
                 err({ code: 1, PERMISSION_DENIED: 1, message: 'User denied Geolocation' });
             try { await shareLocationHandler(); } catch (e) {}
             await new Promise(r => setTimeout(r, 2500));
-            const check = await window.TrippiAPI.getCrewLocations();
+            const check = await window.MarkiAPI.getCrewLocations();
             return {
                 granted: !grant.error,
                 blocked: !!colState.locationBlocked,
@@ -314,7 +314,7 @@ async def main():
         record("journey ended: watch stopped", not ended["watch"], f"watch={ended['watch']}")
 
         guest_after_end = await gp.evaluate("""async () => {
-            const r = await window.TrippiAPI.getCrewLocations();
+            const r = await window.MarkiAPI.getCrewLocations();
             return String((r.error && r.error.message) || 'ok');
         }""")
         record("journey ended: guest loses crew read",

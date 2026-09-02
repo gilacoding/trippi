@@ -102,7 +102,7 @@ async def main():
 
         # Profile updated in DB
         prof = await op.evaluate("""async () => {
-            const r = await window.TrippiAPI.ensureProfile(null);
+            const r = await window.MarkiAPI.ensureProfile(null);
             return r.data && r.data.display_name;
         }""")
         record("UX profile persisted in DB", prof == "Ras Banget", prof)

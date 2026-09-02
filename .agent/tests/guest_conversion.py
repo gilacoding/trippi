@@ -66,14 +66,14 @@ async def main():
         await login(op, OWNER_EMAIL, OWNER_PASS)
 
         made = await op.evaluate("""async () => {
-            const g = await window.TrippiAPI.createGroup({
+            const g = await window.MarkiAPI.createGroup({
                 name: 'Invariant ' + Date.now(), destination: 'X',
                 start_date: '2026-09-01', end_date: '2026-09-02', display_name: 'Ras'});
             if (g.error) return { error: String(g.error.message || g.error) };
             const gid = g.data.id;
-            await window.TrippiAPI.addItem({group_id: gid, title: 'Sarapan',
+            await window.MarkiAPI.addItem({group_id: gid, title: 'Sarapan',
                 date: '2026-09-01', time: '08:00', budget: 50000});
-            const inv = await window.TrippiAPI.createInvitation(gid);
+            const inv = await window.MarkiAPI.createInvitation(gid);
             const d = Array.isArray(inv.data) ? inv.data[0] : inv.data;
             return { id: gid, token: (d && d.token) || d };
         }""")
@@ -96,7 +96,7 @@ async def main():
         await gp.wait_for_timeout(8000)
 
         await gp.evaluate("""async () => {
-            await window.TrippiAPI.addWishlistItem(colState.group.id, 'IdeBudi', null, null);
+            await window.MarkiAPI.addWishlistItem(colState.group.id, 'IdeBudi', null, null);
         }""")
         await gp.wait_for_timeout(3000)
 
@@ -106,7 +106,7 @@ async def main():
 
         # Verify membership exists with is_anonymous=true before conversion
         pre_membership = await gp.evaluate("""async (args) => {
-            const sb = window.TrippiAPI._getSb();
+            const sb = window.MarkiAPI._getSb();
             const r = await sb.from('group_members').select('user_id, is_anonymous').eq('group_id', args.gid).eq('user_id', args.uid);
             return r.data || [];
         }""", {"uid": anon_uid, "gid": gid})
@@ -132,7 +132,7 @@ async def main():
         # I2: auth.users.is_anonymous = false
         async def check_user_not_anon():
             result = await gp.evaluate("""async () => {
-                const sb = window.TrippiAPI._getSb();
+                const sb = window.MarkiAPI._getSb();
                 const u = await sb.auth.getUser();
                 return u.data && u.data.user;
             }""")
@@ -146,7 +146,7 @@ async def main():
         # I3, I4, I5: group_members checks
         async def check_membership():
             result = await gp.evaluate("""async (args) => {
-                const sb = window.TrippiAPI._getSb();
+                const sb = window.MarkiAPI._getSb();
                 const r = await sb.from('group_members').select('user_id, display_name, role, is_anonymous').eq('group_id', args.gid).eq('user_id', args.uid);
                 return r.data || [];
             }""", {"uid": new_uid, "gid": gid})
@@ -164,7 +164,7 @@ async def main():
         # Verify NO duplicate memberships for this user in the group
         async def check_no_dup():
             result = await gp.evaluate("""async (args) => {
-                const sb = window.TrippiAPI._getSb();
+                const sb = window.MarkiAPI._getSb();
                 const r = await sb.from('group_members').select('user_id').eq('group_id', args.gid).eq('user_id', args.uid);
                 return r.data || [];
             }""", {"uid": new_uid, "gid": gid})
@@ -178,7 +178,7 @@ async def main():
         # I6: profile identity preserved
         async def check_profile():
             result = await gp.evaluate("""async (uid) => {
-                const sb = window.TrippiAPI._getSb();
+                const sb = window.MarkiAPI._getSb();
                 const r = await sb.from('profiles').select('id, display_name').eq('id', uid).limit(1);
                 return r.data || [];
             }""", new_uid)
@@ -192,7 +192,7 @@ async def main():
         # I7: wishlist attribution preserved
         async def check_wishlist():
             result = await gp.evaluate("""async (gid) => {
-                const sb = window.TrippiAPI._getSb();
+                const sb = window.MarkiAPI._getSb();
                 const r = await sb.from('wishlist_items').select('title, suggested_by').eq('group_id', gid);
                 return r.data || [];
             }""", gid)
@@ -213,7 +213,7 @@ async def main():
         # I9: idempotency — call transfer with invalid old UID (should be no-op)
         idempotency_ok = await gp.evaluate("""async () => {
             try {
-                const r = await window.TrippiAPI.transferAnonymousIdentity('00000000-0000-0000-0000-000000000000', colState.uid, null);
+                const r = await window.MarkiAPI.transferAnonymousIdentity('00000000-0000-0000-0000-000000000000', colState.uid, null);
                 return r.error ? r.error.message : 'OK';
             } catch(e) { return String(e); }
         }""")

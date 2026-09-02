@@ -80,8 +80,8 @@ async def login_via_browser(page, email, password, label="user"):
                     return tok.access_token || null;
                 } catch(e) {}
             }
-            // Also check window.TrippiBackend
-            if (window.TrippiBackend && window.TrippiBackend.client) {
+            // Also check window.MarkiBackend
+            if (window.MarkiBackend && window.MarkiBackend.client) {
                 // Can't easily get session synchronously, skip
             }
             return null;

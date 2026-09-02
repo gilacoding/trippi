@@ -46,7 +46,7 @@ async def socket_off(page):
     """Hard outage: remove every channel so nothing can be delivered."""
     return await page.evaluate(
         """async () => {
-            const sb = window.TrippiAPI._getSb();
+            const sb = window.MarkiAPI._getSb();
             for (const c of sb.getChannels()) { await sb.removeChannel(c); }
             return sb.getChannels().length;
         }"""
@@ -89,10 +89,10 @@ async def compare_with_server(page):
         """async () => {
             const gid = colState.group.id;
             const [items, members, expenses, wish] = await Promise.all([
-                window.TrippiAPI.getItems(gid),
-                window.TrippiAPI.getMembers(gid),
-                window.TrippiAPI.getExpenses(gid),
-                window.TrippiAPI.listWishlists(gid)
+                window.MarkiAPI.getItems(gid),
+                window.MarkiAPI.getMembers(gid),
+                window.MarkiAPI.getExpenses(gid),
+                window.MarkiAPI.listWishlists(gid)
             ]);
             const ids = (colState.items || []).map(i => i.id);
             return {
@@ -125,7 +125,7 @@ async def main():
 
         made = await ap.evaluate(
             """async () => {
-                const g = await window.TrippiAPI.createGroup({
+                const g = await window.MarkiAPI.createGroup({
                     name: 'Chaos ' + Date.now(), destination: 'Nigeria',
                     start_date: '2026-09-01', end_date: '2026-09-03', display_name: 'Ras'});
                 if (g.error) return { error: String(g.error.message || g.error) };
@@ -148,7 +148,7 @@ async def main():
         # A creates an item while B is still connected (baseline delivery),
         # then B's socket dies and A mutates THREE different tables.
         await ap.evaluate(
-            """async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'S1_BeforeOutage', date: '2026-09-01', time: '08:00'}); }"""
         )
         ok = await converge(bp, """() => (colState.items || []).some(i => i.title === 'S1_BeforeOutage')""")
@@ -160,11 +160,11 @@ async def main():
         await ap.evaluate(
             """async () => {
                 const gid = colState.group.id;
-                await window.TrippiAPI.addItem({group_id: gid,
+                await window.MarkiAPI.addItem({group_id: gid,
                     title: 'S1_DuringOutage', date: '2026-09-01', time: '09:00'});
-                await window.TrippiAPI.addExpense({group_id: gid,
+                await window.MarkiAPI.addExpense({group_id: gid,
                     name: 'S1_Expense', amount: 42000, category: 'Makan', date: '2026-09-01'});
-                await window.TrippiAPI.addWishlistItem(gid, 'S1_Wish', null, null);
+                await window.MarkiAPI.addWishlistItem(gid, 'S1_Wish', null, null);
             }"""
         )
 
@@ -202,7 +202,7 @@ async def main():
             """async () => {
                 const gid = colState.group.id;
                 for (let n = 1; n <= 5; n++) {
-                    await window.TrippiAPI.addItem({group_id: gid,
+                    await window.MarkiAPI.addItem({group_id: gid,
                         title: 'S2_Item' + n, date: '2026-09-02', time: '1' + n + ':00'});
                 }
             }"""
@@ -255,7 +255,7 @@ async def main():
         # A creates an item; on B the realtime event, the poll and a focus event
         # all land at the same instant. Expected: one canonical state.
         await ap.evaluate(
-            """async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'S3_Racy', date: '2026-09-03', time: '20:00'}); }"""
         )
         # slam every trigger together, deliberately

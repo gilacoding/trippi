@@ -21,7 +21,7 @@ def record(name, ok, detail=""):
 async def probe(page):
     """Read live lifecycle state from the page."""
     return await page.evaluate("""() => {
-        const sb = (window.TrippiAPI && window.TrippiAPI._getSb) ? window.TrippiAPI._getSb() : null;
+        const sb = (window.MarkiAPI && window.MarkiAPI._getSb) ? window.MarkiAPI._getSb() : null;
         const chans = sb && sb.getChannels ? sb.getChannels().map(c => c.topic) : [];
         return {
             channels: chans,
@@ -59,7 +59,7 @@ async def main():
 
         # collect at least 2 groups from the home list
         groups = await page.evaluate("""async () => {
-            const r = await window.TrippiAPI.listMyGroups();
+            const r = await window.MarkiAPI.listMyGroups();
             return (r.data || []).slice(0, 2).map(g => ({ id: g.id, name: g.name }));
         }""")
         if len(groups) < 2:

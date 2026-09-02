@@ -351,7 +351,7 @@
   const dbg=(msg)=>{};
   const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   // ── Collaborative (P2) state ──
-  const API=window.TrippiAPI;
+  const API=window.MarkiAPI || window.TrippiAPI;
   const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],gallery:[],nameMap:{},identities:{},activeDate:null,channel:null,poll:null,locationChannel:null};
   // Display name fallback chain: profile → metadata → localStorage → email prefix → Guest
   const loadName=()=>localStorage.getItem('markicab_display_name')||'';

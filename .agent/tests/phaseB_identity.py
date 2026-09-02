@@ -36,7 +36,7 @@ async def login(page, email, pw):
 
 async def probe(page):
     return await page.evaluate("""() => {
-        const sb = (window.TrippiAPI && window.TrippiAPI._getSb) ? window.TrippiAPI._getSb() : null;
+        const sb = (window.MarkiAPI && window.MarkiAPI._getSb) ? window.MarkiAPI._getSb() : null;
         const chans = sb && sb.getChannels ? sb.getChannels().map(c => c.topic) : [];
         const exp = document.getElementById('groupExpenseList');
         return {
@@ -79,7 +79,7 @@ async def main():
 
         # Create a fresh trip with known agenda items so permission assertions are deterministic
         newtrip = await op.evaluate("""async () => {
-            const g = await window.TrippiAPI.createGroup({
+            const g = await window.MarkiAPI.createGroup({
                 name: 'Fase B Permission Test ' + Date.now(),
                 destination: 'Bandung',
                 start_date: '2026-09-01',
@@ -87,10 +87,10 @@ async def main():
             });
             if (g.error) return { error: String(g.error.message || g.error) };
             const gid = g.data.id;
-            await window.TrippiAPI.addItem({ group_id: gid, title: 'Brunch Cafe', date: '2026-09-01', time: '09:00' });
-            await window.TrippiAPI.addItem({ group_id: gid, title: 'Mountain Hike', date: '2026-09-02', time: '14:00' });
+            await window.MarkiAPI.addItem({ group_id: gid, title: 'Brunch Cafe', date: '2026-09-01', time: '09:00' });
+            await window.MarkiAPI.addItem({ group_id: gid, title: 'Mountain Hike', date: '2026-09-02', time: '14:00' });
             // add 1 expense so delete-button visibility can be asserted
-            await window.TrippiAPI.addExpense({ group_id: gid, name: 'Breakfast', amount: 50000, category: 'Makan', date: '2026-09-01' });
+            await window.MarkiAPI.addExpense({ group_id: gid, name: 'Breakfast', amount: 50000, category: 'Makan', date: '2026-09-01' });
             return { id: gid, name: g.data.name };
         }""")
         if newtrip.get("error"):
@@ -126,7 +126,7 @@ async def main():
         # ============ GUEST FLOW ============
         # create invitation
         inv = await op.evaluate("""async (gid) => {
-            const r = await window.TrippiAPI.createInvitation(gid);
+            const r = await window.MarkiAPI.createInvitation(gid);
             return { data: r.data, error: r.error ? String(r.error.message || r.error) : null };
         }""", A["id"])
         token = None

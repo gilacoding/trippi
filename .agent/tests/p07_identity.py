@@ -66,7 +66,7 @@ async def main():
         # ---------- profile auto-created, canonical, no placeholder ----------
         prof = await op.evaluate(
             """async () => {
-                const r = await window.TrippiAPI.ensureProfile(null);
+                const r = await window.MarkiAPI.ensureProfile(null);
                 return r.error ? { error: String(r.error.message || r.error) } : r.data;
             }"""
         )
@@ -83,8 +83,8 @@ async def main():
         # explicit rename applies; a placeholder rename is refused
         renamed = await op.evaluate(
             """async () => {
-                const a = await window.TrippiAPI.updateMyProfile('Ras');
-                const b = await window.TrippiAPI.ensureProfile('Creator');
+                const a = await window.MarkiAPI.updateMyProfile('Ras');
+                const b = await window.MarkiAPI.ensureProfile('Creator');
                 return { after_rename: a.data && a.data.display_name,
                          after_placeholder: b.data && b.data.display_name };
             }"""
@@ -96,8 +96,8 @@ async def main():
         # repeated ensure_profile must not downgrade to an email prefix
         stable = await op.evaluate(
             """async () => {
-                for (let i = 0; i < 4; i++) { await window.TrippiAPI.ensureProfile(null); }
-                const r = await window.TrippiAPI.ensureProfile(null);
+                for (let i = 0; i < 4; i++) { await window.MarkiAPI.ensureProfile(null); }
+                const r = await window.MarkiAPI.ensureProfile(null);
                 return r.data && r.data.display_name;
             }"""
         )
@@ -106,15 +106,15 @@ async def main():
         # ---------- trip with itinerary + wishlist for attribution checks ----------
         made = await op.evaluate(
             """async () => {
-                const g = await window.TrippiAPI.createGroup({
+                const g = await window.MarkiAPI.createGroup({
                     name: 'P07 ' + Date.now(), destination: 'Bandung',
                     start_date: '2026-09-01', end_date: '2026-09-02', display_name: 'Ras'});
                 if (g.error) return { error: String(g.error.message || g.error) };
                 const gid = g.data.id;
-                await window.TrippiAPI.addItem({group_id: gid, title: 'Sarapan',
+                await window.MarkiAPI.addItem({group_id: gid, title: 'Sarapan',
                     date: '2026-09-01', time: '08:00', budget: 50000});
-                await window.TrippiAPI.addWishlistItem(gid, 'IdeCreator', null, null);
-                const inv = await window.TrippiAPI.createInvitation(gid);
+                await window.MarkiAPI.addWishlistItem(gid, 'IdeCreator', null, null);
+                const inv = await window.MarkiAPI.createInvitation(gid);
                 const d = Array.isArray(inv.data) ? inv.data[0] : inv.data;
                 return { id: gid, token: (d && d.token) || d };
             }"""
@@ -208,7 +208,7 @@ async def main():
         # ---------- permission: guest cannot read the whole profiles table ----------
         scope = await gp.evaluate(
             """async () => {
-                const sb = window.TrippiAPI._getSb();
+                const sb = window.MarkiAPI._getSb();
                 const all = await sb.from('profiles').select('id');
                 return { visible: (all.data || []).length, err: all.error ? all.error.message : null };
             }"""

@@ -49,7 +49,7 @@ async def converges(page, predicate, timeout=30000):
 async def kill_realtime(page):
     return await page.evaluate(
         """async () => {
-            const sb = window.TrippiAPI._getSb();
+            const sb = window.MarkiAPI._getSb();
             for (const c of sb.getChannels()) { await sb.removeChannel(c); }
             return sb.getChannels().length;
         }"""
@@ -97,7 +97,7 @@ async def main():
 
         made = await ap.evaluate(
             """async () => {
-                const g = await window.TrippiAPI.createGroup({
+                const g = await window.MarkiAPI.createGroup({
                     name: 'Sync ' + Date.now(), destination: 'Nigeria',
                     start_date: '2026-09-01', end_date: '2026-09-02', display_name: 'Ras'});
                 if (g.error) return { error: String(g.error.message || g.error) };
@@ -114,7 +114,7 @@ async def main():
 
         # A adds an item BEFORE B ever opens the trip -> tests initial hydration
         await ap.evaluate(
-            """async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'BeforeBOpened', date: '2026-09-01', time: '08:00', budget: 1000}); }"""
         )
         await ap.wait_for_timeout(3000)
@@ -126,7 +126,7 @@ async def main():
 
         hydrated = await bp.evaluate(
             """async () => {
-                const s = await window.TrippiAPI.getItems(colState.group.id);
+                const s = await window.MarkiAPI.getItems(colState.group.id);
                 return { state: (colState.items || []).length, server: (s.data || []).length };
             }"""
         )
@@ -135,42 +135,42 @@ async def main():
 
         # ---------- both directions, live ----------
         await ap.evaluate(
-            """async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'FromPhone', date: '2026-09-01', time: '09:00'}); }"""
         )
         ok = await converges(bp, """() => (colState.items || []).some(i => i.title === 'FromPhone')""")
         record("MULTI-DEVICE phone itinerary -> desktop (no F5)", ok)
 
         await bp.evaluate(
-            """async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'FromDesktop', date: '2026-09-02', time: '10:00'}); }"""
         )
         ok = await converges(ap, """() => (colState.items || []).some(i => i.title === 'FromDesktop')""")
         record("MULTI-DEVICE desktop itinerary -> phone (no F5)", ok)
 
         await ap.evaluate(
-            """async () => { await window.TrippiAPI.addExpense({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addExpense({group_id: colState.group.id,
                 name: 'BensinPhone', amount: 50000, category: 'Transport', date: '2026-09-01'}); }"""
         )
         ok = await converges(bp, """() => (colState.expenses || []).some(e => e.name === 'BensinPhone')""")
         record("MULTI-DEVICE phone expense -> desktop (no F5)", ok)
 
         await bp.evaluate(
-            """async () => { await window.TrippiAPI.addExpense({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addExpense({group_id: colState.group.id,
                 name: 'HotelDesktop', amount: 300000, category: 'Hotel', date: '2026-09-02'}); }"""
         )
         ok = await converges(ap, """() => (colState.expenses || []).some(e => e.name === 'HotelDesktop')""")
         record("MULTI-DEVICE desktop expense -> phone (no F5)", ok)
 
         await ap.evaluate(
-            """async () => { await window.TrippiAPI.addWishlistItem(
+            """async () => { await window.MarkiAPI.addWishlistItem(
                 colState.group.id, 'WishPhone', null, null); }"""
         )
         ok = await converges(bp, """() => (colState.wishlists || []).some(w => w.title === 'WishPhone')""")
         record("MULTI-DEVICE phone wishlist -> desktop (no F5)", ok)
 
         await bp.evaluate(
-            """async () => { await window.TrippiAPI.addWishlistItem(
+            """async () => { await window.MarkiAPI.addWishlistItem(
                 colState.group.id, 'WishDesktop', null, null); }"""
         )
         ok = await converges(ap, """() => (colState.wishlists || []).some(w => w.title === 'WishDesktop')""")
@@ -178,9 +178,9 @@ async def main():
 
         await ap.evaluate(
             """async () => {
-                const items = await window.TrippiAPI.getItems(colState.group.id);
+                const items = await window.MarkiAPI.getItems(colState.group.id);
                 const t = (items.data || []).find(i => i.title === 'FromDesktop');
-                if (t) await window.TrippiAPI.deleteItem(t.id);
+                if (t) await window.MarkiAPI.deleteItem(t.id);
             }"""
         )
         ok = await converges(bp, """() => !(colState.items || []).some(i => i.title === 'FromDesktop')""")
@@ -191,7 +191,7 @@ async def main():
         left = await kill_realtime(bp)
         record("FAILURE realtime torn down on desktop", left == 0, f"channels={left}")
         await ap.evaluate(
-            """async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'WhileSocketDead', date: '2026-09-01', time: '11:00'}); }"""
         )
         ok = await converges(bp, """() => (colState.items || []).some(i => i.title === 'WhileSocketDead')""")
@@ -202,7 +202,7 @@ async def main():
         await go_hidden(bp)
         await kill_realtime(bp)
         await ap.evaluate(
-            """async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'WhileBackgrounded', date: '2026-09-01', time: '12:00'}); }"""
         )
         await bp.wait_for_timeout(2500)
@@ -213,7 +213,7 @@ async def main():
         # 3. reconnect: re-subscribing must reconcile what was missed
         await kill_realtime(bp)
         await ap.evaluate(
-            """async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'MissedDuringOutage', date: '2026-09-02', time: '13:00'}); }"""
         )
         await bp.wait_for_timeout(1500)
@@ -229,7 +229,7 @@ async def main():
                     reconcileTrip('dup4'), reconcileTrip('dup5')
                 ]);
                 await new Promise(r => setTimeout(r, 1200));
-                const s = await window.TrippiAPI.getItems(colState.group.id);
+                const s = await window.MarkiAPI.getItems(colState.group.id);
                 const titles = (colState.items || []).map(i => i.title);
                 const ids = (colState.items || []).map(i => i.id);
                 return {
@@ -250,9 +250,9 @@ async def main():
 
         # 5. simultaneous edits from both devices
         await asyncio.gather(
-            ap.evaluate("""async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            ap.evaluate("""async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'SimulPhone', date: '2026-09-01', time: '14:00'}); }"""),
-            bp.evaluate("""async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            bp.evaluate("""async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'SimulDesktop', date: '2026-09-01', time: '15:00'}); }"""),
         )
         ok_a = await converges(ap, """() => (colState.items || []).some(i => i.title === 'SimulDesktop')""")
@@ -262,7 +262,7 @@ async def main():
 
         final = await bp.evaluate(
             """async () => {
-                const s = await window.TrippiAPI.getItems(colState.group.id);
+                const s = await window.MarkiAPI.getItems(colState.group.id);
                 const ids = (colState.items || []).map(i => i.id);
                 return { state: ids.length, unique: new Set(ids).size, server: (s.data || []).length };
             }"""
@@ -273,7 +273,7 @@ async def main():
         # 6. member join must reach both sides live
         inv = await ap.evaluate(
             """async () => {
-                const r = await window.TrippiAPI.createInvitation(colState.group.id);
+                const r = await window.MarkiAPI.createInvitation(colState.group.id);
                 const d = Array.isArray(r.data) ? r.data[0] : r.data;
                 return (d && d.token) || d;
             }"""
@@ -295,7 +295,7 @@ async def main():
         # 7. guest side must reconcile with its own socket dead
         await kill_realtime(gp2)
         await ap.evaluate(
-            """async () => { await window.TrippiAPI.addItem({group_id: colState.group.id,
+            """async () => { await window.MarkiAPI.addItem({group_id: colState.group.id,
                 title: 'GuestOfflineCatchup', date: '2026-09-01', time: '16:00'}); }"""
         )
         ok = await converges(gp2, """() => Array.from(

@@ -45,7 +45,7 @@ async def main():
 
         # create trip with 1 agenda
         newtrip = await op.evaluate("""async () => {
-            const g = await window.TrippiAPI.createGroup({
+            const g = await window.MarkiAPI.createGroup({
                 name: 'Fase C Wishlist Test ' + Date.now(),
                 destination: 'Bandung',
                 start_date: '2026-09-01',
@@ -53,7 +53,7 @@ async def main():
             });
             if (g.error) return { error: String(g.error.message || g.error) };
             const gid = g.data.id;
-            await window.TrippiAPI.addItem({ group_id: gid, title: 'Brunch Cafe', date: '2026-09-01', time: '09:00' });
+            await window.MarkiAPI.addItem({ group_id: gid, title: 'Brunch Cafe', date: '2026-09-01', time: '09:00' });
             return { id: gid, name: g.data.name };
         }""")
         if newtrip.get("error"):
@@ -96,7 +96,7 @@ async def main():
 
         # verify: wishlist status changed + agenda item appears
         convert_check = await op.evaluate("""async () => {
-            const r = await window.TrippiAPI.listWishlists(colState.group.id);
+            const r = await window.MarkiAPI.listWishlists(colState.group.id);
             const wishlists = r.data || [];
             const approved = wishlists.filter(w => w.status === 'approved');
             const agenda = colState.items.filter(i => i.title === 'Kopi Kalyan');
@@ -113,7 +113,7 @@ async def main():
 
         # ============ GUEST FLOW ============
         inv = await op.evaluate("""async (gid) => {
-            const r = await window.TrippiAPI.createInvitation(gid);
+            const r = await window.MarkiAPI.createInvitation(gid);
             return { data: r.data, error: r.error ? String(r.error.message || r.error) : null };
         }""", gid)
         token = None
