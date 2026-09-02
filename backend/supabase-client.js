@@ -1,8 +1,9 @@
 // MarkiCab backend scaffold (M0). Inert until configured.
-// Configure by setting window.__TRIPPI_SUPABASE__ = { url, anonKey } before this
+// Configure by setting window.__MARKICAB_SUPABASE__ = { url, anonKey } before this
 // script loads, OR via meta tags in <head>:
-//   <meta name="trippi-supabase-url" content="...">
-//   <meta name="trippi-supabase-anon" content="...">
+//   <meta name="markicab-supabase-url" content="...">
+//   <meta name="markicab-supabase-anon" content="...">
+// Legacy compat: window.__TRIPPI_SUPABASE__ is also accepted.
 // When unconfigured, MarkiCab stays in personal-only mode (no errors, no network).
 (function () {
   var w = window;
@@ -10,13 +11,13 @@
     var el = document.querySelector('meta[name="' + name + '"]');
     return el ? el.getAttribute('content') : null;
   }
-  var cfg = w.__TRIPPI_SUPABASE__ || {
-    url: meta('trippi-supabase-url'),
-    anonKey: meta('trippi-supabase-anon'),
+  var cfg = w.__MARKICAB_SUPABASE__ || w.__TRIPPI_SUPABASE__ || {
+    url: meta('markicab-supabase-url') || meta('trippi-supabase-url'),
+    anonKey: meta('markicab-supabase-anon') || meta('trippi-supabase-anon'),
   };
   var ready = !!(cfg && cfg.url && cfg.anonKey);
 
-  w.TrippiBackend = {
+  w.MarkiBackend = {
     ready: ready,
     config: cfg,
     client: null,
