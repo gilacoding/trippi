@@ -131,7 +131,165 @@ img{display:block;max-width:100%}
 .mt-1{margin-top:4px}.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}
 .mb-1{margin-bottom:4px}.mb-2{margin-bottom:8px}.mb-3{margin-bottom:12px}.mb-4{margin-bottom:16px}
 .text-muted{color:var(--text-muted)}.text-accent{color:var(--accent)}.text-danger{color:var(--danger)}
-.font-600{font-weight:600}.font-700{font-weight:700}
+/* Toggle switch */
+.toggle{width:44px;height:24px;border-radius:9999px;background:var(--sage);position:relative;cursor:pointer;transition:background .2s}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--surface);transition:transform .2s}
+.toggle.on{background:var(--success)}
+.toggle.on::after{transform:translateX(20px)}
+/* Timeline */
+.timeline{position:relative;padding-left:48px}
+.timeline::before{content:'';position:absolute;left:16px;top:0;bottom:0;width:2px;background:var(--line)}
+.timeline-item{position:relative;margin-bottom:16px}
+.timeline-dot{position:absolute;left:-40px;top:12px;width:32px;height:32px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-family:'Outfit';font-size:11px;font-weight:700;color:var(--ink);z-index:1}
+.timeline-line{position:absolute;left:-24px;top:44px;width:2px;height:calc(100% + 4px);background:var(--line)}
+/* Auth */
+.auth-modal{position:fixed;inset:0;background:rgba(26,26,26,.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.auth-modal.hidden{display:none}
+.auth-card{width:100%;max-width:390px;background:var(--surface);border-radius:20px;padding:24px;max-height:calc(100vh - 40px);overflow-y:auto}
+.auth-tabs{display:flex;gap:8px;margin-bottom:20px}
+.auth-tab{flex:1;padding:10px;border-radius:12px;font-family:'Outfit';font-size:13px;font-weight:600;text-align:center;color:var(--text-muted);background:var(--surface2)}
+.auth-tab.active{background:var(--accent);color:var(--surface)}
+.auth-divider{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--text-muted);font-family:'Outfit';font-size:12px}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--line)}
+.btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:48px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-family:'Outfit';font-size:14px;font-weight:600;color:var(--text)}
+/* Guest */
+.guest-badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;background:var(--surface2);font-family:'Outfit';font-size:11px;font-weight:600;color:var(--text-muted)}
+/* Map placeholder */
+.map-placeholder{width:100%;height:320px;border-radius:14px;background:var(--surface2);margin-bottom:16px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-family:'Outfit';font-size:14px;position:relative;overflow:hidden}
+/* Crew sheet */
+.crew-sheet{background:var(--surface);border-radius:20px 20px 0 0;padding:20px;margin-top:-20px;position:relative;z-index:10}
+.crew-sheet::before{content:'';width:40px;height:4px;border-radius:2px;background:var(--line);position:absolute;top:8px;left:50%;transform:translateX(-50%)}
+/* Share icons */
+.share-icons{display:flex;gap:16px;margin-top:8px}
+.share-icon{width:48px;height:48px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center}
+.share-icon svg{width:20px;height:20px}
+.share-icon svg path{fill:var(--text-muted)}
+/* Wishlist grid */
+.wishlist-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+.wishlist-card{border-radius:12px;overflow:hidden;background:var(--surface)}
+.wishlist-card img{width:100%;height:80px;object-fit:cover}
+.wishlist-card .w-label{padding:8px;font-family:'Outfit';font-size:12px;font-weight:600}
+/* Day tabs */
+.day-tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px}
+.day-tab{min-width:72px;padding:8px 12px;border-radius:12px;font-family:'Outfit';font-size:12px;font-weight:600;white-space:nowrap;text-align:center}
+.day-tab.active{background:var(--accent2);border:1px solid var(--accent);color:var(--ink)}
+.day-tab:not(.active){background:var(--surface);border:1px solid var(--line);color:var(--text-muted)}
+/* Expense card */
+.expense-card{display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface);border-radius:12px;margin-bottom:8px}
+.expense-icon{width:40px;height:40px;border-radius:10px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px}
+.expense-info{flex:1}
+.expense-name{font-family:'Outfit';font-size:14px;font-weight:600;color:var(--ink)}
+.expense-meta{font-family:'Outfit';font-size:12px;color:var(--text-muted)}
+.expense-amount{font-family:'Poppins';font-size:14px;font-weight:700;color:var(--ink)}
+/* View panels */
+.view-panel{display:none}
+.view-panel.active{display:block}
+/* Avatar with badge */
+.avatar-badge{position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-family:'Outfit';font-size:9px;font-weight:700;border:2px solid var(--surface)}
+/* Empty state with icon */
+.empty-icon{width:64px;height:64px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:28px}
+/* Section header */
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.section-head h2{font-family:'Poppins';font-size:16px;font-weight:600}
+/* Itinerary card */
+.itinerary-card{padding:12px;background:var(--surface);border-radius:12px;margin-bottom:8px}
+.itinerary-card .i-title{font-family:'Outfit';font-size:15px;font-weight:600;color:var(--ink);margin-bottom:2px}
+.itinerary-card .i-desc{font-family:'Outfit';font-size:13px;color:var(--text-muted)}
+.itinerary-card .i-actions{display:flex;gap:12px;margin-top:8px}
+/* Map pin avatar */
+.map-pin{position:absolute;width:36px;height:36px;border-radius:50%;border:3px solid var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.15);overflow:hidden;display:flex;align-items:center;justify-content:center;font-family:'Poppins';font-size:12px;font-weight:700;color:var(--ink)}
+/* Toggle row */
+.toggle-row{display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface);border-radius:12px;margin-bottom:8px}
+.toggle-row .t-info{flex:1}
+.toggle-row .t-name{font-family:'Outfit';font-size:14px;font-weight:600;color:var(--ink)}
+.toggle-row .t-status{font-family:'Outfit';font-size:12px;color:var(--text-muted)}
+/* CTA footer */
+.cta-footer{padding:16px 20px;text-align:center}
+.cta-footer .cta-text{font-family:'Outfit';font-size:13px;color:var(--text-muted);margin-bottom:8px}
+.cta-footer .cta-link{font-family:'Outfit';font-size:14px;font-weight:600;color:var(--accent)}
+/* Modal with indicator */
+.modal-indicator{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 16px}
+/* Google button icon */
+.google-icon{width:18px;height:18px}
+/* Auth switch link */
+.auth-switch{text-align:center;margin-top:16px;font-family:'Outfit';font-size:13px;color:var(--text-muted)}
+.auth-switch a{color:var(--accent);font-weight:600}
+/* Profile states */
+.profile-state{display:none}
+.profile-state.active{display:block}
+/* Toast position */
+.toast{bottom:80px}
+/* Fix for profile screen */
+#screenProfile .content{padding-bottom:80px}
+/* Fix for bottom nav hidden on profile */
+.bottom-nav.hidden{display:none}
+/* Journey active pill */
+.journey-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:9999px;background:var(--surface);font-family:'Outfit';font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.journey-pill .pill-dot{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 6px var(--success)}
+/* Share link field */
+.share-link{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);border-radius:10px;margin-top:4px}
+.share-link input{flex:1;font-family:'Outfit';font-size:12px;color:var(--text);background:none;border:0;outline:none}
+.share-link .link-icon{color:var(--text-muted)}
+/* Tambah itin modal */
+.itinerary-form .field{margin-bottom:12px}
+/* Fix modal z-index */
+.modal-backdrop{z-index:200}
+/* Auth modal higher */
+.auth-modal{z-index:210}
+/* Profile guest specific */
+.guest-avatar{width:72px;height:72px;border-radius:50%;border:1.5px dashed var(--border);display:flex;align-items:center;justify-content:center;font-family:'Poppins';font-size:26px;font-weight:700;color:var(--text-muted)}
+/* Guest CTA card */
+.guest-cta-card{padding:16px;background:var(--surface);border-radius:16px;text-align:center;margin-bottom:16px}
+.guest-cta-card .cta-title{font-family:'Poppins';font-size:16px;font-weight:600;margin-bottom:4px}
+.guest-cta-card .cta-sub{font-family:'Outfit';font-size:13px;color:var(--text-muted);margin-bottom:12px}
+/* Wishlist item */
+.wishlist-item{display:flex;gap:12px;padding:12px;background:var(--surface);border-radius:12px;margin-bottom:8px;align-items:center}
+.wishlist-item .w-thumb{width:48px;height:48px;border-radius:8px;background:var(--surface2);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:20px}
+.wishlist-item .w-info{flex:1}
+.wishlist-item .w-name{font-family:'Outfit';font-size:14px;font-weight:600}
+.wishlist-item .w-desc{font-family:'Outfit';font-size:12px;color:var(--text-muted)}
+/* Participant row */
+.participant-row{display:flex;align-items:center;gap:12px;padding:10px 0}
+.participant-row .p-avatar{width:36px;height:36px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center;font-family:'Poppins';font-size:14px;font-weight:700}
+.participant-row .p-name{flex:1;font-family:'Outfit';font-size:14px;font-weight:600}
+.participant-row .p-badge{font-family:'Outfit';font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px;background:var(--accent2)}
+/* Map overlay */
+.map-overlay{position:absolute;bottom:16px;right:16px;background:var(--surface);padding:8px 12px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.1);font-family:'Outfit';font-size:11px;font-weight:600}
+/* Fix for screen guest */
+#screenGuest .content{padding-bottom:80px}
+/* Fix for screen journey */
+#screenJourney .content{padding-bottom:80px}
+/* Fix for screen planner */
+#screenPlanner .content{padding-bottom:80px}
+/* Fix for screen history */
+#screenHistory .content{padding-bottom:80px}
+/* Fix for screen home */
+#screenHome .content{padding-bottom:80px}
+/* Fix for screen preview */
+#screenPreview .content{padding-bottom:80px}
+/* Fix for screen joined */
+#screenJoined .content{padding-bottom:80px}
+/* Fix for screen auth */
+#screenAuth .content{padding-bottom:80px}
+/* Fix for screen share */
+#screenShare .content{padding-bottom:80px}
+/* Fix for screen itin */
+#screenItin .content{padding-bottom:80px}
+/* Fix for screen location */
+#screenLocation .content{padding-bottom:80px}
+/* Fix for screen profile guest */
+#screenProfileGuest .content{padding-bottom:80px}
+/* Fix for screen profile edit */
+#screenProfileEdit .content{padding-bottom:80px}
+/* Fix for screen profile saved */
+#screenProfileSaved .content{padding-bottom:80px}
+/* Fix for screen profile error */
+#screenProfileError .content{padding-bottom:80px}
+/* Fix for screen profile delete */
+#screenProfileDelete .content{padding-bottom:80px}
+/* Fix for screen profile default */
+#screenProfileDefault .content{padding-bottom:80px}
+
 </style>
 </head>
 <body>
@@ -149,7 +307,7 @@ img{display:block;max-width:100%}
 <div class="screen active" id="screenHome">
   <div class="content" style="padding-top:8px">
     <div class="flex items-center gap-3 mb-4">
-      <div class="t-avatar-sm"><span>H</span></div>
+      <div class="t-avatar-sm"><span>R</span></div>
       <div style="flex:1">
         <div class="t-body-sm text-muted mb-1" style="font-family:Poppins;font-size:20px;font-weight:700">Hai, Ras 👋</div>
         <div class="t-display" style="font-size:32px">Trip Kamu</div>
@@ -157,7 +315,7 @@ img{display:block;max-width:100%}
     </div>
     <div class="t-body-sm text-muted mb-4">Atur rencana jalan kamu.</div>
     <div id="homeTripList"></div>
-    <button class="btn-text mt-2 mb-4 font-600" onclick="showScreen('screenHistory')">Lihat semua trip</button>
+    <button class="btn-text mt-2 mb-4 font-600" onclick="navTo('riwayat')" style="display:block;width:100%;text-align:center">Lihat semua trip</button>
   </div>
 </div>
 
@@ -298,7 +456,7 @@ img{display:block;max-width:100%}
 </header>
 <div class="screen" id="screenHistory">
   <div class="content" style="padding-top:8px">
-    <div id="historyList"></div>
+    <div id="historyList" style="padding-bottom:80px"></div>
   </div>
 </div>
 
@@ -316,6 +474,527 @@ img{display:block;max-width:100%}
       <button class="btn btn-danger" id="confirmDeleteBtn" disabled onclick="confirmDelete()">Hapus akun</button>
     </div>
   </div>
+</div>
+
+
+<!-- AUTH MODAL -->
+<div class="auth-modal hidden" id="authModal">
+  <div class="auth-card">
+    <div class="modal-indicator"></div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchAuth('login')">Masuk</button>
+      <button class="auth-tab" id="tabSignup" onclick="switchAuth('signup')">Daftar</button>
+    </div>
+    <div id="authLoginForm">
+      <div class="field">
+        <label class="field-label">Email</label>
+        <input class="field-input" type="email" placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label class="field-label">Password</label>
+        <input class="field-input" type="password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px">Masuk</button>
+    </div>
+    <div id="authSignupForm" style="display:none">
+      <div class="field">
+        <label class="field-label">Nama</label>
+        <input class="field-input" type="text" placeholder="Nama lengkap / panggilan">
+      </div>
+      <div class="field">
+        <label class="field-label">Email</label>
+        <input class="field-input" type="email" placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label class="field-label">Password</label>
+        <input class="field-input" type="password" placeholder="Minimal 10 karakter">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:8px">Daftar</button>
+    </div>
+    <div class="auth-divider">atau</div>
+    <button class="btn-google">
+      <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Lanjut dengan Google
+    </button>
+    <div class="auth-switch" id="authSwitchText">
+      Belum punya akun? <a href="#" onclick="switchAuth('signup')">Daftar</a>
+    </div>
+  </div>
+</div>
+
+<!-- GUEST TRIP PREVIEW -->
+<header class="app-header" id="previewHeader" style="display:none">
+  <button class="back-btn" onclick="goBack()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="h-title">Detail Trip</div>
+  <div class="h-spacer"></div>
+</header>
+<div class="screen" id="screenPreview">
+  <div class="content" style="padding-top:8px">
+    <div class="t-title mb-1" style="font-size:24px;font-weight:700">Bandung Weekend</div>
+    <div class="t-body-sm text-muted mb-3">📍 Bandung, Jawa Barat · 📅 12–14 September 2026 · 👥 8 peserta maksimal</div>
+    <div class="flex items-center gap-3 mb-4">
+      <div class="avatar avatar-sm"><span>R</span></div>
+      <div class="t-body-sm">Trip ini dibagikan oleh <strong>Ras</strong></div>
+    </div>
+    <div class="section-label" style="padding:0;margin-bottom:8px">Sekilas Rencana</div>
+    <div class="timeline mb-4">
+      <div class="timeline-item">
+        <div class="timeline-dot">H1</div>
+        <div class="itinerary-card">
+          <div class="i-title">Tiba di Bandara Husein</div>
+          <div class="i-desc">Bandara Husein Sastranegara</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">H1</div>
+        <div class="itinerary-card">
+          <div class="i-title">Makan Siang di Braga</div>
+          <div class="i-desc">Jalan Braga, Bandung</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">H2</div>
+        <div class="itinerary-card">
+          <div class="i-title">Kawah Putih</div>
+          <div class="i-desc">Lembang, Bandung Barat</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">H3</div>
+        <div class="itinerary-card">
+          <div class="i-title">Cihampelas Walk</div>
+          <div class="i-desc">Belanja oleh-oleh</div>
+        </div>
+      </div>
+    </div>
+    <div style="width:100%;height:120px;border-radius:12px;background:var(--surface2);margin-bottom:16px;display:flex;align-items:center;justify-content:center;font-size:32px">🏙️</div>
+  </div>
+  <div style="position:sticky;bottom:0;padding:16px;background:var(--surface);border-top:1px solid var(--line)">
+    <button class="btn btn-primary" style="width:100%" onclick="openGuestJoin()">Gabung Trip</button>
+    <div class="t-caption text-muted text-center mt-2">Ikut trip ini tanpa perlu membuat akun MarkiCab</div>
+  </div>
+</div>
+
+<!-- GUEST JOIN NAME FORM -->
+<div class="modal-backdrop hidden" id="guestJoinModal">
+  <div class="modal-sheet">
+    <div class="modal-indicator"></div>
+    <div class="t-title text-center mb-2">Gabung Trip</div>
+    <div class="t-body-sm text-muted text-center mb-4">Masukkan nama kamu untuk bergabung.</div>
+    <div class="field">
+      <label class="field-label">Nama</label>
+      <input class="field-input" type="text" placeholder="Nama kamu">
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="joinTrip()">Gabung Trip</button>
+    <button class="btn-text" style="width:100%;margin-top:8px" onclick="closeGuestJoin()">Batal</button>
+  </div>
+</div>
+
+<!-- GUEST JOINED TRIP -->
+<header class="app-header" id="joinedHeader" style="display:none">
+  <button class="back-btn" onclick="goBack()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="h-title">Trip ke Bali</div>
+  <div class="h-spacer"></div>
+</header>
+<div class="screen" id="screenJoined">
+  <div class="content" style="padding-top:8px">
+    <div class="t-title mb-1">Trip ke Bali</div>
+    <div class="t-body-sm text-muted mb-3">12 Aug – 15 Aug · 4 Hari</div>
+    <div style="padding:16px;background:rgba(46,125,50,.08);border-radius:16px;margin-bottom:16px">
+      <div class="flex items-center gap-3">
+        <div style="flex:1">
+          <div class="t-body-sm font-600 mb-1">Mode Perjalanan</div>
+          <div class="t-caption text-muted">Aktifkan untuk melihat lokasi peserta lain selama trip berlangsung.</div>
+        </div>
+        <div class="toggle" id="journeyToggle" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <div class="section-label" style="padding:0;margin-bottom:8px">Rencana Perjalanan</div>
+    <div class="timeline mb-4">
+      <div class="timeline-item">
+        <div class="timeline-dot">H1</div>
+        <div class="itinerary-card">
+          <div class="i-title">Tiba di Bandara Ngurah Rai</div>
+          <div class="i-desc">Jemputan dari hotel.</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">H1</div>
+        <div class="itinerary-card">
+          <div class="i-title">Makan Siang di Nasi Ayam Ibu Oki</div>
+          <div class="i-desc">Makan siang bersama.</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot">H2</div>
+        <div class="itinerary-card">
+          <div class="i-title">Pantai Melasti</div>
+          <div class="i-desc">Santai di pantai.</div>
+        </div>
+      </div>
+    </div>
+    <div class="section-label" style="padding:0;margin-bottom:8px">Wishlist Grup</div>
+    <div class="wishlist-grid mb-4">
+      <div class="wishlist-card">
+        <div style="height:80px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:28px">🏊</div>
+        <div class="w-label">Cretya Ubud</div>
+      </div>
+      <div class="wishlist-card">
+        <div style="height:80px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:28px">🏄</div>
+        <div class="w-label">Belajar Surfing</div>
+      </div>
+    </div>
+    <button class="btn btn-secondary" style="width:100%;margin-bottom:16px">+ Tambah ke rencana</button>
+    <div class="section-label" style="padding:0;margin-bottom:8px">Peserta (4)</div>
+    <div class="participant-row">
+      <div class="p-avatar"><span>B</span></div>
+      <div class="p-name">Budi</div>
+      <div class="p-badge">Pembuat</div>
+    </div>
+    <div class="participant-row">
+      <div class="p-avatar"><span>S</span></div>
+      <div class="p-name">Siti</div>
+    </div>
+    <div class="participant-row">
+      <div class="p-avatar"><span>A</span></div>
+      <div class="p-name">Agus</div>
+    </div>
+    <div class="participant-row">
+      <div class="p-avatar" style="background:var(--accent2)"><span>K</span></div>
+      <div class="p-name">Kamu <span class="guest-badge" style="margin-left:4px">Guest</span></div>
+    </div>
+    <div class="cta-footer">
+      <div class="cta-text">Ingin menyimpan riwayat trip ini dan membuat trip kamu sendiri?</div>
+      <a href="#" class="cta-link">Daftar akun gratis</a>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE TRIP DIALOG -->
+<div class="modal-backdrop hidden" id="shareModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title">Bagikan Trip</div>
+      <button class="modal-close" onclick="closeShare()">✕</button>
+    </div>
+    <div class="t-body-sm text-muted mb-3">Siapa pun yang memiliki link dapat melihat dan bergabung ke trip ini.</div>
+    <div class="field-label">Link Trip</div>
+    <div class="share-link">
+      <input type="text" value="https://markicab.com/t/jkt-bdg-x9A2" readonly>
+      <span class="link-icon">🔗</span>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:12px">Salin</button>
+    <div class="t-label text-muted" style="margin-top:16px;margin-bottom:8px">Bagikan via</div>
+    <div class="share-icons">
+      <button class="share-icon"><svg viewBox="0 0 20 20"><path d="M18 0H2C.9 0 0 .9 0 2v18l4-4h14c1.1 0 2-.9 2-2V2c0-1.1-.9-2-2-2zM6 9h8v2H6V9zm4 4v-2h4v2h-4zm4-6V5H6v2h8z"/></svg></button>
+      <button class="share-icon"><svg viewBox="0 0 20 20"><path d="M2 4h16c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H2c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 2l8 5 8-5H2zm0 2.5V16h16V8.5l-8 5-8-5z"/></svg></button>
+      <button class="share-icon"><svg viewBox="0 0 20 20"><path d="M3 3h6v6H3V3zm2 2v2h2V5H5zm8-2h6v6h-6V3zm2 2v2h2V5h-2zM3 13h6v6H3v-6zm2 2v2h2v-2H5zm10-2h2v2h-2v-2zm-2 2h2v2h-2v-2zm2 2h2v2h-2v-2zm-2 2h2v2h-2v-2zm2-6h2v2h-2v-2zm0 2h2v2h-2v-2z"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<!-- LIVE LOCATION MAP -->
+<header class="app-header" id="locationHeader" style="display:none">
+  <button class="back-btn" onclick="goBack()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div class="h-title">Lokasi Grup</div>
+  <div class="h-spacer"></div>
+</header>
+<div class="screen" id="screenLocation">
+  <div class="content" style="padding-top:8px">
+    <div class="map-placeholder">
+      Map Area
+      <div class="journey-pill" style="position:absolute;top:16px;left:50%;transform:translateX(-50%)">
+        <span class="pill-dot"></span>
+        Mode Perjalanan AKTIF
+      </div>
+      <div class="map-pin" style="top:80px;left:80px;background:var(--sage)"><span>R</span></div>
+      <div class="map-pin" style="top:140px;right:100px;background:var(--sage)"><span>B</span></div>
+      <div class="map-overlay">Jakarta, Indonesia</div>
+    </div>
+    <div class="crew-sheet">
+      <div class="section-head">
+        <h2>Peserta</h2>
+        <div class="t-caption text-muted">3 orang</div>
+      </div>
+      <div class="toggle-row">
+        <div class="avatar avatar-sm"><span>R</span></div>
+        <div class="t-info">
+          <div class="t-name">Ras <span class="p-badge" style="margin-left:4px">Pembuat</span></div>
+          <div class="t-status">10 km dari kamu</div>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="toggle-row">
+        <div class="avatar avatar-sm"><span>B</span></div>
+        <div class="t-info">
+          <div class="t-name">Budi</div>
+          <div class="t-status">2 km dari kamu</div>
+        </div>
+        <div class="toggle on"></div>
+      </div>
+      <div class="toggle-row">
+        <div class="avatar avatar-sm" style="background:var(--surface2)"><span>S</span></div>
+        <div class="t-info">
+          <div class="t-name">Sinta</div>
+          <div class="t-status">Belum ada lokasi</div>
+        </div>
+        <div class="toggle"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAMBAH ITIN MODAL -->
+<div class="modal-backdrop hidden" id="tambahItinModal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <div class="modal-title">Tambah ke dalam rencana</div>
+      <button class="modal-close" onclick="closeTambahItin()">✕</button>
+    </div>
+    <div class="field">
+      <label class="field-label">Nama Trip</label>
+      <input class="field-input" type="text" placeholder="e.g. Bandung Weekend">
+    </div>
+    <div class="field">
+      <label class="field-label">Destinasi</label>
+      <input class="field-input" type="text" placeholder="e.g. Bandung, Jawa Barat">
+    </div>
+    <div class="field">
+      <label class="field-label">Tanggal Mulai</label>
+      <input class="field-input" type="date">
+    </div>
+    <div class="field">
+      <label class="field-label">Tanggal Selesai</label>
+      <input class="field-input" type="date">
+    </div>
+    <div class="field">
+      <label class="field-label">Jumlah Peserta</label>
+      <input class="field-input" type="number" placeholder="0" min="1" max="20">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeTambahItin()">Batal</button>
+      <button class="btn btn-primary">Buat Trip →</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE GUEST STATE -->
+<div class="screen" id="screenProfileGuest" style="display:none">
+  <div class="content" style="padding-top:8px">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="guest-avatar"><span>?</span></div>
+      <div style="flex:1;min-width:0">
+        <div class="t-title">Kamu</div>
+        <div class="guest-badge" style="margin-top:4px">Tamu</div>
+      </div>
+    </div>
+    <div class="section-label">Akun Tamu</div>
+    <div class="guest-cta-card mb-4">
+      <div class="cta-title">Buat akun untuk menyimpan identitas kamu.</div>
+      <div class="cta-sub">Nama dan trip kamu sekarang hanya tersimpan di perangkat ini.</div>
+      <button class="btn btn-primary" style="width:100%">Buat akun</button>
+    </div>
+    <div class="auth-switch" style="margin-bottom:24px">Sudah punya akun? <a href="#">Masuk</a></div>
+    <div class="divider mb-3"></div>
+    <div class="section-label">Akun</div>
+    <button class="btn btn-secondary" style="width:100%;margin-bottom:12px">Keluar dari perangkat ini</button>
+    <div class="t-caption text-muted">Trip yang belum disimpan akan hilang.</div>
+  </div>
+</div>
+
+<!-- PROFILE EDIT STATE -->
+<div class="screen" id="screenProfileEdit" style="display:none">
+  <div class="content" style="padding-top:8px">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="avatar avatar-xl"><span>R</span></div>
+      <div style="flex:1;min-width:0">
+        <div class="t-title">Ras Pratama</div>
+        <div class="t-caption text-muted">ras@email.com</div>
+      </div>
+    </div>
+    <div class="section-label">Identitas</div>
+    <div class="field">
+      <label class="field-label">Nama tampilan</label>
+      <input class="field-input" type="text" value="Ras Pratama" maxlength="40">
+      <div class="flex justify-between mt-1">
+        <span class="field-hint">Nama ini akan muncul di trip kamu.</span>
+        <span class="t-caption text-muted">11/40</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-bottom:24px">Simpan</button>
+    <div class="divider mb-3"></div>
+    <div class="section-label">Akun</div>
+    <button class="btn btn-secondary" style="width:100%;margin-bottom:12px">Keluar</button>
+    <button class="btn-text text-danger" style="width:100%;text-align:left">Hapus akun</button>
+    <div class="t-caption text-muted mt-2">Menghapus akun akan menghapus semua trip kamu.</div>
+  </div>
+</div>
+
+<!-- PROFILE ERROR STATE -->
+<div class="screen" id="screenProfileError" style="display:none">
+  <div class="content" style="padding-top:8px">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="avatar avatar-xl"><span>R</span></div>
+      <div style="flex:1;min-width:0">
+        <div class="t-title">Ras</div>
+        <div class="t-caption text-muted">ras@email.com</div>
+      </div>
+    </div>
+    <div class="section-label">Identitas</div>
+    <div class="field">
+      <label class="field-label">Nama tampilan</label>
+      <input class="field-input error" type="text" value="R" maxlength="40">
+      <span class="field-error" style="display:block">Nama terlalu minimal (minimal 2 karakter).</span>
+    </div>
+    <button class="btn" style="width:100%;margin-bottom:24px;background:var(--accent);color:var(--surface)">Simpan</button>
+    <div class="divider mb-3"></div>
+    <div class="section-label">Akun</div>
+    <button class="btn btn-secondary" style="width:100%;margin-bottom:12px">Keluar</button>
+    <button class="btn-text text-danger" style="width:100%;text-align:left">Hapus akun</button>
+    <div class="t-caption text-muted mt-2">Menghapus akun akan menghapus semua trip kamu.</div>
+  </div>
+</div>
+
+<!-- PROFILE SAVED STATE -->
+<div class="screen" id="screenProfileSaved" style="display:none">
+  <div class="content" style="padding-top:8px">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="avatar avatar-xl"><span>R</span></div>
+      <div style="flex:1;min-width:0">
+        <div class="t-title">Ras Pratama</div>
+        <div class="t-caption text-muted">ras@email.com</div>
+      </div>
+    </div>
+    <div class="section-label">Identitas</div>
+    <div class="field">
+      <label class="field-label">Nama tampilan</label>
+      <input class="field-input" type="text" value="Ras Pratama" maxlength="40" disabled>
+      <div class="flex justify-between mt-1">
+        <span class="field-hint">Nama ini akan muncul di trip kamu.</span>
+        <span class="t-caption text-muted">11/40</span>
+      </div>
+    </div>
+    <button class="btn" style="width:100%;margin-bottom:24px;background:var(--sage);color:var(--text-muted)" disabled>Simpan</button>
+    <div class="divider mb-3"></div>
+    <div class="section-label">Akun</div>
+    <button class="btn btn-secondary" style="width:100%;margin-bottom:12px">Keluar</button>
+    <button class="btn-text text-danger" style="width:100%;text-align:left">Hapus akun</button>
+    <div class="t-caption text-muted mt-2">Menghapus akun akan menghapus semua trip kamu.</div>
+  </div>
+</div>
+
+<!-- EXPENSES PANEL (inside planner) -->
+<div class="view-panel" id="expensesPanel" style="display:none">
+  <div class="section-head">
+    <h2>Pengeluaran</h2>
+    <div class="t-caption text-muted">Total: Rp 1.250.000</div>
+  </div>
+  <div class="expense-card">
+    <div class="expense-icon">🍜</div>
+    <div class="expense-info">
+      <div class="expense-name">Makan Siang Nishiki Market</div>
+      <div class="expense-meta">Dibayar oleh Ras · Hari 2</div>
+    </div>
+    <div class="expense-amount">Rp 350K</div>
+  </div>
+  <div class="expense-card">
+    <div class="expense-icon">🏨</div>
+    <div class="expense-info">
+      <div class="expense-name">Hoshinoya Kyoto</div>
+      <div class="expense-meta">Dibayar oleh Budi · Check-in</div>
+    </div>
+    <div class="expense-amount">Rp 900K</div>
+  </div>
+  <button class="btn btn-secondary mt-3 mb-4" style="width:100%;border-style:dashed">+ Tambah pengeluaran</button>
+</div>
+
+<!-- JOURNEY PANEL (inside planner) -->
+<div class="view-panel" id="journeyPanel" style="display:none">
+  <div class="map-placeholder" style="height:200px">
+    Map Area
+    <div class="journey-pill" style="position:absolute;top:16px;left:50%;transform:translateX(-50%)">
+      <span class="pill-dot"></span>
+      Mode Perjalanan AKTIF
+    </div>
+  </div>
+  <div class="section-head" style="margin-top:16px">
+    <h2>Crew</h2>
+    <div class="t-caption text-muted">3 orang</div>
+  </div>
+  <div class="toggle-row">
+    <div class="avatar avatar-sm"><span>R</span></div>
+    <div class="t-info">
+      <div class="t-name">Ras <span class="p-badge" style="margin-left:4px">Pembuat</span></div>
+      <div class="t-status">10 km dari kamu</div>
+    </div>
+    <div class="toggle on"></div>
+  </div>
+  <div class="toggle-row">
+    <div class="avatar avatar-sm"><span>B</span></div>
+    <div class="t-info">
+      <div class="t-name">Budi</div>
+      <div class="t-status">2 km dari kamu</div>
+    </div>
+    <div class="toggle on"></div>
+  </div>
+  <div class="toggle-row">
+    <div class="avatar avatar-sm" style="background:var(--surface2)"><span>S</span></div>
+    <div class="t-info">
+      <div class="t-name">Sinta</div>
+      <div class="t-status">Belum ada lokasi</div>
+    </div>
+    <div class="toggle"></div>
+  </div>
+</div>
+
+<!-- WISHLIST PANEL (inside planner) -->
+<div class="view-panel" id="wishlistPanel" style="display:none">
+  <div class="section-head">
+    <h2>Wishlist Grup</h2>
+    <div class="t-caption text-muted">2 item</div>
+  </div>
+  <div class="wishlist-item">
+    <div class="w-thumb">🏊</div>
+    <div class="w-info">
+      <div class="w-name">Cretya Ubud</div>
+      <div class="w-desc">Pool villa with jungle view</div>
+    </div>
+  </div>
+  <div class="wishlist-item">
+    <div class="w-thumb">🏄</div>
+    <div class="w-info">
+      <div class="w-name">Belajar Surfing</div>
+      <div class="w-desc">Surf lesson at Kuta Beach</div>
+    </div>
+  </div>
+  <button class="btn btn-secondary mt-3 mb-4" style="width:100%;border-style:dashed">+ Tambah wishlist</button>
+</div>
+
+<!-- GALLERY PANEL (inside planner) -->
+<div class="view-panel" id="galleryPanel" style="display:none">
+  <div class="section-head">
+    <h2>Galeri Trip</h2>
+    <div class="t-caption text-muted">4 foto</div>
+  </div>
+  <div class="wishlist-grid">
+    <div class="wishlist-card">
+      <div style="height:100px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:28px">📸</div>
+      <div class="w-label">Fushimi Inari</div>
+    </div>
+    <div class="wishlist-card">
+      <div style="height:100px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:28px">🏨</div>
+      <div class="w-label">Hoshinoya</div>
+    </div>
+    <div class="wishlist-card">
+      <div style="height:100px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:28px">⛩️</div>
+      <div class="w-label">Kiyomizu-dera</div>
+    </div>
+    <div class="wishlist-card">
+      <div style="height:100px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:28px">🍜</div>
+      <div class="w-label">Nishiki Market</div>
+    </div>
+  </div>
+  <button class="btn btn-secondary mt-3 mb-4" style="width:100%;border-style:dashed">+ Upload foto</button>
 </div>
 
 <!-- BOTTOM NAV -->
@@ -371,10 +1050,9 @@ function renderHome(){
     html+='<div class="trip-card" onclick="openTrip('+t.id+')">'+
       '<div class="card-body">'+
         '<span class="card-tag '+t.status+'">'+(t.status==='active'?t.role:'Selesai')+'</span>'+
-        +'<div class="card-title" style="font-family:Poppins;font-size:20px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.title+', '+t.dest+'</div>'+
+        '<div class="card-title" style="font-family:Poppins;font-size:20px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.title+', '+t.dest+'</div>'+
         '<div class="card-date">'+t.date+'</div>'+
         '<div class="card-meta"><span>'+t.pax+' orang</span><span class="meta-dot"></span><span>'+(t.status==='active'?'Berlangsung':'Selesai')+'</span></div>'+
-        '<div class="card-cta"><button class="cta-link" onclick="event.stopPropagation();openTrip('+t.id+')">'+(t.status==='active'?'Kelola':'Lihat Trip')+'</button></div>'+
       '</div>'+
       '<div class="card-thumb">'+t.thumb+'</div>'+
     '</div>';
@@ -420,12 +1098,17 @@ function renderJourney(){
 function renderHistory(){
   var html='';
   trips.filter(function(t){return t.status==='past'}).forEach(function(t){
-    html+='<div class="trip-card">'+
-      '<div class="card-thumb" style="width:100%;height:120px;border-radius:12px 12px 0 0;margin:-16px -16px 12px -16px">'+t.thumb+'</div>'+
-      '<div class="card-body"><div class="card-title">'+t.title+'</div>'+
-      '<div class="card-date">'+t.dest+'</div>'+
-      '<div class="flex gap-4 mt-2"><div><div class="t-label text-muted">Tanggal</div><div class="t-body-sm font-600">'+t.date+'</div></div><div><div class="t-label text-muted">Peserta</div><div class="t-body-sm font-600">'+t.pax+' Orang</div></div></div>'+
-      '</div></div>';
+    html+='<div style="background:var(--surface);border-radius:16px;margin-bottom:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.04)">'+
+      '<div style="width:100%;height:120px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:40px">'+t.thumb+'</div>'+
+      '<div style="padding:16px">'+
+        '<div style="font-family:Poppins;font-size:18px;font-weight:600;color:var(--ink);margin-bottom:4px">'+t.title+'</div>'+
+        '<div style="font-family:Outfit;font-size:13px;color:var(--text-muted);margin-bottom:8px">'+t.dest+'</div>'+
+        '<div style="display:flex;gap:16px">'+
+          '<div><div style="font-family:Outfit;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Tanggal</div><div style="font-family:Outfit;font-size:13px;font-weight:600">'+t.date+'</div></div>'+
+          '<div><div style="font-family:Outfit;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">Peserta</div><div style="font-family:Outfit;font-size:13px;font-weight:600">'+t.pax+' Orang</div></div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
   });
   document.getElementById('historyList').innerHTML=html;
 }
@@ -440,7 +1123,7 @@ function showScreen(id){
   document.getElementById('journeyHeader').style.display=(id==='screenJourney')?'flex':'none';
   document.getElementById('historyHeader').style.display=(id==='screenHistory')?'flex':'none';
   document.getElementById('fabCreate').style.display=(id==='screenHome')?'flex':'none';
-  document.getElementById('bottomNav').style.display=(id==='screenProfile'||id==='screenGuest')?'none':'flex';
+  document.getElementById('bottomNav').style.display=(id==='screenProfile'||id==='screenGuest'||id==='screenProfileGuest'||id==='screenProfileEdit'||id==='screenProfileError'||id==='screenProfileSaved')?'none':'flex';
   if(id==='screenProfile'){renderProfile();updateProfileCharCount();}
   if(id==='screenPlanner')renderPlanner();
   if(id==='screenJourney')renderJourney();
@@ -510,6 +1193,66 @@ function showToast(msg){
   setTimeout(function(){t.classList.remove('show')},2000);
 }
 renderHome();
+function switchAuth(mode){
+  var loginForm=document.getElementById('authLoginForm');
+  var signupForm=document.getElementById('authSignupForm');
+  var tabLogin=document.getElementById('tabLogin');
+  var tabSignup=document.getElementById('tabSignup');
+  var switchText=document.getElementById('authSwitchText');
+  if(mode==='login'){
+    loginForm.style.display='block';
+    signupForm.style.display='none';
+    tabLogin.classList.add('active');
+    tabSignup.classList.remove('active');
+    switchText.innerHTML='Belum punya akun? <a href="#" onclick="switchAuth(\'signup\')">Daftar</a>';
+  }else{
+    loginForm.style.display='none';
+    signupForm.style.display='block';
+    tabLogin.classList.remove('active');
+    tabSignup.classList.add('active');
+    switchText.innerHTML='Sudah punya akun? <a href="#" onclick="switchAuth(\'login\')">Masuk</a>';
+  }
+}
+function openAuth(){document.getElementById('authModal').classList.remove('hidden')}
+function closeAuth(){document.getElementById('authModal').classList.add('hidden')}
+function openGuestJoin(){document.getElementById('guestJoinModal').classList.remove('hidden')}
+function closeGuestJoin(){document.getElementById('guestJoinModal').classList.add('hidden')}
+function joinTrip(){closeGuestJoin();showScreen('screenJoined')}
+function openShare(){document.getElementById('shareModal').classList.remove('hidden')}
+function closeShare(){document.getElementById('shareModal').classList.add('hidden')}
+function openTambahItin(){document.getElementById('tambahItinModal').classList.remove('hidden')}
+function closeTambahItin(){document.getElementById('tambahItinModal').classList.add('hidden')}
+function showPanel(panel){
+  document.querySelectorAll('.view-panel').forEach(function(p){p.classList.remove('active');p.style.display='none'});
+  var target=document.getElementById(panel);
+  if(target){target.classList.add('active');target.style.display='block'}
+}
+function showProfile(state){
+  document.querySelectorAll('[id^="screenProfile"]').forEach(function(s){s.style.display='none'});
+  var target=document.getElementById('screenProfile'+state);
+  if(target){target.style.display='block'}
+}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
+  document.getElementById(id).classList.add('active');
+  screenStack.push(id);
+  document.getElementById('homeHeader').style.display=(id==='screenHome')?'flex':'none';
+  document.getElementById('profileHeader').style.display=(id==='screenProfile')?'flex':'none';
+  document.getElementById('plannerHeader').style.display=(id==='screenPlanner')?'flex':'none';
+  document.getElementById('journeyHeader').style.display=(id==='screenJourney')?'flex':'none';
+  document.getElementById('historyHeader').style.display=(id==='screenHistory')?'flex':'none';
+  document.getElementById('previewHeader').style.display=(id==='screenPreview')?'flex':'none';
+  document.getElementById('joinedHeader').style.display=(id==='screenJoined')?'flex':'none';
+  document.getElementById('locationHeader').style.display=(id==='screenLocation')?'flex':'none';
+  document.getElementById('fabCreate').style.display=(id==='screenHome')?'flex':'none';
+  document.getElementById('bottomNav').style.display=(id==='screenProfile'||id==='screenGuest'||id==='screenPreview'||id==='screenJoined'||id==='screenLocation')?'none':'flex';
+  if(id==='screenProfile'){renderProfile();updateProfileCharCount();}
+  if(id==='screenPlanner')renderPlanner();
+  if(id==='screenJourney')renderJourney();
+  if(id==='screenHistory')renderHistory();
+}
+
+
 </script>
 </body>
 </html>
