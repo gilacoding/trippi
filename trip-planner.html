@@ -346,6 +346,10 @@
 
   /* Empty States — V2 visual upgrade (CSS-only) */
   .empty-icon{width:64px;height:64px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:28px}
+  /* Group Stats — V2 visual upgrade (CSS-only) */
+  #groupView .trip-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+  #groupView .trip-stats span{padding:12px 8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;font-family:'Outfit';font-size:12px;font-weight:600;color:var(--ink);text-align:center;line-height:1.4}
+  #groupView .trip-stats span:last-child{color:var(--green);background:rgba(46,125,50,.06);border-color:rgba(46,125,50,.15)}
 </style>
 </head>
 <body>
