@@ -94,6 +94,15 @@
   .nav-tab.active svg path{fill:#1A1A1A}
   .nav-tab.active::before{content:'';position:absolute;top:6px;width:44px;height:36px;background:var(--accent2);border-radius:9999px;z-index:-1}
   .nav-tab .nav-label{line-height:1}
+  /* Bottom Nav — V2 visual upgrade (CSS-only, preserves JS handlers) */
+  .bottom-nav{height:64px;border-top:1px solid var(--line);background:var(--surface);box-shadow:0 -2px 8px rgba(0,0,0,.03)}
+  .nav-tab{gap:4px;font-family:'Poppins';font-size:11px;font-weight:500;color:var(--text-muted)}
+  .nav-tab svg{width:22px;height:22px}
+  .nav-tab .nav-label{font-family:'Poppins';font-size:11px;font-weight:500;line-height:1}
+  .nav-tab.active{background:var(--accent2);color:var(--ink);border-radius:16px;margin:4px auto;box-shadow:0 2px 8px rgba(251,192,45,.24)}
+  .nav-tab.active svg path{fill:var(--ink)}
+  .nav-tab.active::before{width:48px;height:38px;top:5px;background:var(--accent2);border-radius:9999px}
+  .nav-tab:hover .nav-label{color:var(--accent)}
   /* ── MarkiCab header (1:1 with Penpot: 64px, ink title, back btn 44x44) ── */
   .app-header{display:flex;align-items:center;gap:8px;height:64px;margin-bottom:8px}
   .app-header .back-btn{width:44px;height:44px;border:0;background:transparent;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink,#1A1A1A);flex:0 0 auto}
