@@ -357,6 +357,17 @@
   #groupView .to-go-source,#plannerView .to-go-source{font-family:'Outfit';font-size:12px;color:var(--accent2);margin-top:3px}
   #groupView .to-go-actions,#plannerView .to-go-actions{flex:0 0 auto}
   #groupView .to-go-actions .btn,#plannerView .to-go-actions .btn{min-height:36px;font-family:'Outfit';font-size:13px;font-weight:600}
+  /* Route Cards — V2 visual upgrade (CSS-only) */
+  #groupView .route-list,#plannerView .route-list{display:grid;gap:10px}
+  #groupView .route-card,#plannerView .route-card{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:start;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px}
+  #groupView .route-seq,#plannerView .route-seq{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;font-family:'Outfit';font-size:11px;font-weight:800;color:#221209;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  #groupView .route-seq.start,#plannerView .route-seq.start{background:#34d399}
+  #groupView .route-seq.end,#plannerView .route-seq.end{background:#f87171}
+  #groupView .route-copy .route-cat,#plannerView .route-copy .route-cat{display:inline-block;padding:2px 7px;border-radius:6px;font-family:'Outfit';font-size:10px;font-weight:800;letter-spacing:.3px;background:rgba(156,166,184,.1);color:var(--muted);margin-bottom:5px}
+  #groupView .route-copy .route-name,#plannerView .route-copy .route-name{font-family:'Outfit';font-weight:760;font-size:15px;line-height:1.25}
+  #groupView .route-copy .route-meta,#plannerView .route-copy .route-meta{font-family:'Outfit';font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}
+  #groupView .route-actions,#plannerView .route-actions{display:flex;flex-direction:column;gap:5px;align-items:center;padding-top:4px}
+  #groupView .route-actions .btn,#plannerView .route-actions .btn{min-height:30px;padding:6px 9px;font-size:12px;font-family:'Outfit';font-weight:600}
 </style>
 </head>
 <body>
