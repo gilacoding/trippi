@@ -159,6 +159,14 @@
   .empty p{font-family:'Outfit';font-size:13px;line-height:1.5}
   .section-head h2{font-family:'Poppins';font-size:20px;font-weight:600;letter-spacing:-.3px}
   .section-head .count{background:rgba(156,166,184,.09);border:1px solid rgba(156,166,184,.12);padding:4px 8px;border-radius:99px;font-family:'Outfit';font-size:11px}
+  /* Home Header — V2 visual upgrade (CSS-only, preserves existing handlers) */
+  #homeView h1{font-family:'Poppins';font-size:clamp(28px,6vw,36px);font-weight:700;line-height:1.08;letter-spacing:-.5px;margin:0 0 6px}
+  #homeView h1 span{color:var(--accent2)}
+  #homeView .lead{font-family:'Outfit';font-size:15px;line-height:1.65;color:var(--text-muted);margin:0 0 18px;max-width:580px}
+  #homeView .section{margin-top:24px}
+  #homeView .section-head{margin-bottom:14px}
+  #homeView .btn.wide{font-family:'Outfit';font-size:16px;font-weight:600;padding:14px 24px;border-radius:14px;width:100%;border:1px solid var(--line);background:var(--surface);color:var(--accent);transition:transform .16s ease,box-shadow .16s ease}
+  #homeView .btn.wide:hover{box-shadow:0 8px 24px rgba(0,0,0,.08);transform:translateY(-1px);border-color:rgba(250,105,0,.3)}
 </style>
 </head>
 <body>
