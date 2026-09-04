@@ -137,6 +137,28 @@
   #profileModal .form-actions{display:flex;gap:12px;margin-top:20px}
   #profileModal .btn.secondary{background:transparent;color:var(--text-muted);border:1px solid var(--line);border-radius:12px;font-family:'Outfit';font-size:14px;font-weight:600;height:48px;min-width:96px}
   #profileModal .btn:not(.secondary){background:var(--accent);color:var(--white);border-radius:12px;font-family:'Outfit';font-size:14px;font-weight:600;height:48px;min-width:96px}
+  /* Trip Cards — V2 visual upgrade (CSS-only, preserves JS rendering) */
+  #upcomingTrips .trip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .trip-card{border-radius:16px;padding:18px 16px 14px;box-shadow:0 2px 8px rgba(0,0,0,.04);transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}
+  .trip-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08);border-color:rgba(250,105,0,.3)}
+  .trip-card .state{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-family:'Outfit';font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+  .trip-card .state.upcoming{background:rgba(251,192,45,.12);color:var(--accent2)}
+  .trip-card .state.active{background:rgba(46,125,50,.13);color:var(--green)}
+  .trip-card .state.past{background:rgba(139,134,130,.1);color:var(--muted)}
+  .trip-card h3{font-family:'Poppins';font-size:19px;font-weight:600;letter-spacing:-.35px;margin:0 0 4px}
+  .trip-card .trip-meta{font-family:'Outfit';font-size:13px;line-height:1.45}
+  .trip-card .trip-summary{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px;font-family:'Outfit'}
+  .trip-card .trip-summary span{font-family:'Outfit';padding:4px 10px;border-radius:8px;background:rgba(139,134,130,.06);border:1px solid rgba(139,134,130,.1);font-size:11px;font-weight:500}
+  .trip-card .trip-summary span:last-child{color:var(--green);background:rgba(46,125,50,.06);border-color:rgba(46,125,50,.15)}
+  .card-thumb{position:absolute;right:16px;top:50%;transform:translateY(-50%);width:80px;height:80px;border-radius:12px;background:rgba(139,134,130,.08);overflow:hidden;flex:0 0 auto}
+  .card-thumb img{width:100%;height:100%;object-fit:cover}
+  .trip-card .trip-content{flex:1;min-width:0;padding-right:8px}
+  .trip-card .trip-summary{padding-right:0}
+  .empty{border:1.5px dashed var(--line);border-radius:18px;padding:36px 24px;text-align:center;color:var(--text-muted);line-height:1.6;background:var(--surface);box-shadow:0 1px 4px rgba(0,0,0,.03)}
+  .empty strong{display:block;font-family:'Poppins';font-size:16px;font-weight:600;color:var(--ink);margin-bottom:6px}
+  .empty p{font-family:'Outfit';font-size:13px;line-height:1.5}
+  .section-head h2{font-family:'Poppins';font-size:20px;font-weight:600;letter-spacing:-.3px}
+  .section-head .count{background:rgba(156,166,184,.09);border:1px solid rgba(156,166,184,.12);padding:4px 8px;border-radius:99px;font-family:'Outfit';font-size:11px}
 </style>
 </head>
 <body>
