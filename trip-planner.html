@@ -186,6 +186,33 @@
   .hint{display:block;font-family:'Outfit';font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4}
   .field-error{display:block;font-family:'Outfit';font-size:11px;color:var(--danger);margin-top:4px}
   .field-input.error,.field input.error,.field textarea.error{border-color:var(--danger)}
+  /* Trip Planner — V2 visual upgrade (CSS-only, preserves all JS handlers) */
+  #plannerView .planner-head{border-radius:20px;padding:20px;background:var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:16px}
+  #plannerView .planner-head h1{font-family:'Poppins';font-size:24px;font-weight:700;line-height:1.1;letter-spacing:-.3px;margin:0 0 4px}
+  #plannerView .planner-head .trip-meta{font-family:'Outfit';font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:16px}
+  #plannerView .stats{display:flex;gap:16px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+  #plannerView .stat{flex:1;text-align:center}
+  #plannerView .stat b{display:block;font-family:'Poppins';font-size:18px;font-weight:700;color:var(--ink)}
+  #plannerView .stat span{font-family:'Outfit';font-size:12px;color:var(--text-muted)}
+  #plannerView .planner-actions{display:flex;gap:8px;margin-top:16px}
+  #plannerView .planner-actions .btn{font-family:'Outfit';font-size:13px;font-weight:600;height:40px;border-radius:10px}
+  #plannerView .day-tabs{display:flex;gap:8px;overflow-x:auto;margin:16px 0;padding-bottom:4px}
+  #plannerView .day-tab{white-space:nowrap;padding:8px 12px;border-radius:12px;font-family:'Outfit';font-size:12px;font-weight:600;text-align:center;border:1px solid var(--line);background:var(--surface);color:var(--text-muted);transition:background .15s ease,border-color .15s ease}
+  #plannerView .day-tab.active{background:var(--accent2);border-color:var(--accent);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  #plannerView .itinerary{display:grid;gap:12px}
+  #plannerView .item{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.03)}
+  #plannerView .item-time{font-family:'Poppins';font-size:13px;font-weight:700;color:var(--accent2);padding-top:2px}
+  #plannerView .item-title{font-family:'Poppins';font-size:15px;font-weight:600;line-height:1.3;margin:0 0 2px}
+  #plannerView .item-detail{font-family:'Outfit';font-size:12px;color:var(--text-muted);margin-top:4px;line-height:1.45}
+  #plannerView .item-cost{font-family:'Outfit';font-size:12px;color:var(--green);font-weight:600;margin-top:6px}
+  #plannerView .add-panel{margin-top:16px}
+  #plannerView .add-panel summary{cursor:pointer;font-family:'Outfit';font-size:13px;font-weight:600;color:var(--accent);display:flex;align-items:center;gap:6px}
+  #plannerView .add-panel[open] summary{margin-bottom:12px}
+  #plannerView .notice{font-family:'Outfit';font-size:13px;line-height:1.5;margin:16px 0;padding:11px 12px;background:rgba(54,211,153,.07);border:1px solid rgba(54,211,153,.17);border-radius:12px;color:#b9f3db}
+  #plannerView .export-row{display:flex;gap:10px;margin-top:24px}
+  #plannerView .export-row .btn{flex:1;font-family:'Outfit';font-size:14px;font-weight:600;height:48px;border-radius:14px}
+  #plannerView .btn.danger{border:0;background:var(--danger);color:var(--white);font-family:'Outfit';font-size:14px;font-weight:600;height:48px;border-radius:14px;width:100%;margin-top:16px;transition:background .15s ease}
+  #plannerView .btn.danger:hover{background:#a52a2a}
 </style>
 </head>
 <body>
