@@ -815,8 +815,9 @@
         // Private bucket `gallery`, signed URLs only (1 hour expiry).
         // Path: gallery/{group_id}/{user_id}/{YYYYMMDD}_{random8}.{ext}
 
-        _galleryAllowedMime: ['image/jpeg', 'image/png', 'image/webp'],
-        _galleryMaxSize: 10 * 1024 * 1024, // 10 MB
+        _galleryAllowedMime: ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm'],
+        _galleryMaxImageSize: 10 * 1024 * 1024, // 10 MB for images
+        _galleryMaxVideoSize: 50 * 1024 * 1024, // 50 MB for videos
 
         uploadMedia: function (payload) {
           // payload = { groupId, file, caption }
@@ -825,10 +826,13 @@
           var file = payload.file;
           // Client-side validation (defense in depth — storage policy also enforces)
           if (self._galleryAllowedMime.indexOf(file.type) === -1) {
-            return Promise.resolve({ data: null, error: { message: 'Tipe file tidak diizinkan. Hanya JPEG, PNG, WebP.' } });
+            return Promise.resolve({ data: null, error: { message: 'Tipe file tidak diizinkan. Hanya JPEG, PNG, WebP, MP4, MOV, WebM.' } });
           }
-          if (file.size > self._galleryMaxSize) {
-            return Promise.resolve({ data: null, error: { message: 'Ukuran file melebihi 10 MB.' } });
+          var isVideo = file.type.indexOf('video/') === 0;
+          var maxSize = isVideo ? self._galleryMaxVideoSize : self._galleryMaxImageSize;
+          var maxLabel = isVideo ? '50 MB' : '10 MB';
+          if (file.size > maxSize) {
+            return Promise.resolve({ data: null, error: { message: 'Ukuran file melebihi ' + maxLabel + '.' } });
           }
           return getClient().then(function (client) {
             if (!client) return { data: null, error: { message: 'Backend unavailable' } };
@@ -836,7 +840,14 @@
               var user = ures.data && ures.data.user;
               if (!user) return { data: null, error: { message: 'Not authenticated' } };
               // Build path: gallery/{group_id}/{user_id}/{YYYYMMDD}_{random8}.{ext}
-              var ext = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/png' ? 'png' : 'webp';
+              var ext;
+              if (file.type === 'image/jpeg') ext = 'jpg';
+              else if (file.type === 'image/png') ext = 'png';
+              else if (file.type === 'image/webp') ext = 'webp';
+              else if (file.type === 'video/mp4') ext = 'mp4';
+              else if (file.type === 'video/quicktime') ext = 'mov';
+              else if (file.type === 'video/webm') ext = 'webm';
+              else ext = 'bin';
               var now = new Date();
               var ymd = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
               var rnd = Math.random().toString(36).slice(2, 10);
@@ -898,11 +909,11 @@
         },
 
         listMedia: function (groupId) {
-          // Returns { data: [{ id, storage_path, signed_url, uploader_id, caption, created_at }], error }
+          // Returns { data: [{ id, storage_path, signed_url, uploader_id, caption, mime_type, created_at }], error }
           return getClient().then(function (client) {
             if (!client) return { data: null, error: { message: 'Backend unavailable' } };
             return client.from('gallery_media')
-              .select('id, storage_path, uploader_id, caption, created_at')
+              .select('id, storage_path, uploader_id, caption, mime_type, created_at')
               .eq('group_id', groupId)
               .order('created_at', { ascending: false })
               .then(function (res) {
@@ -922,6 +933,7 @@
                       signed_url: signedMap[it.storage_path] || null,
                       uploader_id: it.uploader_id,
                       caption: it.caption,
+                      mime_type: it.mime_type,
                       created_at: it.created_at
                     };
                   });

@@ -3125,7 +3125,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       lb = document.createElement('div');
       lb.id = 'galleryLightbox';
       lb.className = 'gallery-lightbox';
-      lb.innerHTML = '<button class="close-btn" id="galleryLbClose">×</button><button class="nav-btn prev-btn" id="galleryLbPrev">‹</button><img id="galleryLbImg" src="" alt=""><button class="nav-btn next-btn" id="galleryLbNext">›</button><div class="caption" id="galleryLbCaption"></div>';
+      lb.innerHTML = '<button class="close-btn" id="galleryLbClose">×</button><button class="nav-btn prev-btn" id="galleryLbPrev">‹</button><div id="galleryLbMedia"><img id="galleryLbImg" src="" alt=""></div><button class="nav-btn next-btn" id="galleryLbNext">›</button><div class="caption" id="galleryLbCaption"></div>';
       document.body.appendChild(lb);
       lb.querySelector('#galleryLbClose').onclick = closeGalleryLightbox;
       lb.querySelector('#galleryLbPrev').onclick = function() { navigateLightbox(-1); };
@@ -3139,7 +3139,11 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
   function closeGalleryLightbox() {
     const lb = document.getElementById('galleryLightbox');
-    if (lb) lb.classList.remove('active');
+    if (lb) {
+      lb.classList.remove('active');
+      const vid = lb.querySelector('video');
+      if (vid) { vid.pause(); vid.src = ''; }
+    }
   }
 
   function navigateLightbox(dir) {
@@ -3160,7 +3164,19 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const idx = parseInt(lb.dataset.idx);
     const it = items[idx];
     if (!it) return;
-    lb.querySelector('#galleryLbImg').src = it.signed_url;
+    const mediaContainer = lb.querySelector('#galleryLbMedia');
+    const img = lb.querySelector('#galleryLbImg');
+    if (!mediaContainer || !img) return;
+    const isVideo = it.mime_type && it.mime_type.indexOf('video/') === 0;
+    if (isVideo) {
+      mediaContainer.innerHTML = '<video id="galleryLbVideo" src="' + it.signed_url + '" controls autoplay style="max-width:90vw;max-height:80vh;border-radius:8px"></video>';
+      img.style.display = 'none';
+    } else {
+      mediaContainer.innerHTML = '';
+      img.src = it.signed_url;
+      img.style.display = 'block';
+      mediaContainer.appendChild(img);
+    }
     lb.querySelector('#galleryLbCaption').textContent = it.caption || '';
   }
 
