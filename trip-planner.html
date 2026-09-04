@@ -278,6 +278,30 @@
   #groupView .wishlist-item .w-info,#plannerView .wishlist-item .w-info{flex:1;min-width:0}
   #groupView .wishlist-item .w-name,#plannerView .wishlist-item .w-name{font-family:'Outfit';font-size:14px;font-weight:600;color:var(--ink);line-height:1.35}
   #groupView .wishlist-item .w-desc,#plannerView .wishlist-item .w-desc{margin-top:2px;font-family:'Outfit';font-size:12px;line-height:1.45;color:var(--text-muted)}
+
+  /* Journey Mode — V2 visual upgrade (CSS-only) */
+  #groupView .journey-badge{border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-family:'Outfit';font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:8px}
+  #groupView .journey-badge.active{background:rgba(54,211,153,.08);border-color:rgba(54,211,153,.2);color:#b9f3db}
+  #groupView .journey-badge.inactive{color:var(--muted)}
+  #groupView .journey-badge .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  #groupView .journey-badge .dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+  #groupView .journey-badge .dot.off{background:var(--line)}
+  #groupView .consent-banner{border:1px solid var(--accent);border-radius:16px;padding:16px;margin:12px 0;background:linear-gradient(135deg,rgba(255,122,69,.08),rgba(255,179,92,.05))}
+  #groupView .consent-banner p{font-size:13px;line-height:1.5;margin:0 0 12px;color:var(--text)}
+  #groupView .consent-banner .consent-actions{display:flex;gap:8px}
+  #groupView .consent-banner .btn{width:auto}
+  #groupView .consent-banner .btn.secondary{border:1px solid var(--line)}
+  #groupView .journey-controls{display:flex;gap:10px;align-items:center;margin:12px 0;flex-wrap:wrap}
+  #groupView .journey-controls .btn{width:auto}
+  #groupView .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);margin-right:6px}
+  #groupView .crew-member{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  #groupView .crew-member:last-child{border-bottom:0}
+  #groupView .crew-dot{width:24px;height:24px;border-radius:50%;display:inline-block;background:var(--accent2);box-shadow:0 0 6px rgba(255,179,92,.5)}
+  #groupView .crew-dot.me{border:2px solid var(--green);background:var(--green)}
+  #groupView .crew-info{flex:1;min-width:0}
+  #groupView .crew-info b{font-size:13px;font-family:'Outfit';font-weight:600}
+  #groupView .crew-info .muted{font-size:11px}
+  #groupView .crew-meta{color:var(--muted);font-size:11px;margin-top:4px}
 </style>
 </head>
 <body>
