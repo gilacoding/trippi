@@ -302,6 +302,24 @@
   #groupView .crew-info b{font-size:13px;font-family:'Outfit';font-weight:600}
   #groupView .crew-info .muted{font-size:11px}
   #groupView .crew-meta{color:var(--muted);font-size:11px;margin-top:4px}
+
+  /* Gallery Grid — V2 visual upgrade (CSS-only) */
+  #groupView .gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  #groupView .gallery-card{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1/1;background:var(--surface2);cursor:pointer}
+  #groupView .gallery-card img{width:100%;height:100%;object-fit:cover;display:block}
+  #groupView .gallery-card .caption{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.7));color:#fff;font-size:11px;padding:24px 8px 8px;pointer-events:none}
+  #groupView .gallery-card .delete-btn{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:24px;height:24px;font-size:14px;cursor:pointer;display:none;align-items:center;justify-content:center}
+  #groupView .gallery-card:hover .delete-btn{display:flex}
+  #groupView .gallery-card .delete-btn:hover{background:var(--danger)}
+  #groupView .gallery-empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px}
+  #groupView .gallery-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;backdrop-filter:blur(4px)}
+  #groupView .gallery-lightbox.active{display:flex}
+  #groupView .gallery-lightbox img{max-width:90vw;max-height:80vh;object-fit:contain;border-radius:12px}
+  #groupView .gallery-lightbox .caption{color:#fff;margin-top:12px;font-size:14px;max-width:80vw;text-align:center}
+  #groupView .gallery-lightbox .close-btn{position:absolute;top:16px;right:20px;color:#fff;font-size:32px;cursor:pointer;background:none;border:none}
+  #groupView .gallery-lightbox .nav-btn{position:absolute;top:50%;transform:translateY(-50%);color:#fff;font-size:36px;cursor:pointer;background:rgba(0,0,0,.4);border:none;border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center}
+  #groupView .gallery-lightbox .prev-btn{left:16px}
+  #groupView .gallery-lightbox .next-btn{right:16px}
 </style>
 </head>
 <body>
