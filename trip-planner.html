@@ -121,6 +121,22 @@
   .gallery-lightbox .nav-btn{position:absolute;top:50%;transform:translateY(-50%);color:#fff;font-size:36px;cursor:pointer;background:rgba(0,0,0,.4);border:none;border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center}
   .gallery-lightbox .prev-btn{left:16px}
   .gallery-lightbox .next-btn{right:16px}
+  /* Profile modal — V2 visual upgrade (CSS-only, preserves JS handlers) */
+  #profileModal .auth-card{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:0;box-shadow:0 20px 40px rgba(0,0,0,.12)}
+  #profileModal .auth-card h2{font-family:'Poppins';font-size:22px;font-weight:700;line-height:1.3;letter-spacing:-.3px;margin:0 0 2px}
+  #profileModal .auth-card .muted{font-family:'Outfit';font-size:13px;line-height:1.5;margin:0 0 18px}
+  #profileModal .profile-header{display:flex;align-items:center;gap:16px;padding:28px 32px 16px}
+  #profileModal .profile-header .avatar{width:72px;height:72px;border-radius:50%;background:var(--sage);display:flex;align-items:center;justify-content:center;font-family:'Poppins';font-size:26px;font-weight:700;color:var(--ink);overflow:hidden;flex:0 0 auto}
+  #profileModal .profile-header .profile-meta{flex:1;min-width:0}
+  #profileModal .profile-header .profile-meta .profile-name{font-family:'Poppins';font-size:16px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #profileModal .profile-header .profile-meta .profile-email{font-family:'Outfit';font-size:13px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #profileModal .profile-body{padding:0 28px 20px}
+  #profileModal .auth-card .hint{font-family:'Outfit';font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.4}
+  #profileModal .auth-error{font-family:'Outfit';font-size:13px;color:var(--danger);min-height:18px;margin:2px 0 4px;font-weight:650}
+  #profileModal .auth-note{font-family:'Outfit';font-size:12px;line-height:1.5;margin:12px 0 0;padding:10px 12px;background:rgba(255,179,92,.08);border:1px solid rgba(255,179,92,.18);border-radius:11px}
+  #profileModal .form-actions{display:flex;gap:12px;margin-top:20px}
+  #profileModal .btn.secondary{background:transparent;color:var(--text-muted);border:1px solid var(--line);border-radius:12px;font-family:'Outfit';font-size:14px;font-weight:600;height:48px;min-width:96px}
+  #profileModal .btn:not(.secondary){background:var(--accent);color:var(--white);border-radius:12px;font-family:'Outfit';font-size:14px;font-weight:600;height:48px;min-width:96px}
 </style>
 </head>
 <body>
@@ -165,19 +181,28 @@
   <!-- Profile modal: edit display name -->
   <div class="auth-modal" id="profileModal" style="display:none">
     <div class="auth-card">
-      <h2 id="profileTitle">Profil</h2>
-      <p class="muted">Kelola identitas tampilan Anda.</p>
-      <form class="form-card form-grid" id="profileForm" style="border:0;padding:0;background:none">
-        <div class="field"><label for="profileName">Nama tampilan</label><input id="profileName" type="text" placeholder="Nama lengkap / panggilan" autocomplete="name"><span class="hint">2-40 karakter. Nama ini muncul di Crew, itinerary, wishlist, dan journey.</span></div>
-        <div class="field"><label for="profileEmail">Email</label><input id="profileEmail" type="email" readonly autocomplete="email"></div>
-        <div class="field"><label>Account type</label><input id="profileAccountType" type="text" readonly></div>
-        <div class="auth-error" id="profileError"></div>
-        <div class="form-actions">
-          <button type="button" class="btn secondary" id="profileCancel">Batal</button>
-          <button type="submit" class="btn" id="profileSave">Simpan perubahan</button>
+      <div class="profile-header">
+        <div class="avatar" id="profileAvatar"></div>
+        <div class="profile-meta">
+          <div class="profile-name" id="profileNameDisplay"></div>
+          <div class="profile-email" id="profileEmailDisplay"></div>
         </div>
-      </form>
-      <p class="auth-note muted" id="profileNote" style="display:none"></p>
+      </div>
+      <div class="profile-body">
+        <h2 id="profileTitle">Profil</h2>
+        <p class="muted">Kelola identitas tampilan Anda.</p>
+        <form class="form-card form-grid" id="profileForm" style="border:0;padding:0;background:none">
+          <div class="field"><label for="profileName">Nama tampilan</label><input id="profileName" type="text" placeholder="Nama lengkap / panggilan" autocomplete="name"><span class="hint">2-40 karakter. Nama ini muncul di Crew, itinerary, wishlist, dan journey.</span></div>
+          <div class="field"><label for="profileEmail">Email</label><input id="profileEmail" type="email" readonly autocomplete="email"></div>
+          <div class="field"><label>Account type</label><input id="profileAccountType" type="text" readonly></div>
+          <div class="auth-error" id="profileError"></div>
+          <div class="form-actions">
+            <button type="button" class="btn secondary" id="profileCancel">Batal</button>
+            <button type="submit" class="btn" id="profileSave">Simpan perubahan</button>
+          </div>
+        </form>
+        <p class="auth-note muted" id="profileNote" style="display:none"></p>
+      </div>
     </div>
   </div>
 
@@ -2537,20 +2562,29 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   var profileTypeInput=document.getElementById('profileAccountType');
   var profileError=document.getElementById('profileError');
   var profileNote=document.getElementById('profileNote');
+  var profileAvatar=document.getElementById('profileAvatar');
+  var profileNameDisplay=document.getElementById('profileNameDisplay');
+  var profileEmailDisplay=document.getElementById('profileEmailDisplay');
 
   function openProfile(){
     var session=API.getSession && API.getSession();
     var user=session && session.user;
-    profileNameInput.value=colState.name || (user && user.user_metadata && user.user_metadata.name) || "";
-    profileEmailInput.value=(user && user.email) || "";
+    var displayName=colState.name || (user && user.user_metadata && user.user_metadata.name) || "";
+    var displayEmail=(user && user.email) || "";
+    profileNameInput.value=displayName;
+    profileEmailInput.value=displayEmail;
     var anon=user && user.is_anonymous;
     profileTypeInput.value=anon ? "Anonymous Guest" : "Email Account";
     profileError.textContent="";
     profileNote.style.display="none";
+    // V2 avatar header — populate initials display
+    if(profileAvatar){ profileAvatar.textContent=displayName ? displayName.charAt(0).toUpperCase() : "?"; }
+    if(profileNameDisplay){ profileNameDisplay.textContent=displayName || "Tamu"; }
+    if(profileEmailDisplay){ profileEmailDisplay.textContent=displayEmail || ""; }
     profileModal.style.display="flex";
     if(typeof API.getUserObject==="function"){
       API.getUserObject().then(function(u){
-        if(u){ profileEmailInput.value=u.email || ""; }
+        if(u){ profileEmailInput.value=u.email || ""; if(profileEmailDisplay){ profileEmailDisplay.textContent=u.email || ""; } }
       }).catch(function(){});
     }
   }
