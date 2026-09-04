@@ -350,6 +350,13 @@
   #groupView .trip-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
   #groupView .trip-stats span{padding:12px 8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;font-family:'Outfit';font-size:12px;font-weight:600;color:var(--ink);text-align:center;line-height:1.4}
   #groupView .trip-stats span:last-child{color:var(--green);background:rgba(46,125,50,.06);border-color:rgba(46,125,50,.15)}
+  /* To-Go Items — V2 visual upgrade (CSS-only) */
+  #groupView .to-go-item,#plannerView .to-go-item{gap:12px;padding:14px;border-radius:14px;background:var(--surface);border:1px solid var(--line)}
+  #groupView .to-go-copy,#plannerView .to-go-copy{flex:1;min-width:0}
+  #groupView .to-go-name,#plannerView .to-go-name{font-family:'Outfit';font-size:14px;font-weight:600;color:var(--ink)}
+  #groupView .to-go-source,#plannerView .to-go-source{font-family:'Outfit';font-size:12px;color:var(--accent2);margin-top:3px}
+  #groupView .to-go-actions,#plannerView .to-go-actions{flex:0 0 auto}
+  #groupView .to-go-actions .btn,#plannerView .to-go-actions .btn{min-height:36px;font-family:'Outfit';font-size:13px;font-weight:600}
 </style>
 </head>
 <body>
