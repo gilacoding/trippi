@@ -77,7 +77,11 @@
       throw new Error('Invalid canonical trip: expected object');
     }
     if (!t.id) throw new Error('Missing required field: id');
-    if (!t.name || !t.name.trim()) throw new Error('Missing required field: name');
+    // name is required by the adapter but the parser guarantees it is set
+    // (falls back to destination, or defaults to empty string allowing user
+    // to fill it in the editor — same as clicking 'Buat trip baru' with empty form).
+    if (!t.name) t.name = '';
+    if (!t.name.trim()) t.name = 'Untitled Trip';
     // start/end may be undefined if the parser only has partial data —
     // the pipeline will prompt the user to fill them in (same as a blank form).
     return true;
