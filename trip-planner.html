@@ -416,6 +416,20 @@
   #groupView .route-copy .route-meta,#plannerView .route-copy .route-meta{font-family:'Outfit';font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}
   #groupView .route-actions,#plannerView .route-actions{display:flex;flex-direction:column;gap:5px;align-items:center;padding-top:4px}
   #groupView .route-actions .btn,#plannerView .route-actions .btn{min-height:30px;padding:6px 9px;font-size:12px;font-family:'Outfit';font-weight:600}
+  /* Import Trip modal */
+  .import-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(8,10,15,.72);padding:18px}
+  .import-card{width:100%;max-width:520px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px;max-height:90vh;overflow-y:auto}
+  .import-card h2{font-family:'Poppins';font-size:22px;font-weight:700;line-height:1.3;letter-spacing:-.3px;margin:0 0 2px}
+  .import-card .muted{font-family:'Outfit';font-size:13px;line-height:1.5;margin:0 0 18px}
+  .import-card textarea{width:100%;height:48px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--text);padding:12px;outline:none;resize:vertical;min-height:78px;font-family:'Courier New',monospace;font-size:12px;min-height:200px;line-height:1.5}
+  .import-card textarea:focus{border-color:var(--accent-text)}
+  .import-feedback{margin-top:12px;padding:12px;border-radius:11px;font-family:'Outfit';font-size:13px;line-height:1.5;display:none}
+  .import-feedback.valid{display:block;background:rgba(46,125,50,.08);border:1px solid rgba(46,125,50,.2);color:var(--green)}
+  .import-feedback.invalid{display:block;background:rgba(198,40,40,.06);border:1px solid rgba(198,40,40,.15);color:var(--danger)}
+  .import-feedback .feedback-ok{font-weight:600}
+  .import-feedback .feedback-error{margin-bottom:4px}
+  .import-feedback .feedback-error:last-child{margin-bottom:0}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -485,10 +499,25 @@
     </div>
   </div>
 
+  <!-- Import Trip modal: paste JSON to import a trip -->
+  <div class="import-modal" id="importModal" style="display:none">
+    <div class="import-card">
+      <h2>Impor Trip</h2>
+      <p class="muted">Tempelkan JSON trip Markicab di bawah. Data akan divalidasi sebelum disimpan.</p>
+      <textarea id="importTextarea" placeholder='{"schemaVersion":"1.0.0","app":"Markicab","trip":{"id":"...","name":"...","start":"2026-09-15","end":"2026-09-17"}}' spellcheck="false"></textarea>
+      <div class="import-feedback" id="importFeedback"></div>
+      <div class="form-actions">
+        <button type="button" class="btn secondary" id="importCancel">Batal</button>
+        <button type="submit" class="btn" id="importSubmit" disabled>Impor</button>
+      </div>
+    </div>
+  </div>
+
   <section class="view active" id="homeView">
     <h1>Rencanakan trip-mu,<br><span style="color:var(--accent2-text)">tanpa lupa detailnya.</span></h1>
     <p class="lead">Satu tempat untuk menyusun agenda, waktu, catatan, dan perkiraan biaya perjalananmu.</p>
     <div class="section"><button class="btn wide" id="newTripBtn">+ Buat trip baru</button></div>
+    <div class="section"><button class="btn secondary wide" id="importTripBtn">Impor Trip dari JSON</button></div>
 
     <div class="section"><div class="section-head"><h2>Trip mendatang</h2><span class="count" id="upcomingCount"></span></div><div class="trip-grid" id="upcomingTrips"></div></div>
     <div class="section" id="historySection"><div class="section-head"><h2>Riwayat trip</h2><span class="count" id="historyCount"></span></div><div class="form-card" id="historyTrips"></div></div>
@@ -695,6 +724,7 @@
 <script src="markicab-ls-migrate.js"></script>
 <script src="backend/supabase-client.js"></script>
 <script src="backend/markicab-api.js"></script>
+<script src="backend/canonical-adapter.js"></script>
 <script src="lzstring.js"></script>
 <script>
   const STORE_KEY='markicab_personal_planner_v2';
@@ -2923,6 +2953,128 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       profileError.textContent='Gagal menyimpan: '+(err && err.message) || 'Unknown error';
     }
   };
+
+  // ── Import Trip modal ──────────────────────────────────────────
+  var importModal=document.getElementById('importModal');
+  var importTextarea=document.getElementById('importTextarea');
+  var importFeedback=document.getElementById('importFeedback');
+  var importSubmit=document.getElementById('importSubmit');
+  var importCancel=document.getElementById('importCancel');
+  var importTripBtn=document.getElementById('importTripBtn');
+
+  function lineOfOffset(s,offset){var lines=s.substr(0,offset).split('\n');return{line:lines.length,col:(lines[lines.length-1]||'').length+1};}
+  function jsonErrorMsg(e){var m=(e.message||'').match(/at position (\d+)/);if(!m)return e.message||'Unknown JSON error';var p=parseInt(m[1],10);var lc=lineOfOffset(importTextarea.value,p);return'Invalid JSON. Check the structure near line '+lc.line+' (col '+lc.col+').';}
+  function clampStr(v,max){return String(v).slice(0,max);}
+
+  function validateImport(rawText){
+    var text=rawText.trim();
+    if(!text)return{valid:false,errors:['Input is empty. Paste a Markicab trip JSON first.']};
+    var doc;
+    try{doc=JSON.parse(text);}catch(e){return{valid:false,errors:[jsonErrorMsg(e)]};}
+    if(doc===null)return{valid:false,errors:['Input is null. Expected a JSON object.']};
+    if(typeof doc!=='object'||Array.isArray(doc))return{valid:false,errors:['Expected a JSON object at the top level, got '+(Array.isArray(doc)?'an array':typeof doc)+'.'];}
+    var errors=[];
+    if(doc.schemaVersion!==undefined&&doc.schemaVersion!=='1.0.0')errors.push('Schema version mismatch: expected "1.0.0", got "'+(doc.schemaVersion)+'".');
+    if(doc.trip===undefined){
+      // legacy Trippi backup?
+      if(Array.isArray(doc.trips))errors.push('Legacy Trippi backup format detected. Please convert to v1.0.0 JSON with a single "trip" object.');
+      else errors.push('Missing required field "trip".');
+      return{valid:false,errors:errors};
+    }
+    if(doc.trip===null)return{valid:false,errors:['Field "trip" is null. Expected a trip object.']};
+    if(typeof doc.trip!=='object'||Array.isArray(doc.trip))return{valid:false,errors:['Field "trip" must be an object, got '+(Array.isArray(doc.trip)?'an array':typeof doc.trip)+'.'];}
+    var trip=doc.trip;
+    if(!trip.id)errors.push('This trip plan is missing an "id".');
+    if(!trip.name||!String(trip.name).trim())errors.push('This trip plan is missing a trip title (name).');
+    else if(String(trip.name).length>70)errors.push('Trip title is too long (max 70 chars, got '+String(trip.name).length+').');
+    if(!trip.start)errors.push('This trip plan is missing a start date.');
+    else if(!/^\d{4}-\d{2}-\d{2}$/.test(trip.start))errors.push('Start date "'+trip.start+'" is not in YYYY-MM-DD format.');
+    if(!trip.end)errors.push('This trip plan is missing an end date.');
+    else if(!/^\d{4}-\d{2}-\d{2}$/.test(trip.end))errors.push('End date "'+trip.end+'" is not in YYYY-MM-DD format.');
+    if(trip.start&&trip.end&&trip.start>trip.end)errors.push('Start date "'+trip.start+'" is after end date "'+trip.end+'".');
+    if(trip.destination!==undefined&&String(trip.destination).length>80)errors.push('Destination is too long (max 80 chars).');
+    if(trip.note!==undefined&&String(trip.note).length>240)errors.push('Trip note is too long (max 240 chars).');
+    if(trip.items!==undefined){
+      if(!Array.isArray(trip.items))errors.push('"items" must be an array, got '+typeof trip.items+'.');
+      else{
+        trip.items.forEach(function(it,i){
+          if(!it||typeof it!=='object'){errors.push('Itinerary item #'+(i+1)+' is not an object.');return;}
+          if(!it.id)errors.push('Itinerary item #'+(i+1)+' is missing an "id".');
+          if(!it.title)errors.push('Itinerary item #'+(i+1)+' is missing a title.');
+          if(it.date&&!/^\d{4}-\d{2}-\d{2}$/.test(it.date))errors.push('Itinerary item "'+it.title+'" has invalid date format.');
+          if(it.time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(it.time))errors.push('Itinerary item "'+it.title+'" has invalid time format (expected HH:MM).');
+          if(it.budget!==undefined&&it.budget!==null&&it.budget!==''){var n=Number(it.budget);if(isNaN(n)||n<0)errors.push('Itinerary item "'+it.title+'" has invalid budget (must be a non-negative number).');}
+          if(it.date&&trip.start&&it.date<trip.start)errors.push('Itinerary item "'+it.title+'" date is before trip start.');
+          if(it.date&&trip.end&&it.date>trip.end)errors.push('Itinerary item "'+it.title+'" date is after trip end.');
+          if(it.link&&String(it.link).length>500)errors.push('Itinerary item "'+it.title+'" link is too long (max 500 chars).');
+          if(it.note&&String(it.note).length>240)errors.push('Itinerary item "'+it.title+'" note is too long (max 240 chars).');
+        });
+      }
+    }
+    if(trip.expenses!==undefined){
+      if(!Array.isArray(trip.expenses))errors.push('"expenses" must be an array, got '+typeof trip.expenses+'.');
+      else{
+        trip.expenses.forEach(function(ex,i){
+          if(!ex||typeof ex!=='object'){errors.push('Expense #'+(i+1)+' is not an object.');return;}
+          if(!ex.id)errors.push('Expense #'+(i+1)+' is missing an "id".');
+          if(!ex.name)errors.push('Expense #'+(i+1)+' is missing a name.');
+          if(ex.amount!==undefined&&ex.amount!==null&&ex.amount!==''){var n=Number(ex.amount);if(isNaN(n)||n<0)errors.push('Expense "'+(ex.name||'#'+i)+'" has invalid amount (must be a non-negative number).');}
+          if(ex.date&&!/^\d{4}-\d{2}-\d{2}$/.test(ex.date))errors.push('Expense "'+(ex.name||'#'+i)+'" has invalid date format.');
+          if(ex.category&&['Makan','Transport','Hotel','Tiket','Belanja','Lainnya'].indexOf(ex.category)===-1)errors.push('Expense "'+(ex.name||'#'+i)+'" has unsupported category "'+ex.category+'".');
+          if(ex.note&&String(ex.note).length>160)errors.push('Expense "'+(ex.name||'#'+i)+'" note is too long (max 160 chars).');
+          if(ex.date&&trip.start&&ex.date<trip.start)errors.push('Expense "'+(ex.name||'#'+i)+'" date is before trip start.');
+          if(ex.date&&trip.end&&ex.date>trip.end)errors.push('Expense "'+(ex.name||'#'+i)+'" date is after trip end.');
+        });
+      }
+    }
+    return{valid:errors.length===0,errors:errors};
+  }
+
+  function renderImportFeedback(){
+    var text=importTextarea.value;
+    if(!text.trim()){importFeedback.style.display='none';importFeedback.className='import-feedback';importFeedback.innerHTML='';importSubmit.disabled=true;return;}
+    var res=validateImport(text);
+    if(res.valid){importFeedback.style.display='block';importFeedback.className='import-feedback valid';importFeedback.innerHTML='<span class="feedback-ok">Valid! Ready to import this trip.</span>';importSubmit.disabled=false;}
+    else{importFeedback.style.display='block';importFeedback.className='import-feedback invalid';importFeedback.innerHTML=res.errors.map(function(e){return'<div class="feedback-error">• '+esc(e)+'</div>';}).join('');importSubmit.disabled=true;}
+  }
+
+  if(importTripBtn)importTripBtn.onclick=function(){importTextarea.value='';importFeedback.style.display='none';importFeedback.innerHTML='';importSubmit.disabled=true;importModal.style.display='flex';importTextarea.focus();};
+  if(importCancel)importCancel.onclick=function(){importModal.style.display='none';};
+  if(importModal)importModal.onclick=function(e){if(e.target===importModal)importModal.style.display='none';};
+  if(importTextarea)importTextarea.oninput=renderImportFeedback;
+  if(importSubmit)importSubmit.onclick=function(){
+    var res=validateImport(importTextarea.value);
+    if(!res.valid)return;
+    var doc=JSON.parse(importTextarea.value);
+    var trip=doc.trip;
+    // Normalize the parsed trip into the canonical shape the adapter expects.
+    // Validation above guarantees required fields and correct date formats.
+    var canonical={
+      id:String(trip.id||crypto.randomUUID()),
+      name:trip.name,
+      destination:trip.destination||'',
+      start:trip.start,
+      end:trip.end,
+      note:trip.note||'',
+      groupId:trip.groupId||null,
+      items:Array.isArray(trip.items)?trip.items.map(function(it){
+        return {id:String(it.id||crypto.randomUUID()),date:it.date||'',title:it.title||'',time:it.time||'',budget:it.budget!=null?it.budget:'',link:it.link||'',note:it.note||'',done:!!it.done};
+      }):[],
+      expenses:Array.isArray(trip.expenses)?trip.expenses.map(function(ex){
+        return {id:String(ex.id||crypto.randomUUID()),date:ex.date||'',name:ex.name||'',amount:ex.amount!=null?ex.amount:'',category:['Makan','Transport','Hotel','Tiket','Belanja','Lainnya'].indexOf(ex.category)!==-1?ex.category:'Lainnya',note:ex.note||''};
+      }):[]
+    };
+    // Use the canonical adapter: persists to localStorage, triggers Supabase sync,
+    // and opens the imported trip in the planner. No special 'AI trip' state — the
+    // trip is structurally identical to a manually created one.
+    MarkicabCanonicalAdapter.ingestAndOpen(canonical).then(function(){
+      importModal.style.display='none';
+    }).catch(function(e){
+      console.error('[import] ingestAndOpen failed',e);
+      alert('Gagal mengimpor trip: '+(e&&e.message?e.message:'Unknown error'));
+    });
+  };
+  // ── /Import Trip modal ─────────────────────────────────────────
 
   // Show/hide password (login + daftar)
   var showPwEl=document.getElementById('showPw');
