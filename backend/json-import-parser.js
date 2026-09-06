@@ -671,6 +671,22 @@
     // We don't strip id from canonical (we generated our own), but we
     // do ensure no external system fields leak through.
 
+    // ── Semantic confidence check ───────────────────────────────────
+    // Valid JSON with no recognizable travel data should NOT create a blank trip.
+    // "Recognizable" = at least a trip name, destination, or any items/days/
+    // expenses/wishlist/dates found in the extraction.
+    var hasAnyData = name || destination || note || (items.length > 0) ||
+                     (expenses.length > 0) || (allWishlist.length > 0) ||
+                     startDate || endDate;
+    if (!hasAnyData) {
+      return {
+        valid: false,
+        errors: ['No recognizable travel information found in the JSON.'],
+        canonical: null,
+        warnings: []
+      };
+    }
+
     return {
       valid: true,
       errors: errors,
