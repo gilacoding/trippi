@@ -3127,6 +3127,22 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // Use the canonical adapter: persists to localStorage, triggers Supabase sync,
     // and opens the imported trip in the planner. No special 'AI trip' state — the
     // trip is structurally identical to a manually created one.
+    if(typeof MarkicabCanonicalAdapter.setContext==='function'){
+      MarkicabCanonicalAdapter.setContext({
+        state: state,
+        colState: colState,
+        API: MarkiAPI,
+        save: save,
+        syncTrip: syncTrip,
+        ensureAuth: ensureAuth,
+        openTrip: openTrip,
+        openGroup: openGroup,
+        renderHome: renderHome,
+        normalizeLink: normalizeLink,
+        log: dbg,
+        warn: function(msg){console.warn('[import]',msg);}
+      });
+    }
     MarkicabCanonicalAdapter.ingestAndOpen(canonical).then(function(){
       importModal.style.display='none';
     }).catch(function(e){
