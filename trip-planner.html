@@ -3032,7 +3032,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     var doc;
     try{doc=JSON.parse(text);}catch(e){return{valid:false,errors:[jsonErrorMsg(e)]};}
     if(doc===null)return{valid:false,errors:['Input is null. Expected a JSON object.']};
-    if(typeof doc!=='object'||Array.isArray(doc))return{valid:false,errors:['Expected a JSON object at the top level, got '+(Array.isArray(doc)?'an array':typeof doc)+'.'];}
+    if(typeof doc!=='object'||Array.isArray(doc))return{valid:false,errors:['Expected a JSON object at the top level, got '+(Array.isArray(doc)?'an array':typeof doc)+'.']};
     var errors=[];
     if(doc.schemaVersion!==undefined&&doc.schemaVersion!=='1.0.0')errors.push('Schema version mismatch: expected "1.0.0", got "'+(doc.schemaVersion)+'".');
     if(doc.trip===undefined){
@@ -3042,7 +3042,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       return{valid:false,errors:errors};
     }
     if(doc.trip===null)return{valid:false,errors:['Field "trip" is null. Expected a trip object.']};
-    if(typeof doc.trip!=='object'||Array.isArray(doc.trip))return{valid:false,errors:['Field "trip" must be an object, got '+(Array.isArray(doc.trip)?'an array':typeof doc.trip)+'.'];}
+    if(typeof doc.trip!=='object'||Array.isArray(doc.trip))return{valid:false,errors:['Field "trip" must be an object, got '+(Array.isArray(doc.trip)?'an array':typeof doc.trip)+'.']};
     var trip=doc.trip;
     if(!trip.id)errors.push('This trip plan is missing an "id".');
     if(!trip.name||!String(trip.name).trim())errors.push('This trip plan is missing a trip title (name).');
