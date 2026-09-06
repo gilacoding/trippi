@@ -39,6 +39,7 @@
   .avatar .avatar-edit{position:absolute;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s ease;cursor:pointer}
   .avatar:hover .avatar-edit{opacity:1}
   .avatar .avatar-edit svg{width:20px;height:20px}
+  .avatar-xl.has-photo{background:none;background-size:cover;background-position:center;border-radius:50%}
   .t-title{font-family:'Poppins';font-size:20px;font-weight:700;line-height:1.3;letter-spacing:-.3px;margin:0}
   .t-body-sm{font-family:'Outfit';font-size:14px;font-weight:400;line-height:1.45}
   .t-caption{font-family:'Outfit';font-size:13px;font-weight:400;line-height:1.4}
@@ -475,7 +476,10 @@
   <div class="auth-modal" id="profileModal" style="display:none">
     <div class="auth-card">
       <div class="profile-header">
-        <div class="avatar" id="profileAvatar"></div>
+        <div class="avatar-xl" id="profileAvatar">
+          <input type="file" id="avatarUpload" accept="image/*" style="display:none">
+          <label class="avatar-edit" for="avatarUpload" aria-label="Upload foto profil"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 7c-2.1 0-4.1.8-5.6 2.2l1.4 1.4C9 9.2 10.4 9.8 12 9.8s3 .7 4.2 1.8l1.4-1.4C15.6 7.8 13.7 7 12 7zm7.5 8.5c-.3-.1-1-.2-1.8-.2s-1.5.3-2.2.9.5 2 1.2 2.5c.5.4 1.2.6 2 .6 2.2 0 4-1.8 4-4 0-.3-.3-.7-.7-1.1l-.1-.1zM12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8z"/></svg></label>
+        </div>
         <div class="profile-meta">
           <div class="profile-name" id="profileNameDisplay"></div>
           <div class="profile-email" id="profileEmailDisplay"></div>
@@ -2897,6 +2901,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   var profileError=document.getElementById('profileError');
   var profileNote=document.getElementById('profileNote');
   var profileAvatar=document.getElementById('profileAvatar');
+  var profileAvatarInput=document.getElementById('avatarUpload');
   var profileNameDisplay=document.getElementById('profileNameDisplay');
   var profileEmailDisplay=document.getElementById('profileEmailDisplay');
 
@@ -2911,14 +2916,39 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     profileTypeInput.value=anon ? "Anonymous Guest" : "Email Account";
     profileError.textContent="";
     profileNote.style.display="none";
-    // V2 avatar header — populate initials display
-    if(profileAvatar){ profileAvatar.textContent=displayName ? displayName.charAt(0).toUpperCase() : "?"; }
+    // V2 avatar header — populate initials display or image
+    if(profileAvatar){
+      profileAvatar.textContent='';
+      if(displayName){
+        profileAvatar.textContent=displayName.charAt(0).toUpperCase();
+        profileAvatar.classList.remove('has-photo');
+      }
+    }
     if(profileNameDisplay){ profileNameDisplay.textContent=displayName || "Tamu"; }
     if(profileEmailDisplay){ profileEmailDisplay.textContent=displayEmail || ""; }
     profileModal.style.display="flex";
+    // Load avatar if user has one — generate signed URL from storage path
     if(typeof API.getUserObject==="function"){
       API.getUserObject().then(function(u){
-        if(u){ profileEmailInput.value=u.email || ""; if(profileEmailDisplay){ profileEmailDisplay.textContent=u.email || ""; } }
+        if(u){
+          profileEmailInput.value=u.email || "";
+          if(profileEmailDisplay){ profileEmailDisplay.textContent=u.email || ""; }
+          if(u.avatar_url && profileAvatar){
+            // avatar_url is a storage path — generate signed URL
+            API.getAvatarSignedUrl(u.avatar_url).then(function(res){
+              if(res.data && res.data.signed_url){
+                profileAvatar.classList.add('has-photo');
+                profileAvatar.style.backgroundImage='url('+res.data.signed_url+')';
+                profileAvatar.style.backgroundSize='cover';
+                profileAvatar.style.backgroundPosition='center';
+                profileAvatar.textContent='';
+              }
+            }).catch(function(){});
+          } else if(displayName && profileAvatar){
+            profileAvatar.classList.remove('has-photo');
+            profileAvatar.textContent=displayName.charAt(0).toUpperCase();
+          }
+        }
       }).catch(function(){});
     }
   }
@@ -2953,6 +2983,36 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       profileError.textContent='Gagal menyimpan: '+(err && err.message) || 'Unknown error';
     }
   };
+
+  // ── Avatar upload handler ────────────────────────────────────────
+  if(profileAvatarInput){
+    profileAvatarInput.onchange=function(e){
+      var file=e.target.files[0];
+      if(!file){ profileAvatarInput.value=''; return; }
+      // Preview immediately
+      profileAvatar.classList.add('has-photo');
+      profileAvatar.style.backgroundImage='url('+URL.createObjectURL(file)+')';
+      profileAvatar.style.backgroundSize='cover';
+      profileAvatar.style.backgroundPosition='center';
+      profileAvatar.textContent='';
+      // Upload via API
+      if(typeof API.uploadAvatar==='function'){
+        API.uploadAvatar(file).then(function(res){
+          if(res && res.error){
+            profileError.textContent='Gagal upload foto: '+(res.error.message || 'Unknown error');
+            return;
+          }
+          // Success — avatar_url saved in profiles
+          profileNote.style.display='block';
+          profileNote.textContent='Foto profil berhasil diperbarui.';
+          setTimeout(function(){ profileNote.style.display='none'; }, 3000);
+        }).catch(function(err){
+          profileError.textContent='Gagal upload foto: '+((err && err.message) || 'Unknown error');
+        });
+      }
+      profileAvatarInput.value='';
+    };
+  }
 
   // ── Import Trip modal ──────────────────────────────────────────
   var importModal=document.getElementById('importModal');

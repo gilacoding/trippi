@@ -182,7 +182,19 @@
       return getClient().then(function (client) {
         if (!client) return null;
         return client.auth.getUser().then(function (res) {
-          return (res.data && res.data.user) || null;
+          var user = (res.data && res.data.user) || null;
+          if (!user) return null;
+          // Fetch profile data (display_name, avatar_url) from profiles table
+          return client.from('profiles').select('display_name,avatar_url').eq('id', user.id).single().then(function (pRes) {
+            if (pRes.data) {
+              user.user_metadata = user.user_metadata || {};
+              if (pRes.data.display_name) user.user_metadata.name = pRes.data.display_name;
+              user.avatar_url = pRes.data.avatar_url || null;
+            }
+            return user;
+          }).catch(function () {
+            return user; // Return user without profile data if query fails
+          });
         }).catch(function () { return null; });
       });
     },
@@ -622,7 +634,71 @@
         return client.rpc('ensure_profile', { p_display_name: displayName });
       });
     },
+    // ── Profile photo upload ───────────────────────────────────────
+    // Uploads an avatar image to a private `avatars` bucket, then persists
+    // the storage path to profiles.avatar_url. Uses the same storage
+    // abstraction pattern as uploadMedia (gallery).
+    uploadAvatar: function (file) {
+      var _allowedAvatarMime = ['image/jpeg', 'image/png', 'image/webp'];
+      var _maxAvatarSize = 2 * 1024 * 1024; // 2 MB
+      var self = this;
+      if (_allowedAvatarMime.indexOf(file.type) === -1) {
+        return Promise.resolve({ data: null, error: { message: 'Format tidak didukung. Gunakan JPEG, PNG, atau WebP.' } });
+      }
+      if (file.size > _maxAvatarSize) {
+        return Promise.resolve({ data: null, error: { message: 'Foto terlalu besar (maksimal 2 MB).' } });
+      }
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.auth.getUser().then(function (ures) {
+          var user = ures.data && ures.data.user;
+          if (!user) return { data: null, error: { message: 'Not authenticated' } };
+          // Path: {user_id}/{timestamp}_{random8}.ext
+          var ext;
+          if (file.type === 'image/jpeg') ext = 'jpg';
+          else if (file.type === 'image/png') ext = 'png';
+          else if (file.type === 'image/webp') ext = 'webp';
+          else ext = 'bin';
+          var now = new Date();
+          var ts = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + '_' +
+                   String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
+          var rnd = Math.random().toString(36).slice(2, 10);
+          var storagePath = user.id + '/' + ts + '_' + rnd + '.' + ext;
+          return client.storage.from('avatars').upload(storagePath, file, {
+            contentType: file.type,
+            upsert: true
+          }).then(function (upRes) {
+            if (upRes.error) return { data: null, error: upRes.error };
+            // Update profiles.avatar_url
+            return client.rpc('ensure_profile', { p_display_name: null }).then(function () {
+              // Update avatar_url directly on profiles
+              return client.from('profiles').update({ avatar_url: storagePath }).eq('id', user.id).then(function (updRes) {
+                if (updRes.error) return { data: null, error: updRes.error };
+                // Generate signed URL (1 hour expiry)
+                return client.storage.from('avatars').createSignedUrl(storagePath, 3600).then(function (urlRes) {
+                  return {
+                    data: {
+                      storage_path: storagePath,
+                      signed_url: urlRes.data ? urlRes.data.signedUrl : null
+                    },
+                    error: urlRes.error
+                  };
+                });
+              });
+            });
+          });
+        });
+      });
+    },
     // Fase C: Group Wishlist
+    getAvatarSignedUrl: function (storagePath) {
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.storage.from('avatars').createSignedUrl(storagePath, 3600).then(function (res) {
+          return { data: { signed_url: res.data ? res.data.signedUrl : null }, error: res.error || null };
+        });
+      });
+    },
     listWishlists: function (groupId) {
       return getClient().then(function (client) {
         if (!client) return { data: null, error: { message: 'Backend unavailable' } };
