@@ -3029,6 +3029,8 @@ function openProfile(){
       // Refresh any open views that render identity
       if(typeof renderCrewStatusList==='function') renderCrewStatusList();
       if(typeof renderGroupPlanner==='function') renderGroupPlanner();
+      // Close modal after successful save
+      setTimeout(function(){ closeProfile(); }, 800);
     }catch(err){
       profileError.textContent='Gagal menyimpan: '+(err && err.message) || 'Unknown error';
     }
