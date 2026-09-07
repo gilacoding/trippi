@@ -27,7 +27,7 @@
   // ── Field aliases — common naming variations ──────────────────────
   var ALIASES = {
     // Trip name
-    name: ['name', 'title', 'trip_name', 'tripTitle', 'tripname'],
+    name: ['name', 'title', 'trip_name', 'tripTitle', 'tripname', 'trip', 'journey', 'tour', 'vacation', 'holiday'],
 
     // Destination
     destination: ['destination', 'destination_city', 'destinationCity', 'city', 'location', 'where'],
@@ -46,10 +46,10 @@
     dayNumber: ['day', 'day_number', 'dayNumber', 'number', 'day_num', 'dayNum'],
 
     // Activities / stops
-    items: ['items', 'activities', 'stops', 'places', 'locations', 'attractions', 'events', 'schedule', 'places_to_visit', 'itinerary_items'],
+    items: ['items', 'activities', 'stops', 'places', 'locations', 'attractions', 'events', 'schedule', 'places_to_visit', 'itinerary_items', 'plan', 'day_plan', 'daily_plan', 'itinerary_items', 'things_to_do', 'todo'],
 
     // Location name (within items)
-    itemName: ['name', 'title', 'place_name', 'placeName', 'location_name', 'locationName', 'activity', 'activity_name', 'stop_name'],
+    itemName: ['name', 'title', 'place_name', 'placeName', 'location_name', 'locationName', 'activity', 'activity_name', 'stop_name', 'place', 'spot', 'site', 'destination'],
 
     // Description (within items)
     itemDesc: ['description', 'desc', 'details', 'summary', 'note', 'notes'],
@@ -60,7 +60,7 @@
     coordinates: ['coordinates', 'coords', 'location.coordinates', 'geometry.coordinates'],
 
     // Time
-    time: ['time', 'start_time', 'startTime', 'departure_time', 'departureTime', 'depart', 'arrival_time', 'arrivalTime'],
+    time: ['time', 'start_time', 'startTime', 'departure_time', 'departureTime', 'depart', 'arrival_time', 'arrivalTime', 'at', 'when', 'start_at', 'time_at'],
 
     // Budget
     budget: ['budget', 'cost', 'price', 'estimated_cost', 'estimatedCost', 'estimate', 'price_estimate', 'priceEstimate'],
