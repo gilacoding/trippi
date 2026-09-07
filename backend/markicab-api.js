@@ -1039,6 +1039,28 @@
         // lifecycle. We expose the underlying client so the channel API
         // can be used without the frontend touching `colState.sb` directly.
         _getSb: function () { return cachedClient; },
+    // ============================================================
+    // PERSONAL TRIPS HYDRATION (P1 persistence hardening)
+    // ============================================================
+    
+    listPersonalTrips: function () {
+      return cachedClient.rpc('list_my_personal_trips');
+    },
+    
+    // Atomic personal trip creation
+    createPersonalTrip: function (payload) {
+      return cachedClient.rpc('create_personal_trip', {
+        p_name: payload.name || '',
+        p_destination: payload.destination || '',
+        p_start_date: payload.start || null,
+        p_end_date: payload.end || null,
+        p_note: payload.note || '',
+        p_items: JSON.stringify(payload.items || []),
+        p_expenses: JSON.stringify(payload.expenses || []),
+        p_local_id: payload.local_id || null
+      });
+    },
+
 
   };
 

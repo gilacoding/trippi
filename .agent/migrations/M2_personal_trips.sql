@@ -95,5 +95,12 @@ create policy expenses_owner_all on public.expenses
   using (exists (select 1 from public.trips t where t.id = trip_id and t.user_id = auth.uid()))
   with check (exists (select 1 from public.trips t where t.id = trip_id and t.user_id = auth.uid()));
 
+-- Grants so the authenticated role can actually access the tables.
+-- Without these, RLS policies are irrelevant — the DB rejects at role level first.
+grant select, insert, update, delete on public.trips         to authenticated;
+grant select, insert, update, delete on public.agenda_items  to authenticated;
+grant select, insert, update, delete on public.expenses      to authenticated;
+grant usage on schema public to anon, authenticated;
+
 -- NOTE: NO grant/permission change to existing group tables or to anon.
 -- These three tables are independent of the collaborative group layer.
