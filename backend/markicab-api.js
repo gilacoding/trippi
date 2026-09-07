@@ -254,6 +254,7 @@
     // but this method provides the atomic RPC for future optimization.
     makeGroupFromTrip: function (payload) {
       // payload = { name, destination, start_date, end_date, display_name, items, expenses }
+    // items objects can include: title, note, link, done, date, time, budget, day_number
       // items and expenses are arrays of objects matching the JSONB structure
       return cachedClient.rpc('create_group_from_trip', {
         p_trip_name:    payload.name,
@@ -341,7 +342,7 @@
     // OLD: .from('shared_items').insert(payload)
     // NEW: rpc('create_shared_item')
     addItem: function (payload) {
-      // payload = { group_id, title, note, link, done, date, time, budget }
+      // payload = { group_id, title, note, link, done, date, time, budget, day_number }
       // created_by is NOT sent — RPC uses auth.uid()
       return cachedClient.rpc('create_shared_item', {
         p_group_id: payload.group_id,
@@ -351,7 +352,8 @@
         p_done:     payload.done || false,
         p_date:     payload.date || null,
         p_time:     payload.time || null,
-        p_budget:   payload.budget || null
+        p_budget:   payload.budget || null,
+        p_day_number: payload.day_number || null
       });
     },
 
@@ -371,7 +373,8 @@
           p_done:     row.done || false,
           p_date:     row.date || null,
           p_time:     row.time || null,
-          p_budget:   row.budget || null
+          p_budget:   row.budget || null,
+          p_day_number: row.day_number || null
         });
       });
       // Return a promise that resolves when all inserts complete
@@ -506,7 +509,8 @@
           time: i.time || '',
           budget: Number(i.budget) || 0,
           link: i.link || '',
-          note: i.note || ''
+          note: i.note || '',
+          day_number: i.dayNumber || null
         };
       });
       return cachedClient.from('agenda_items').upsert(rows, { onConflict: 'trip_id,local_id' }).select('id');

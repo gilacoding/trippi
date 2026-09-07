@@ -108,16 +108,20 @@
       var internal = {
         id: item.id,
         date: toInternalDate(item.date),
+        dayNumber: item.dayNumber || null,
         title: item.title || '',
         time: (item.time || '').trim(),
         budget: coerceMonetary(item.budget),
         link: String(item.link || '').trim(),
         note: String(item.note || '').trim()
       };
-      if (internal.date) {
+      // Items with a dayNumber are part of the itinerary structure and
+      // must remain as scheduled agenda items — not demoted to wishlist.
+      // Only items with NO date AND NO dayNumber go to wishlist.
+      if (internal.date || internal.dayNumber) {
         scheduledItems.push(internal);
       } else {
-        // Null-date itinerary item → wishlist (spec: "Wishlist = empty date")
+        // Null-date, null-dayNumber item → wishlist (spec: "Wishlist = empty date")
         wishlistFromItems.push({
           id: item.id,
           name: item.title || '',
@@ -237,8 +241,9 @@
 
           var batchPromises = [];
 
-          // Batch insert items (scheduled only — null-date items go to wishlist)
-          var scheduledItems = (canonical.items || []).filter(function (i) { return i && i.date; });
+          // Batch insert items (scheduled = have date OR dayNumber)
+          // Items with dayNumber are agenda items even without explicit dates
+          var scheduledItems = (canonical.items || []).filter(function (i) { return i && (i.date || i.dayNumber); });
           if (scheduledItems.length) {
             var itemRows = scheduledItems.map(function (item) {
               return {
@@ -249,7 +254,8 @@
                 date: item.date || null,
                 time: (item.time || '').trim(),
                 budget: parseFloat(coerceMonetary(item.budget)) || 0,
-                done: !!item.done
+                done: !!item.done,
+                day_number: item.dayNumber || null
               };
             });
             batchPromises.push(
@@ -280,8 +286,8 @@
             );
           }
 
-          // Insert wishlist items (explicit wishlist[] + null-date items[])
-          var wishlistItems = (canonical.items || []).filter(function (i) { return i && !i.date; })
+          // Insert wishlist items (explicit wishlist[] + null-date, null-dayNumber items[])
+          var wishlistItems = (canonical.items || []).filter(function (i) { return i && !i.date && !i.dayNumber; })
             .concat(canonical.wishlist || []);
           if (wishlistItems.length) {
             var wishPromises = wishlistItems.filter(Boolean).map(function (wl) {

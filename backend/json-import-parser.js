@@ -644,6 +644,31 @@
     // Merge items-based wishlist with explicit wishlist
     var allWishlist = wishlist.concat(wishlistFromItems);
 
+    // ── Synthesize dates from dayNumber if no explicit dates ──────────
+    // If the source JSON provided day structure (dayNumber) but no start/end
+    // dates, synthesize dates so the Markicab UI can display day tabs and
+    // items in the correct day context. Items retain their dayNumber.
+    if (!startDate && hasDayNumbers && items.length > 0) {
+      var maxDay = 1;
+      items.forEach(function (item) {
+        if (item && item.dayNumber && item.dayNumber > maxDay) maxDay = item.dayNumber;
+      });
+      // Synthetic start: today. End: today + (maxDay - 1).
+      var today = new Date();
+      startDate = formatDate(today);
+      var endDateObj = new Date(today);
+      endDateObj.setDate(endDateObj.getDate() + maxDay - 1);
+      endDate = formatDate(endDateObj);
+      // Assign dates to items based on dayNumber
+      items.forEach(function (item) {
+        if (item && !item.date && item.dayNumber) {
+          var d = new Date(startDate);
+          d.setDate(d.getDate() + item.dayNumber - 1);
+          item.date = formatDate(d);
+        }
+      });
+    }
+
     // ── Build canonical trip ────────────────────────────────────────
     var canonical = {
       id: genId(),  // Always generate new ID — never trust external IDs
