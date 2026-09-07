@@ -2913,7 +2913,38 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   var profileNameDisplay=document.getElementById('profileNameDisplay');
   var profileEmailDisplay=document.getElementById('profileEmailDisplay');
 
-  function openProfile(){
+  
+  // V2 avatar upload handler — wire file input change
+  if(profileAvatarInput){
+    profileAvatarInput.onchange=function(e){
+      var file=e.target.files && e.target.files[0];
+      if(!file)return;
+      profileAvatar.classList.remove('has-photo');
+      var reader=new FileReader();
+      reader.onload=function(ev){
+        profileAvatar.classList.add('has-photo');
+        profileAvatar.style.backgroundImage='url('+ev.target.result+')';
+        profileAvatar.textContent='';
+      };
+      reader.readAsDataURL(file);
+      profileError.textContent='Mengunggah foto...';
+      API.uploadAvatar(file).then(function(res){
+        if(res.error){
+          profileError.textContent='Gagal mengunggah: '+res.error.message;
+        } else if(res.data && res.data.signed_url){
+          profileAvatar.style.backgroundImage='url('+res.data.signed_url+')';
+          profileAvatar.classList.add('has-photo');
+          profileAvatar.textContent='';
+          profileError.textContent='';
+        }
+      }).catch(function(err){
+        profileError.textContent='Gagal mengunggah: '+err.message;
+      });
+      e.target.value='';
+    };
+  }
+
+function openProfile(){
     var session=API.getSession && API.getSession();
     var user=session && session.user;
     var displayName=colState.name || (user && user.user_metadata && user.user_metadata.name) || "";
