@@ -1,9 +1,6 @@
-.agent/tests/.env.m45
-supabase/.temp/
-
-# Test artifacts
-.agent/tests/
-.agent/GALLERY_TEST_REPORT.md
-_patch_gallery.py
-fix_icons.py
-debug_render.py
+node_modules/
+package.json
+package-lock.json
+temp_*.sql
+*.png
+.test-venv/
