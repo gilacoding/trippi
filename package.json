@@ -1,0 +1,26 @@
+{
+  "name": "trippi-deploy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lzstring.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gilacoding/trippi.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gilacoding/trippi/issues"
+  },
+  "homepage": "https://github.com/gilacoding/trippi#readme",
+  "dependencies": {
+    "pg": "^8.23.0"
+  }
+}

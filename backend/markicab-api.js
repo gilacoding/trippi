@@ -484,17 +484,20 @@
     // Idempotent backfill keyed on local_id (unique(user_id, local_id)).
     upsertTrip: function (trip) {
       // trip = { local_id, name, destination, start_date, end_date, note }
-      return cachedClient
-        .from('trips')
-        .upsert({
-          local_id:    trip.local_id,
-          name:        trip.name || '',
-          destination: trip.destination || '',
-          start_date:  trip.start || null,
-          end_date:    trip.end || null,
-          note:        trip.note || ''
-        }, { onConflict: 'user_id,local_id' })
-        .select('id, local_id').single();
+      return ensureAuth().then(function (uid) {
+        return cachedClient
+          .from('trips')
+          .upsert({
+            user_id:     uid,
+            local_id:    trip.local_id,
+            name:        trip.name || '',
+            destination: trip.destination || '',
+            start_date:  trip.start || null,
+            end_date:    trip.end || null,
+            note:        trip.note || ''
+          }, { onConflict: 'user_id,local_id' })
+          .select('id, local_id').single();
+      });
     },
 
     // Insert agenda items for a trip, keyed by (trip_id, local_id) for idempotency.
