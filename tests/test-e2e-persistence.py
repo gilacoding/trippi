@@ -41,6 +41,7 @@ async def main():
         console_errors = []
         page.on('console', lambda msg: console_errors.append(f"[{msg.type}] {msg.text}"[:200]) if msg.type == 'error' else None)
         page.on('pageerror', lambda err: console_errors.append(f"[pageerror] {err}"[:200]))
+        page.on('dialog', lambda dialog: dialog.accept())
 
         # ===== STEP 1: LOGIN =====
         print("1. Loading app...")
