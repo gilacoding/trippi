@@ -22,5 +22,8 @@
   "homepage": "https://github.com/gilacoding/trippi#readme",
   "dependencies": {
     "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "jsdom": "^30.0.1"
   }
 }
