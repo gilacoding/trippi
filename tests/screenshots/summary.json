@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-09-08T20:49:34.717Z",
+  "results": [
+    {
+      "view": "home",
+      "status": "ok",
+      "path": "D:\\HERMES WORKS\\TRIPPi\\TRIPPY\\trippi-deploy\\tests\\screenshots\\home.png"
+    },
+    {
+      "view": "new-trip",
+      "status": "ok",
+      "path": "D:\\HERMES WORKS\\TRIPPi\\TRIPPY\\trippi-deploy\\tests\\screenshots\\new-trip.png"
+    },
+    {
+      "view": "import-modal",
+      "status": "ok",
+      "path": "D:\\HERMES WORKS\\TRIPPi\\TRIPPY\\trippi-deploy\\tests\\screenshots\\import-modal.png"
+    },
+    {
+      "view": "auth-modal",
+      "status": "ok",
+      "path": "D:\\HERMES WORKS\\TRIPPi\\TRIPPY\\trippi-deploy\\tests\\screenshots\\auth-modal.png"
+    }
+  ]
+}
