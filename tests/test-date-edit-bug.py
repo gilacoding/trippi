@@ -113,6 +113,22 @@ async def login(page):
 async def import_trip(page):
     """Import the trip JSON."""
     print("\n2. Importing trip...")
+    
+    # Navigate to home view first
+    await page.evaluate('''() => {
+        if(typeof renderHome === 'function') renderHome();
+        if(typeof show === 'function') show('homeView');
+    }''')
+    await page.wait_for_timeout(1000)
+    
+    # Verify we're on home view
+    home_visible = await page.evaluate('''() => {
+        const homeView = document.getElementById('homeView');
+        return homeView && homeView.classList.contains('active');
+    }''')
+    print(f"   Home view visible: {home_visible}")
+    
+    # Click import button
     await page.click('#importTripBtn')
     await page.wait_for_selector('#importModal', state='visible', timeout=5000)
     await page.fill('#importTextarea', json.dumps(TRIP_JSON, ensure_ascii=False))
