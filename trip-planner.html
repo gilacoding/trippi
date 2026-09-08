@@ -1262,25 +1262,8 @@ function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)
     if(state.editTripId){
       const trip=state.trips.find(t=>t.id===state.editTripId);
       if(!trip)return;
-      // Calculate date offset to preserve day membership
-      const oldStart = trip.start;
-      const newStart = start;
-      if(oldStart && newStart && oldStart !== newStart){
-        const oldDate = new Date(oldStart+'T12:00:00');
-        const newDate = new Date(newStart+'T12:00:00');
-        const offsetMs = newDate - oldDate;
-        const offsetDays = Math.round(offsetMs / (1000*60*60*24));
-        // Shift all item dates by the offset
-        if(trip.items && trip.items.length && offsetDays !== 0){
-          trip.items.forEach(item=>{
-            if(item.date){
-              const d = new Date(item.date+'T12:00:00');
-              d.setDate(d.getDate() + offsetDays);
-              item.date = d.toISOString().slice(0,10);
-            }
-          });
-        }
-      }
+      // Do NOT shift item dates - items keep their original dates
+      // Trip dates define the day tab range; items display on matching dates
       trip.name=$('tripName').value.trim();
       trip.destination=$('tripDestination').value.trim();
       trip.start=start;
