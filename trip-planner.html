@@ -771,6 +771,7 @@
 <script src="backend/json-import-parser.js"></script>
 <script src="lzstring.js"></script>
 <script src="assets/js/utils.js"></script>
+<script src="assets/js/import-parser.js"></script>
 <script>
   const STORE_KEY='markicab_personal_planner_v2';
   const LEGACY_STORE_KEY='markicab_personal_planner_v1';
@@ -3247,7 +3248,7 @@ function openProfile(){
   var importSubmit=document.getElementById('importSubmit');
   var importTripBtn=document.getElementById('importTripBtn');
   var importCancel=document.getElementById('importCancel');
-  function lineOfOffset(s,offset){var lines=s.substr(0,offset).split('\n');return{line:lines.length,col:(lines[lines.length-1]||'').length+1};}
+  const lineOfOffset=window.importParser.lineOfOffset;
 
   // ── Flexible JSON Import ──────────────────────────────────────────
   // Uses JSONImportParser (backend/json-import-parser.js) to accept arbitrary
@@ -3265,12 +3266,7 @@ function openProfile(){
     if(!text){importFeedback.style.display='none';importFeedback.className='import-feedback';importFeedback.innerHTML='';importSubmit.disabled=true;return;}
     // Use the flexible parser — it distinguishes invalid JSON (syntax errors)
     // from incomplete-but-valid JSON (missing fields are OK).
-    var res;
-    try{
-      res=JSONImportParser.parse(text);
-    }catch(e){
-      res={valid:false,errors:[(e&&e.message)||String(e)],canonical:null};
-    }
+    var res=window.importParser.parseImport(text);
     if(res.valid){
       // Build a preview summary
       var c=res.canonical||{};
@@ -3315,14 +3311,7 @@ function openProfile(){
 
     // Parse + normalize — any valid JSON is accepted; only true JSON syntax
     // errors produce res.valid === false.
-    var res;
-    try{
-      res=JSONImportParser.parse(importTextarea.value);
-    }catch(e){
-      console.error('[import] parser exception',e);
-      alert('Gagal memproses JSON: '+(e&&e.message?e.message:'Unknown error'));
-      return;
-    }
+    var res=window.importParser.parseImport(importTextarea.value);
 
     if(!res.valid||!res.canonical){
       // This should not happen (parser catches its own errors) but be safe
