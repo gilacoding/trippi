@@ -3098,72 +3098,75 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
 function openProfile(){
-    var session=API.getSession && API.getSession();
-    var user=session && session.user;
-    var displayName=colState.name || (user && user.user_metadata && user.user_metadata.name) || "";
-    var displayEmail=(user && user.email) || "";
-    profileNameInput.value=displayName;
-    profileEmailInput.value=displayEmail;
-    var anon=user && user.is_anonymous;
-    profileTypeInput.value=anon ? "Anonymous Guest" : "Email Account";
-    profileError.textContent="";
-    profileNote.style.display="none";
-    // V2 avatar header — populate initials display or image
-    if(profileAvatar){
-      if(!profileAvatar.classList.contains('has-photo')){
-        if(displayName){
-          profileAvatar.textContent=displayName.charAt(0).toUpperCase();
-        } else {
-          profileAvatar.textContent='?';
-        }
+  var session=API.getSession && API.getSession();
+  var user=session && session.user;
+  var displayName=colState.name || (user && user.user_metadata && user.user_metadata.name) || "";
+  var displayEmail=(user && user.email) || "";
+  profileNameInput.value=displayName;
+  profileEmailInput.value=displayEmail;
+  var anon=user && user.is_anonymous;
+  profileTypeInput.value=anon ? "Anonymous Guest" : "Email Account";
+  profileError.textContent="";
+  profileNote.style.display="none";
+  // V2 avatar header — populate initials display or image
+  if(profileAvatar){
+    if(!profileAvatar.classList.contains('has-photo')){
+      if(displayName){
+        profileAvatar.textContent=displayName.charAt(0).toUpperCase();
+      } else {
+        profileAvatar.textContent='?';
       }
     }
-    if(profileNameDisplay){ profileNameDisplay.textContent=displayName || "Tamu"; }
-    if(profileEmailDisplay){ profileEmailDisplay.textContent=displayEmail || ""; }
-    profileModal.style.display="flex";
-    // Update header avatar
-    updateHeaderAvatar(displayName);
-    // Load avatar if user has one — generate signed URL from storage path
-    if(typeof API.getUserObject==="function"){
-      API.getUserObject().then(function(u){
-        if(u){
-          profileEmailInput.value=u.email || "";
-          if(profileEmailDisplay){ profileEmailDisplay.textContent=u.email || ""; }
-          if(u.avatar_url && profileAvatar){
-            // avatar_url is a storage path — generate signed URL
-            API.getAvatarSignedUrl(u.avatar_url).then(function(res){
-              if(res.data && res.data.signed_url){
-                profileAvatar.classList.add('has-photo');
-                profileAvatar.style.backgroundImage='url('+res.data.signed_url+')';
-                profileAvatar.style.backgroundSize='cover';
-                profileAvatar.style.backgroundPosition='center';
-                profileAvatar.textContent='';
-                // Also update header avatar
+  }
+  if(profileNameDisplay){ profileNameDisplay.textContent=displayName || "Tamu"; }
+  if(profileEmailDisplay){ profileEmailDisplay.textContent=displayEmail || ""; }
+  profileModal.style.display="flex";
+  // Update header avatar
+  updateHeaderAvatar(displayName);
+  // Load avatar if user has one — generate signed URL from storage path
+  if(typeof API.getUserObject==="function"){
+    API.getUserObject().then(function(u){
+      if(u){
+        profileEmailInput.value=u.email || "";
+        if(profileEmailDisplay){ profileEmailDisplay.textContent=u.email || ""; }
+        if(u.avatar_url && profileAvatar){
+          // avatar_url is a storage path — generate signed URL
+          API.getAvatarSignedUrl(u.avatar_url).then(function(res){
+            if(res.data && res.data.signed_url){
+              profileAvatar.classList.add('has-photo');
+              profileAvatar.style.backgroundImage='url('+res.data.signed_url+')';
+              profileAvatar.style.backgroundSize='cover';
+              profileAvatar.style.backgroundPosition='center';
+              profileAvatar.textContent='';
+              // Also update header avatar
+              var headerAvatar=document.getElementById('headerAvatar');
+              if(headerAvatar){
                 headerAvatar.classList.add('has-photo');
                 headerAvatar.style.backgroundImage='url('+res.data.signed_url+')';
                 headerAvatar.style.backgroundSize='cover';
                 headerAvatar.style.backgroundPosition='center';
                 headerAvatar.textContent='';
               }
-            }).catch(function(){});
-          } else if(displayName && profileAvatar){
-            profileAvatar.classList.remove('has-photo');
-            profileAvatar.textContent=displayName.charAt(0).toUpperCase();
-          }
+            }
+          }).catch(function(){});
+        } else if(displayName && profileAvatar){
+          profileAvatar.classList.remove('has-photo');
+          profileAvatar.textContent=displayName.charAt(0).toUpperCase();
         }
-      }).catch(function(){});
-    }
+      }
+    }).catch(function(){});
   }
+}
 
-  function updateHeaderAvatar(displayName){
-    var headerAvatar=document.getElementById('headerAvatar');
-    if(!headerAvatar) return;
-    if(displayName){
-      headerAvatar.textContent=displayName.charAt(0).toUpperCase();
-    } else {
-      headerAvatar.textContent='?';
-    }
+function updateHeaderAvatar(displayName){
+  var headerAvatar=document.getElementById('headerAvatar');
+  if(!headerAvatar) return;
+  if(displayName){
+    headerAvatar.textContent=displayName.charAt(0).toUpperCase();
+  } else {
+    headerAvatar.textContent='?';
   }
+}
   function closeProfile(){ profileModal.style.display='none'; }
 
   document.getElementById('headerAvatar').onclick=openProfile;
