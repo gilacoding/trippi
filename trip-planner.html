@@ -1234,27 +1234,18 @@ function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)
   state.readOnlyTrip=null;
   const trip=getTrip();
   const dates=daysBetween(trip.start,trip.end);
-  // Preserve activeDate if it's still valid, otherwise find first date with items
+  // Use trip.start as activeDate if current activeDate is invalid
   if(state.activeDate && dates.includes(state.activeDate)){
     // Keep current activeDate
   } else {
-    // Find first date that has items, fallback to trip.start
     state.activeDate = trip.start;
-    for(const d of dates){
-      if(trip.items && trip.items.some(i=>i.date===d)){
-        state.activeDate = d;
-        break;
-      }
-    }
   }
   renderPlanner();
   show('plannerView')
 }
   function renderPlanner(){const trip=getTrip();if(!trip)return;const ro=!!state.readOnlyTrip;const actions=document.querySelector('.planner-actions');if(actions)actions.style.display=ro?'none':'flex';$('readOnlyBanner').style.display=ro?'block':'none';$('addPanel').style.display=ro?'none':'';$('expensePanel').style.display=ro?'none':'';$('deleteTrip').style.display=ro?'none':'';const dates=daysBetween(trip.start,trip.end),items=trip.items||[];
   $('plannerName').textContent=trip.name;$('plannerMeta').textContent=`${trip.destination}${trip.start||trip.end?` · ${dateText(trip.start||'')} ${trip.end?`— ${dateText(trip.end)}`:''}`:''}`.trim();$('placeTotal').textContent=items.length;$('budgetTotal').textContent=money(items.reduce((sum,item)=>sum+(Number(item.budget)||0),0));$('dayTotal').textContent=dates.length;$('dayTabs').innerHTML=dates.map((date,index)=>`<button class="day-tab ${date===state.activeDate?'active':''}" data-day="${date}">Hari ${index+1}<br><span style="font-weight:500;opacity:.8">${dateText(date).replace(/ \d{4}/,'')}</span></button>`).join('');document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{state.activeDate=b.dataset.day;renderPlanner()});
-  let todayItems=items.filter(i=>i.date===state.activeDate);
-  if(todayItems.length===0 && items.length>0){todayItems=items.slice();}
-  todayItems.sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+  const todayItems=items.filter(i=>i.date===state.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
   $('itineraryList').innerHTML=todayItems.length?todayItems.map(item=>`<article class="item"><div class="item-time" data-edit-time="${item.id}" title="Klik untuk ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'}</div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">biaya?</div>`}</div><button class="delete-item" data-delete="${item.id}" aria-label="Hapus agenda">×</button></article>`).join(''):`<div class="empty"><strong>Hari ini masih longgar.</strong>Tambahkan tempat, transport, atau agenda yang ingin kamu ingat.</div>`;document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteItem(b.dataset.delete));document.querySelectorAll('[data-edit-time]').forEach(el=>el.onclick=()=>editInline(el,'time','time'));document.querySelectorAll('[data-edit-cost]').forEach(el=>el.onclick=()=>editInline(el,'budget','number'));renderExpenses()}
   function deleteItem(id){const trip=getTrip();const item=trip.items.find(i=>i.id===id);if(!confirm(`Hapus “${item.title}” dari itinerary?`))return;trip.items=trip.items.filter(i=>i.id!==id);save();syncTrip(trip);renderPlanner()}
   function editInline(el,field,type){if(state.readOnlyTrip)return;const id=el.dataset[field==='time'?'editTime':'editCost'];const trip=getTrip();const item=trip.items.find(i=>i.id===id);if(!item)return;const input=document.createElement('input');input.type=type;input.className='inline-edit';input.value=item[field]||'';el.replaceWith(input);input.focus();if(type==='time')input.showPicker&&input.showPicker();const commit=()=>{const val=input.value.trim();if(field==='budget'&&val&&!isNaN(Number(val)))item.budget=Number(val);else if(field==='time')item.time=val;save();renderPlanner()};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')renderPlanner()}}
@@ -1271,6 +1262,25 @@ function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)
     if(state.editTripId){
       const trip=state.trips.find(t=>t.id===state.editTripId);
       if(!trip)return;
+      // Calculate date offset to preserve day membership
+      const oldStart = trip.start;
+      const newStart = start;
+      if(oldStart && newStart && oldStart !== newStart){
+        const oldDate = new Date(oldStart+'T12:00:00');
+        const newDate = new Date(newStart+'T12:00:00');
+        const offsetMs = newDate - oldDate;
+        const offsetDays = Math.round(offsetMs / (1000*60*60*24));
+        // Shift all item dates by the offset
+        if(trip.items && trip.items.length && offsetDays !== 0){
+          trip.items.forEach(item=>{
+            if(item.date){
+              const d = new Date(item.date+'T12:00:00');
+              d.setDate(d.getDate() + offsetDays);
+              item.date = d.toISOString().slice(0,10);
+            }
+          });
+        }
+      }
       trip.name=$('tripName').value.trim();
       trip.destination=$('tripDestination').value.trim();
       trip.start=start;
