@@ -4,10 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#101219">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="markicab.webmanifest">
 <link rel="apple-touch-icon" href="markicab-icon.svg">
+	<link rel="icon" href="markicab-icon.svg" type="image/svg+xml">
 <title>MarkiCab — Travel Planner</title>
 <script>
   // Supabase config (public anon key — safe in client because access is
@@ -544,6 +545,7 @@
     <h1>Rencanakan trip-mu,<br><span style="color:var(--accent2-text)">tanpa lupa detailnya.</span></h1>
     <p class="lead">Satu tempat untuk menyusun agenda, waktu, catatan, dan perkiraan biaya perjalananmu.</p>
     <div class="section"><button class="btn wide" id="newTripBtn" style="background:var(--accent);color:#fff;border:0">+ Buat Trip</button></div>
+    <div class="section"><button class="btn wide" id="importTripBtn" style="background:var(--line);color:var(--text)">📥 Impor Trip</button></div>
 
     <div class="section"><div class="section-head"><h2>Trip mendatang</h2><span class="count" id="upcomingCount"></span></div><div class="trip-grid" id="upcomingTrips"></div></div>
     <div class="section" id="historySection"><div class="section-head"><h2>Riwayat trip</h2><span class="count" id="historyCount"></span></div><div class="form-card" id="historyTrips"></div></div>
@@ -1071,19 +1073,15 @@
   async function syncTrip(trip){
       if(!colState.uid||!trip)return;
       try{
-        console.log('[SYNC] trip.items.length=', trip.items?.length, 'trip.id=', trip.id);
         const sb=await API.upsertTrip({local_id:trip.id,name:trip.name,destination:trip.destination,start:trip.start,end:trip.end,note:trip.note});
         if(sb.error){console.error('[sync] trip upsert failed',sb.error);return;}
         const sbId=sb.data&&sb.data.id; if(!sbId)return;
         trip.supabase_trip_id=sbId;
-        console.log('[SYNC] Calling upsertAgenda with', trip.items?.length, 'items');
         const agendaResult = await API.upsertAgenda(sbId,trip.items||[]);
-        console.log('[SYNC] upsertAgenda result:', agendaResult);
         await API.upsertExpenses(sbId,trip.expenses||[]);
         trip.synced_at=Date.now();
         // persist the mapping locally (does not clear v2)
         try{localStorage.setItem(STORE_KEY,JSON.stringify({trips:state.trips,toGo:state.toGo}));}catch{}
-        console.log('[SYNC] Saved to localStorage. trip.items.length=', trip.items?.length);
       }catch(e){console.error('[sync] trip sync error',e);}
     }
   async function syncActiveTrip(){
@@ -1224,7 +1222,6 @@
   state.readOnlyTrip=null;
   const trip=getTrip();
   const dates=daysBetween(trip.start,trip.end);
-  console.log('[OPEN-TRIP] id=', id, 'trip.items.length=', trip.items?.length, 'old activeDate=', state.activeDate, 'new trip.start=', trip.start, 'new trip.end=', trip.end, 'dates=', dates);
   // Preserve activeDate if it's still valid, otherwise find first date with items
   if(state.activeDate && dates.includes(state.activeDate)){
     // Keep current activeDate
@@ -1238,14 +1235,11 @@
       }
     }
   }
-  console.log('[OPEN-TRIP] new activeDate=', state.activeDate);
   renderPlanner();
   show('plannerView')
 }
   function renderPlanner(){const trip=getTrip();if(!trip)return;const ro=!!state.readOnlyTrip;const actions=document.querySelector('.planner-actions');if(actions)actions.style.display=ro?'none':'flex';$('readOnlyBanner').style.display=ro?'block':'none';$('addPanel').style.display=ro?'none':'';$('expensePanel').style.display=ro?'none':'';$('deleteTrip').style.display=ro?'none':'';const dates=daysBetween(trip.start,trip.end),items=trip.items||[];
-  console.log('[RENDER] items.length=', items.length, 'activeDate=', state.activeDate, 'dates=', dates);
   $('plannerName').textContent=trip.name;$('plannerMeta').textContent=`${trip.destination}${trip.start||trip.end?` · ${dateText(trip.start||'')} ${trip.end?`— ${dateText(trip.end)}`:''}`:''}`.trim();$('placeTotal').textContent=items.length;$('budgetTotal').textContent=money(items.reduce((sum,item)=>sum+(Number(item.budget)||0),0));$('dayTotal').textContent=dates.length;$('dayTabs').innerHTML=dates.map((date,index)=>`<button class="day-tab ${date===state.activeDate?'active':''}" data-day="${date}">Hari ${index+1}<br><span style="font-weight:500;opacity:.8">${dateText(date).replace(/ \d{4}/,'')}</span></button>`).join('');document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{state.activeDate=b.dataset.day;renderPlanner()});const todayItems=items.filter(i=>i.date===state.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
-  console.log('[RENDER] todayItems.length=', todayItems.length, 'filtered from', items.length, 'items');
   $('itineraryList').innerHTML=todayItems.length?todayItems.map(item=>`<article class="item"><div class="item-time" data-edit-time="${item.id}" title="Klik untuk ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'}</div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">biaya?</div>`}</div><button class="delete-item" data-delete="${item.id}" aria-label="Hapus agenda">×</button></article>`).join(''):`<div class="empty"><strong>Hari ini masih longgar.</strong>Tambahkan tempat, transport, atau agenda yang ingin kamu ingat.</div>`;document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteItem(b.dataset.delete));document.querySelectorAll('[data-edit-time]').forEach(el=>el.onclick=()=>editInline(el,'time','time'));document.querySelectorAll('[data-edit-cost]').forEach(el=>el.onclick=()=>editInline(el,'budget','number'));renderExpenses()}
   function deleteItem(id){const trip=getTrip();const item=trip.items.find(i=>i.id===id);if(!confirm(`Hapus “${item.title}” dari itinerary?`))return;trip.items=trip.items.filter(i=>i.id!==id);save();syncTrip(trip);renderPlanner()}
   function editInline(el,field,type){if(state.readOnlyTrip)return;const id=el.dataset[field==='time'?'editTime':'editCost'];const trip=getTrip();const item=trip.items.find(i=>i.id===id);if(!item)return;const input=document.createElement('input');input.type=type;input.className='inline-edit';input.value=item[field]||'';el.replaceWith(input);input.focus();if(type==='time')input.showPicker&&input.showPicker();const commit=()=>{const val=input.value.trim();if(field==='budget'&&val&&!isNaN(Number(val)))item.budget=Number(val);else if(field==='time')item.time=val;save();renderPlanner()};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')renderPlanner()}}
@@ -1253,8 +1247,7 @@
   function freeBtn(el){ if(!el) return; el.textContent=el.dataset.origText||el.textContent; el.disabled=false; }
   function showLoading(el, label){ if(!el) return false; el.dataset.origHTML=el.innerHTML; const sk=document.createElement('div'); sk.className='loading-skel'; sk.textContent=label; el.innerHTML=''; el.appendChild(sk); return true; }
   function hideLoading(el){ if(!el||!el.dataset.origHTML) return; el.innerHTML=el.dataset.origHTML; delete el.dataset.origHTML; }
-  function freeBtn(el){ if(!el) return; el.textContent=el.dataset.origText||el.textContent; el.disabled=false; }
-
+  
   async function addOrUpdateTrip(event){
   try {
     event.preventDefault();
@@ -1263,13 +1256,11 @@
     if(state.editTripId){
       const trip=state.trips.find(t=>t.id===state.editTripId);
       if(!trip)return;
-      console.log('[DATE-EDIT] START: trip.items.length=', trip.items?.length, 'trip.start=', trip.start, 'trip.end=', trip.end, 'new start=', start, 'new end=', end);
       trip.name=$('tripName').value.trim();
       trip.destination=$('tripDestination').value.trim();
       trip.start=start;
       trip.end=end;
       trip.note=$('tripNote').value.trim();
-      console.log('[DATE-EDIT] AFTER UPDATE: trip.items.length=', trip.items?.length);
       state.editTripId=null;
       $('newTripTitle').textContent='Buat trip baru';
       $('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';
@@ -1278,7 +1269,6 @@
       await syncTrip(trip);
       event.target.reset();
       openTrip(trip.id);
-      console.log('[DATE-EDIT] AFTER openTrip: trip.items.length=', trip.items?.length);
       return
     }
     await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId);
@@ -2973,7 +2963,44 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       setTimeout(function(){ window.location.reload(); }, 150);
     });
   }
-  if(!openFromHash()){load();renderHome();}
+// Landing page: if no session, show auth modal instead of home
+(function(){
+  // Check if there's an active session or guest token
+  var params = new URLSearchParams(location.search);
+  var gt = params.get('gt');
+  var gid = params.get('group');
+  var hash = location.hash;
+  if(!gt && !gid && !hash){
+    // No direct trip link — check if guest or signed in
+    API.getSession().then(function(r){
+      var session = r && r.data && r.data.session;
+      if(session && session.user && !session.user.is_anonymous){
+        // Signed in — load their trips
+        load(); renderHome();
+      } else {
+        // Not signed in — show landing page with login prompt
+        // (guest with gt= or group= are handled by openFromHash anyway)
+        renderHome(); // Keep home list empty-ish but show login CTA
+        openAuth('login');
+      }
+    }).catch(function(){
+      // API not ready — render home anyway
+      load(); renderHome();
+    });
+  } else {
+    // Has a direct link — proceed normally
+    load(); renderHome();
+  }
+  window.makeGroupBtn=mg;
+  window.makeGroupFromTrip=makeGroupFromTrip;
+  window.renderHome=renderHome; window.load=load;
+  window.state=state;
+  window.colState=colState;
+  window.openGroup=openGroup;
+  window.openTrip=openTrip;
+  window.show=show;
+  window.load=load;
+})();
 </script>
 <script>
 /* === Auth UX (email + password). Conforms to existing RLS — no auth/RLS change. === */
@@ -3052,7 +3079,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     }
     submitBtn.disabled=false;
   };
-  document.getElementById('authCancel').onclick=closeAuth;
+  if(document.getElementById('authCancel')) document.getElementById('authCancel').onclick=closeAuth;
 
   // ── Profile modal ──────────────────────────────────────────────────────
   var profileModal=document.getElementById('profileModal');
@@ -3166,13 +3193,14 @@ function updateHeaderAvatar(displayName){
   } else {
     headerAvatar.textContent='?';
   }
+  window.updateHeaderAvatar=updateHeaderAvatar;
 }
   function closeProfile(){ profileModal.style.display='none'; }
 
-  document.getElementById('headerAvatar').onclick=openProfile;
-  document.getElementById('profileCancel').onclick=closeProfile;
+  if(document.getElementById('headerAvatar')) document.getElementById('headerAvatar').onclick=openProfile;
+  if(document.getElementById('profileCancel')) document.getElementById('profileCancel').onclick=closeProfile;
 
-  document.getElementById('profileSave').onclick=async function(e){
+  if(document.getElementById('profileSave')) document.getElementById('profileSave').onclick=async function(e){
     e.preventDefault();
     var name=(profileNameInput.value || '').trim();
     profileError.textContent='';
@@ -3201,7 +3229,7 @@ function updateHeaderAvatar(displayName){
     }
   };
 
-  document.getElementById('profileLogout').onclick=async function(){
+  if(document.getElementById('profileLogout')) document.getElementById('profileLogout').onclick=async function(){
     await API.signOut();
     closeProfile();
   };
@@ -3241,6 +3269,7 @@ function updateHeaderAvatar(displayName){
   var importTextarea=document.getElementById('importTextarea');
   var importFeedback=document.getElementById('importFeedback');
   var importSubmit=document.getElementById('importSubmit');
+  var importTripBtn=document.getElementById('importTripBtn');
   var importCancel=document.getElementById('importCancel');
   function lineOfOffset(s,offset){var lines=s.substr(0,offset).split('\n');return{line:lines.length,col:(lines[lines.length-1]||'').length+1};}
 
@@ -3296,6 +3325,7 @@ function updateHeaderAvatar(displayName){
   }
 
   // ── Import Modal Event Handlers ───────────────────────────────────
+  // Import modal: trigger via window.openImport() or API call
   if(importTripBtn)importTripBtn.onclick=function(){importTextarea.value='';importFeedback.style.display='none';importFeedback.innerHTML='';importSubmit.disabled=true;importModal.style.display='flex';importTextarea.focus();};
   if(importCancel)importCancel.onclick=function(){importModal.style.display='none';};
   if(importTextarea)importTextarea.oninput=renderImportFeedback;
@@ -3500,6 +3530,11 @@ function updateHeaderAvatar(displayName){
   show=function(v){ _show(v); if(v==='homeView'){ setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; } else if(v==='plannerView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display=''; } else if(v==='groupView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent=colState.group?colState.group.name:'Grup'; document.getElementById('globalBack').style.display=''; } };
   setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu';
   window.resolveIdentity=resolveIdentity;
+
+  // Expose for iframe embed / deep linking
+  window.loadTrip = load;
+  window.openImport = function(){ importModal.style.display='flex'; };
+  window.showView = show;
   window.loadIdentities=loadIdentities;
 
   // ── Gallery v1 ─────────────────────────────────────────────────
