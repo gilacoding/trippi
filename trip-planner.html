@@ -125,6 +125,10 @@
   .app-header .h-title{font-family:'Poppins',sans-serif;font-size:24px;font-weight:700;color:var(--ink,#1A1A1A);margin:0;letter-spacing:-.2px}
   .app-header .h-spacer{flex:1}
   .app-header .h-actions{display:flex;gap:8px;align-items:center}
+  .header-avatar{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1.5px solid var(--line);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:border-color .15s ease}
+  .header-avatar:hover{border-color:var(--accent)}
+  .header-avatar svg{width:20px;height:20px;color:var(--muted)}
+  .header-avatar img{width:100%;height:100%;object-fit:cover}
   .expense-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0}.expense-row+.expense-row{border-top:1px solid rgba(255,255,255,.08)}.item-time,.item-cost{cursor:pointer}.item-cost.muted{opacity:.55}.inline-edit{background:var(--surface);border:1px solid var(--accent);border-radius:8px;color:var(--text);padding:4px 6px;font:inherit;max-width:130px}
 
   .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
@@ -453,7 +457,7 @@
     <button class="back-btn" id="globalBack" aria-label="Kembali" style="display:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <h1 class="h-title" id="globalTitle">MarkiCab</h1>
     <div class="h-spacer"></div>
-    <div class="h-actions"><button class="btn secondary small" id="profileBtn" style="display:none">Profil</button><button class="btn secondary small" id="logoutBtn" style="display:none">Keluar</button></div>
+    <div class="h-actions"><div class="header-avatar" id="headerAvatar" style="display:none" title="Profil"></div></div>
   </header>
 
   <nav class="bottom-nav"><div class="nav-inner">
@@ -504,17 +508,18 @@
       <div class="profile-body">
         <h2 id="profileTitle">Profil</h2>
         <p class="muted">Kelola identitas tampilan Anda.</p>
+        <div class="form-actions" style="margin-bottom:16px">
+          <button type="button" class="btn secondary" id="profileCancel">Batal</button>
+          <button type="button" class="btn" id="profileSave">Simpan perubahan</button>
+        </div>
         <form class="form-card form-grid" id="profileForm" style="border:0;padding:0;background:none">
           <div class="field"><label for="profileName">Nama tampilan</label><input id="profileName" type="text" placeholder="Nama lengkap / panggilan" autocomplete="name"><span class="hint">2-40 karakter. Nama ini muncul di Crew, itinerary, wishlist, dan journey.</span></div>
           <div class="field"><label for="profileEmail">Email</label><input id="profileEmail" type="email" readonly autocomplete="email"></div>
           <div class="field"><label>Account type</label><input id="profileAccountType" type="text" readonly></div>
           <div class="auth-error" id="profileError"></div>
-          <div class="form-actions">
-            <button type="button" class="btn secondary" id="profileCancel">Batal</button>
-            <button type="submit" class="btn" id="profileSave">Simpan perubahan</button>
-          </div>
         </form>
         <p class="auth-note muted" id="profileNote" style="display:none"></p>
+        <button class="btn-text" id="profileLogout" style="margin-top:16px;font-family:'Outfit';font-size:14px;color:var(--danger)">Keluar</button>
       </div>
     </div>
   </div>
@@ -555,6 +560,7 @@
       <div class="field"><label for="tripNote">Catatan awal <span style="font-weight:400">(opsional)</span></label><textarea id="tripNote" maxlength="240" placeholder="Misalnya: fokus kuliner dan museum, tanpa jadwal terlalu padat."></textarea></div>
       <div class="form-actions"><button type="button" class="btn secondary" data-home>Batal</button><button class="btn" type="submit" id="newTripSubmit">Buat planner</button></div>
     </form>
+    <p style="text-align:center;margin-top:16px"><a href="#" id="importTripLink" style="font-family:'Outfit';font-size:14px;color:var(--danger)">atau import trip</a></p>
   </section>
 
   <section class="view" id="plannerView">
@@ -3055,6 +3061,8 @@ function openProfile(){
     if(profileNameDisplay){ profileNameDisplay.textContent=displayName || "Tamu"; }
     if(profileEmailDisplay){ profileEmailDisplay.textContent=displayEmail || ""; }
     profileModal.style.display="flex";
+    // Update header avatar
+    updateHeaderAvatar(displayName);
     // Load avatar if user has one — generate signed URL from storage path
     if(typeof API.getUserObject==="function"){
       API.getUserObject().then(function(u){
@@ -3070,6 +3078,12 @@ function openProfile(){
                 profileAvatar.style.backgroundSize='cover';
                 profileAvatar.style.backgroundPosition='center';
                 profileAvatar.textContent='';
+                // Also update header avatar
+                headerAvatar.classList.add('has-photo');
+                headerAvatar.style.backgroundImage='url('+res.data.signed_url+')';
+                headerAvatar.style.backgroundSize='cover';
+                headerAvatar.style.backgroundPosition='center';
+                headerAvatar.textContent='';
               }
             }).catch(function(){});
           } else if(displayName && profileAvatar){
@@ -3080,12 +3094,22 @@ function openProfile(){
       }).catch(function(){});
     }
   }
+
+  function updateHeaderAvatar(displayName){
+    var headerAvatar=document.getElementById('headerAvatar');
+    if(!headerAvatar) return;
+    if(displayName){
+      headerAvatar.textContent=displayName.charAt(0).toUpperCase();
+    } else {
+      headerAvatar.textContent='?';
+    }
+  }
   function closeProfile(){ profileModal.style.display='none'; }
 
-  document.getElementById('profileBtn').onclick=openProfile;
+  document.getElementById('headerAvatar').onclick=openProfile;
   document.getElementById('profileCancel').onclick=closeProfile;
 
-  document.getElementById('profileForm').onsubmit=async function(e){
+  document.getElementById('profileSave').onclick=async function(e){
     e.preventDefault();
     var name=(profileNameInput.value || '').trim();
     profileError.textContent='';
@@ -3112,6 +3136,11 @@ function openProfile(){
     }catch(err){
       profileError.textContent='Gagal menyimpan: '+(err && err.message) || 'Unknown error';
     }
+  };
+
+  document.getElementById('profileLogout').onclick=async function(){
+    await API.signOut();
+    closeProfile();
   };
 
   // ── Avatar upload handler ────────────────────────────────────────
@@ -3207,6 +3236,8 @@ function openProfile(){
 
   // ── Import Modal Event Handlers ───────────────────────────────────
   if(importTripBtn)importTripBtn.onclick=function(){importTextarea.value='';importFeedback.style.display='none';importFeedback.innerHTML='';importSubmit.disabled=true;importModal.style.display='flex';importTextarea.focus();};
+  var importTripLink=document.getElementById('importTripLink');
+  if(importTripLink)importTripLink.onclick=function(e){e.preventDefault();importTextarea.value='';importFeedback.style.display='none';importFeedback.innerHTML='';importSubmit.disabled=true;importModal.style.display='flex';importTextarea.focus();};
   if(importCancel)importCancel.onclick=function(){importModal.style.display='none';};
   if(importModal)importModal.onclick=function(e){if(e.target===importModal)importModal.style.display='none';};
   if(importTextarea)importTextarea.oninput=renderImportFeedback;
@@ -3328,8 +3359,7 @@ function openProfile(){
     var uid=session&&session.user?session.user.id:null;
     if(event==='SIGNED_IN'||(session&&uid)){
       colState.uid=uid;
-      document.getElementById('logoutBtn').style.display='';
-      document.getElementById('profileBtn').style.display='';
+      document.getElementById('headerAvatar').style.display='';
       // M3.5: capture OAuth display name (Google/Apple) so it's available
       // for trips/members without re-prompting. Falls back to existing.
       var metaName=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.full_name||session.user.user_metadata&&session.user.user_metadata.name;
@@ -3379,8 +3409,7 @@ function openProfile(){
       if(pendingAction){ var a=pendingAction; pendingAction=null; if(typeof a==='function') a(); else if(a==='makeGroup') makeGroupFromTrip(); }
     } else if(event==='SIGNED_OUT'||(!session)){
       colState.uid=null;
-      document.getElementById('logoutBtn').style.display='none';
-      document.getElementById('profileBtn').style.display='none';
+      document.getElementById('headerAvatar').style.display='none';
       // signed-out: update UI in place (no navigation — avoids reload loop)
       // Guests (?gt=) must NOT be forced into the login modal — they view read-only.
       // Also check pendingGuestToken: guestSession may not be set yet (async openGuestTrip)
