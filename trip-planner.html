@@ -1219,11 +1219,29 @@
   }
   function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));now.sort((a,b)=>a.start.localeCompare(b.start));past.sort((a,b)=>b.end.localeCompare(a.end));$('upcomingCount').textContent=now.length?`${now.length} trip`:'';$('historyCount').textContent=past.length?`${past.length} trip`:'';$('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class="empty"><strong>Belum ada trip yang direncanakan.</strong>Buat planner pertamamu untuk mulai menyusun perjalanan.</div>';$('historyTrips').innerHTML=past.length?past.map(t=>`<div class="history-card"><div><h3>${esc(t.name)}</h3><div class="trip-meta">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></div><button class="btn secondary small" data-open="${t.id}">Buka</button></div>`).join(''):'<div class="empty"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openTrip(b.dataset.open));renderToGo();updateHeaderAvatar(colState.name||loadName()||'')}
   function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const meta=[];if(t.destination)meta.push(esc(t.destination));if(t.start)meta.push(dateText(t.start));if(t.end)meta.push(dateText(t.end));const metaStr=meta.length?' · '+meta.join(' — '):'';return '<button class="trip-card" data-open="'+t.id+'"><span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination)+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+'<span>Keluar '+money(spent)+'</span></div></button>';}
-  function openTrip(id){state.activeTripId=id;state.readOnlyTrip=null;const trip=getTrip();
-  console.log('[OPEN-TRIP] id=', id, 'trip.items.length=', trip.items?.length, 'old activeDate=', state.activeDate, 'new trip.start=', trip.start, 'new trip.end=', trip.end);
-  state.activeDate=state.activeDate&&daysBetween(trip.start,trip.end).includes(state.activeDate)?state.activeDate:trip.start;
+  function openTrip(id){
+  state.activeTripId=id;
+  state.readOnlyTrip=null;
+  const trip=getTrip();
+  const dates=daysBetween(trip.start,trip.end);
+  console.log('[OPEN-TRIP] id=', id, 'trip.items.length=', trip.items?.length, 'old activeDate=', state.activeDate, 'new trip.start=', trip.start, 'new trip.end=', trip.end, 'dates=', dates);
+  // Preserve activeDate if it's still valid, otherwise find first date with items
+  if(state.activeDate && dates.includes(state.activeDate)){
+    // Keep current activeDate
+  } else {
+    // Find first date that has items, fallback to trip.start
+    state.activeDate = trip.start;
+    for(const d of dates){
+      if(trip.items && trip.items.some(i=>i.date===d)){
+        state.activeDate = d;
+        break;
+      }
+    }
+  }
   console.log('[OPEN-TRIP] new activeDate=', state.activeDate);
-  renderPlanner();show('plannerView')}
+  renderPlanner();
+  show('plannerView')
+}
   function renderPlanner(){const trip=getTrip();if(!trip)return;const ro=!!state.readOnlyTrip;const actions=document.querySelector('.planner-actions');if(actions)actions.style.display=ro?'none':'flex';$('readOnlyBanner').style.display=ro?'block':'none';$('addPanel').style.display=ro?'none':'';$('expensePanel').style.display=ro?'none':'';$('deleteTrip').style.display=ro?'none':'';const dates=daysBetween(trip.start,trip.end),items=trip.items||[];
   console.log('[RENDER] items.length=', items.length, 'activeDate=', state.activeDate, 'dates=', dates);
   $('plannerName').textContent=trip.name;$('plannerMeta').textContent=`${trip.destination}${trip.start||trip.end?` · ${dateText(trip.start||'')} ${trip.end?`— ${dateText(trip.end)}`:''}`:''}`.trim();$('placeTotal').textContent=items.length;$('budgetTotal').textContent=money(items.reduce((sum,item)=>sum+(Number(item.budget)||0),0));$('dayTotal').textContent=dates.length;$('dayTabs').innerHTML=dates.map((date,index)=>`<button class="day-tab ${date===state.activeDate?'active':''}" data-day="${date}">Hari ${index+1}<br><span style="font-weight:500;opacity:.8">${dateText(date).replace(/ \d{4}/,'')}</span></button>`).join('');document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{state.activeDate=b.dataset.day;renderPlanner()});const todayItems=items.filter(i=>i.date===state.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
@@ -1237,14 +1255,38 @@
   function hideLoading(el){ if(!el||!el.dataset.origHTML) return; el.innerHTML=el.dataset.origHTML; delete el.dataset.origHTML; }
   function freeBtn(el){ if(!el) return; el.textContent=el.dataset.origText||el.textContent; el.disabled=false; }
 
-  async function addOrUpdateTrip(event){event.preventDefault();const start=$('tripStart').value,end=$('tripEnd').value;if(end<start){alert('Tanggal selesai harus sama atau setelah tanggal mulai.');return}
-    if(state.editTripId){const trip=state.trips.find(t=>t.id===state.editTripId);if(!trip)return;
+  async function addOrUpdateTrip(event){
+  try {
+    event.preventDefault();
+    const start=$('tripStart').value,end=$('tripEnd').value;
+    if(end<start){alert('Tanggal selesai harus sama atau setelah tanggal mulai.');return}
+    if(state.editTripId){
+      const trip=state.trips.find(t=>t.id===state.editTripId);
+      if(!trip)return;
       console.log('[DATE-EDIT] START: trip.items.length=', trip.items?.length, 'trip.start=', trip.start, 'trip.end=', trip.end, 'new start=', start, 'new end=', end);
-      trip.name=$('tripName').value.trim();trip.destination=$('tripDestination').value.trim();trip.start=start;trip.end=end;trip.note=$('tripNote').value.trim();
+      trip.name=$('tripName').value.trim();
+      trip.destination=$('tripDestination').value.trim();
+      trip.start=start;
+      trip.end=end;
+      trip.note=$('tripNote').value.trim();
       console.log('[DATE-EDIT] AFTER UPDATE: trip.items.length=', trip.items?.length);
-      state.editTripId=null;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';save();syncTrip(trip);event.target.reset();openTrip(trip.id);
-      console.log('[DATE-EDIT] AFTER openTrip: trip.items.length=', trip.items?.length);return}
-    await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId)}
+      state.editTripId=null;
+      $('newTripTitle').textContent='Buat trip baru';
+      $('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';
+      $('newTripSubmit').textContent='Buat planner';
+      save();
+      await syncTrip(trip);
+      event.target.reset();
+      openTrip(trip.id);
+      console.log('[DATE-EDIT] AFTER openTrip: trip.items.length=', trip.items?.length);
+      return
+    }
+    await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId);
+  } catch(e) {
+    console.error('[DATE-EDIT] ERROR:', e);
+    alert('Error editing trip dates: ' + (e.message || e));
+  }
+}
   async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const submitBtn=$('newTripSubmit');busyBtn(submitBtn,'Membuat...');try{const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const _ownerName=loadName()||ownerNameFromAccount();const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:_ownerName});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
 colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}finally{freeBtn(submitBtn)}}
   function normalizeLink(value){const link=value.trim();if(!link)return '';return /^https?:\/\//i.test(link)?link:'https://'+link}
