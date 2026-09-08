@@ -7,8 +7,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="markicab.webmanifest">
-<link rel="apple-touch-icon" href="markicab-icon.svg">
-	<link rel="icon" href="markicab-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="markicab-icon.png">
+<link rel="icon" href="markicab-icon.svg" type="image/svg+xml">
+<link rel="icon" href="markicab-icon.png" type="image/png" sizes="180x180">
 <title>MarkiCab — Travel Planner</title>
 <script>
   // Supabase config (public anon key — safe in client because access is
@@ -22,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#F5F5DC;--surface:#FFFFFF;--surface2:#E0E4CC;--line:#E0DBD5;--text:#1A1A1A;--muted:#5C5856;--accent:#FA6900;--accent2:#FBC02D;--green:#2E7D32;--danger:#C62828;--accent-text:var(--text);--accent2-text:var(--text);--success-text:var(--green);--danger-text:var(--danger)}
+  :root{--bg:#F5F5DC;--surface:#FFFFFF;--surface2:#E0E4CC;--line:#E0DBD5;--text:#1A1A1A;--muted:#5C5856;--text-muted:var(--muted);--ink:#1A1A1A;--white:#FFFFFF;--sage:#E8F5E9;--border:var(--line);--accent:#FA6900;--accent2:#FBC02D;--green:#2E7D32;--danger:#C62828;--accent-text:var(--text);--accent2-text:var(--text);--success-text:var(--green);--danger-text:var(--danger)}
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:'Outfit',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
   button,input,textarea{font:inherit} button{cursor:pointer} .app{max-width:720px;margin:0 auto;padding:24px 18px 48px}.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px}.brand{display:flex;align-items:center;gap:9px;font-size:22px;font-weight:850;letter-spacing:.2px}.dot{width:13px;height:13px;border-radius:50%;background:var(--accent);box-shadow:none}
   .offline{color:var(--green);font-size:12px;font-weight:700;background:rgba(46,125,50,.08);border:1px solid rgba(46,125,50,.17);padding:5px 9px;border-radius:99px}.view{display:none}.view.active{display:block;animation:show .22s ease}@keyframes show{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
@@ -48,9 +49,6 @@
   #profileModal .avatar.avatar-xl{cursor:pointer;box-shadow:inset 0 0 0 2px var(--border);transition:box-shadow .2s}
   #profileModal .avatar.avatar-xl:hover{box-shadow:inset 0 0 0 3px var(--accent)}
   #profileModal .avatar .avatar-edit svg{width:28px;height:28px;color:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
-  .avatar-wrapper{position:relative;display:inline-flex;align-items:center;justify-content:center}
-  #profileModal .avatar.avatar-xl{cursor:pointer;box-shadow:inset 0 0 0 2px var(--border);transition:box-shadow .2s}
-  #profileModal .avatar.avatar-xl:hover{box-shadow:inset 0 0 0 3px var(--accent)}
   .t-title{font-family:'Poppins';font-size:20px;font-weight:700;line-height:1.3;letter-spacing:-.3px;margin:0}
   .t-body-sm{font-family:'Outfit';font-size:14px;font-weight:400;line-height:1.45}
   .t-caption{font-family:'Outfit';font-size:13px;font-weight:400;line-height:1.4}
@@ -772,13 +770,14 @@
 <script src="backend/canonical-adapter.js"></script>
 <script src="backend/json-import-parser.js"></script>
 <script src="lzstring.js"></script>
+<script src="assets/js/utils.js"></script>
 <script>
   const STORE_KEY='markicab_personal_planner_v2';
   const LEGACY_STORE_KEY='markicab_personal_planner_v1';
   const state={trips:[],toGo:[],activeTripId:null,activeDate:null,pendingToGoId:null,editTripId:null,readOnlyTrip:null};
   const $=id=>document.getElementById(id);
   const dbg=(msg)=>{};
-  const esc=value=>String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const esc=window.utils.esc;
   // ── Collaborative (P2) state ──
   const API=window.MarkiAPI;
   const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],gallery:[],nameMap:{},identities:{},activeDate:null,channel:null,poll:null,locationChannel:null};
@@ -795,8 +794,8 @@
     // Priority 4: fallback
     return 'Guest';
   };
-  const money=value=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(value)||0);
-  const dateText=value=>{if(!value||value==='')return'';try{return new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(new Date(value+'T12:00:00'))}catch(e){return'';}};
+  const money=window.utils.money;
+  const dateText=window.utils.dateText;
   const MIG_KEY='markicab_migration_v';
   const SYNC_VERSION=1;
   const getMig=()=>parseInt(localStorage.getItem(MIG_KEY)||'0',10)||0;
@@ -1130,7 +1129,7 @@
   }
   // Hook: when a session appears, backfill. Preserves local-draft-before-login (only runs if uid).
   async function onSessionReady(uid){ if(uid){ colState.uid=uid; await backfillAndSync(); await loadServerGroups(); await loadPersonalTrips(); } }
-  function daysBetween(start,end){const days=[];if(!start||!end)return days;let d=new Date(start+'T12:00:00'), last=new Date(end+'T12:00:00');while(d<=last){days.push(d.toISOString().slice(0,10));d.setDate(d.getDate()+1)}return days}
+  const daysBetween=window.utils.daysBetween;
   function tripStatus(trip){const today=new Date();today.setHours(0,0,0,0);if(!trip.start)return['planned','Rencana'];if(!trip.end)return['planned','Rencana'];const start=new Date(trip.start+'T00:00:00');start.setHours(0,0,0,0);const end=new Date(trip.end+'T00:00:00');end.setHours(0,0,0,0);if(today>end)return ['past','Selesai'];if(today>=start)return ['active','Berlangsung'];return ['upcoming','Mendatang']}
   function getTrip(){return state.readOnlyTrip||state.trips.find(t=>t.id===state.activeTripId)}
   function show(view){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(view).classList.add('active')}
@@ -1303,9 +1302,9 @@ function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)
 }
   async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const submitBtn=$('newTripSubmit');busyBtn(submitBtn,'Membuat...');try{const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const _ownerName=loadName()||ownerNameFromAccount();const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:_ownerName});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
 colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}finally{freeBtn(submitBtn)}}
-  function normalizeLink(value){const link=value.trim();if(!link)return '';return /^https?:\/\//i.test(link)?link:'https://'+link}
+  const normalizeLink=window.utils.normalizeLink;
   function addAgenda(event){event.preventDefault();const trip=getTrip();trip.items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,title:$('agendaTitle').value.trim(),time:$('agendaTime').value,budget:$('agendaBudget').value,link:normalizeLink($('agendaLink').value),note:$('agendaNote').value.trim()});save();syncTrip(trip);event.target.reset();$('addPanel').open=false;renderPlanner()}
-  const categoryIcon=category=>({Makan:'🍜',Transport:'🚗',Hotel:'🛏️',Tiket:'🎟️',Belanja:'🛍️',Lainnya:'•'})[category]||'•';
+  const categoryIcon=window.utils.categoryIcon;
   function renderExpenses(){const trip=getTrip();const expenses=trip.expenses||[],dayExpenses=expenses.filter(item=>item.date===state.activeDate);const sum=list=>list.reduce((total,item)=>total+(Number(item.amount)||0),0);$('dailyExpenseTotal').textContent=money(sum(dayExpenses));$('tripExpenseTotal').textContent=money(sum(expenses));$('expenseList').innerHTML=dayExpenses.length?dayExpenses.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)}</div><div class="expense-meta">${esc(item.category)}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div><button class="expense-delete" data-delete-expense="${item.id}" aria-label="Hapus pengeluaran">×</button></article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang benar-benar keluar.</div>';document.querySelectorAll('[data-delete-expense]').forEach(button=>button.onclick=()=>deleteExpense(button.dataset.deleteExpense))}
   function addExpense(event){event.preventDefault();const trip=getTrip();if(!trip.expenses)trip.expenses=[];trip.expenses.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,name:$('expenseName').value.trim(),amount:$('expenseAmount').value,category:$('expenseCategory').value,note:$('expenseNote').value.trim()});save();syncTrip(trip);event.target.reset();$('expensePanel').open=false;renderExpenses()}
   function deleteExpense(id){const trip=getTrip();trip.expenses=(trip.expenses||[]).filter(item=>item.id!==id);save();syncTrip(trip);renderExpenses()}
@@ -1705,16 +1704,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   // ── P0.7: placeholder blacklist (mirrors public.is_placeholder_name) ──
-  // A role word must never become a person's name. Kept in sync with the SQL
-  // function of the same purpose so client and server agree.
-  var PLACEHOLDER_NAMES = ['creator','owner','guest','testowner','member','anggota',
-                           'kamu','user','anonymous','tanpa nama','o','m','x'];
-  function isPlaceholderName(n){
-    if(n === null || n === undefined) return true;
-    var s = String(n).trim();
-    if(!s) return true;
-    return PLACEHOLDER_NAMES.indexOf(s.toLowerCase()) !== -1;
-  }
+  const isPlaceholderName=window.utils.isPlaceholderName;
 
   // colState.identities: uuid -> { name, role, is_anonymous, avatar_url }
   // Filled from get_group_identities, which resolves profiles first and falls back
@@ -3422,14 +3412,7 @@ function openProfile(){
     // Otherwise the browser is redirecting to Google now — leave button disabled.
   };
 
-  function humanErr(e){
-    var m=(e&&e.message)||'';
-    if(/invalid login/i.test(m)||/email or password/i.test(m)) return 'Email atau password salah.';
-    if(/user already registered/i.test(m)) return 'Email sudah terdaftar. Coba masuk.';
-    if(/password should be/i.test(m)) return 'Password minimal 6 karakter.';
-    if(/unable to validate email/i.test(m)) return 'Format email tidak valid.';
-    return m||'Terjadi kesalahan. Coba lagi.';
-  }
+  const humanErr=window.utils.humanErr;
 
   // Auth-state listener (acceptance #5/#6)
   API.onAuthChange(function(event,session){
