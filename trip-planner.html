@@ -398,7 +398,15 @@
   #plannerView .expense-total span,#groupView .expense-total span{font-family:'Outfit';font-size:12px;color:var(--text-muted);margin-bottom:6px}
   #plannerView .expense-total b,#groupView .expense-total b{font-family:'Poppins';font-size:18px;font-weight:700;color:var(--success-text)}
 
-  /* Guest Flow — V2 visual upgrade (CSS-only) */
+  /* ── Reduced motion support ─────────────────────────────────────── */
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+    .view.active{animation:none}
+    .trip-card:hover{transform:none}
+    .btn:hover{transform:none}
+    .gallery-card:hover .delete-btn{display:flex}
+  }
+  /* ── Guest Flow — V2 visual upgrade (CSS-only) ─────────────────── */
   #guestView .guest-card{max-width:480px;margin:0 auto;text-align:center;padding:32px 24px;background:var(--surface);border-radius:24px;border:1px solid var(--line);box-shadow:0 4px 16px rgba(0,0,0,.06)}
   #guestView .guest-card h1{font-family:'Poppins';font-size:28px;font-weight:700;letter-spacing:-.5px;margin:0 0 8px}
   #guestView .guest-card .trip-meta{font-family:'Outfit';font-size:14px;color:var(--text-muted);margin-bottom:16px}
@@ -452,10 +460,17 @@
   .import-preview-sub{font-family:'Outfit';font-size:12px;opacity:.7;line-height:1.4}
   .import-preview-sub.muted{opacity:.4}
   .btn[disabled]{opacity:.5;cursor:not-allowed}
+  /* ── Accessibility & UX additions ─────────────────────────────── */
+  .auth-modal,.import-modal,.gallery-lightbox{overscroll-behavior:contain}
+  .btn,.nav-tab,.day-tab,.view-tab,.delete-item,.delete-btn,.capture-btn,.cancel-btn,.nav-btn,.close-btn,.retry-btn,.remove-btn,.back-btn{touch-action:manipulation}
+  /* Skip link for keyboard navigation */
+  .skip-link{position:absolute;top:-40px;left:0;background:var(--accent);color:#fff;padding:8px 16px;z-index:100;border-radius:0 0 8px 0;font-weight:600}
+  .skip-link:focus{top:0}
 </style>
 </head>
 <body>
-<main class="app">
+<a href="#main-content" class="skip-link">Skip to main content</a>
+<main class="app" id="main-content">
   <header class="app-header">
     <button class="back-btn" id="globalBack" aria-label="Kembali" style="display:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <h1 class="h-title" id="globalTitle">MarkiCab</h1>
@@ -482,7 +497,7 @@
         <div class="field"><label for="authEmail">Email</label><input id="authEmail" type="email" required maxlength="200" placeholder="you@example.com" autocomplete="email"></div>
         <div class="field" id="authNameField" style="display:none"><label for="authName">Nama</label><input id="authName" type="text" maxlength="40" placeholder="Nama lengkap / panggilan" autocomplete="name"></div>
         <div class="field"><label for="authPassword">Password</label><input id="authPassword" type="password" required minlength="6" maxlength="100" placeholder="••••••••" autocomplete="current-password"><label class="show-pw"><input type="checkbox" id="showPw"> Tampilkan sandi</label></div>
-        <div class="auth-error" id="authError"></div>
+        <div class="auth-error" id="authError" aria-live="polite"></div>
         <div class="form-actions">
           <button type="button" class="btn secondary" id="authCancel">Batal</button>
           <button type="submit" class="btn" id="authSubmit">Masuk</button>
@@ -534,7 +549,7 @@
       <p class="muted">Tempelkan JSON travel plan di bawah. Markicab akan mengekstrak apa saja yang tersedia.</p>
       <p class="muted" style="font-size:12px;margin-top:4px">Tip: Use YYYY-MM-DD date format for best results.</p>
       <textarea id="importTextarea" placeholder='{"name":"Bandung Trip","days":[{"day":1,"items":[{"place_name":"Kawah Putih","time":"09:00"}]}]}' spellcheck="false"></textarea>
-      <div class="import-feedback" id="importFeedback"></div>
+      <div class="import-feedback" id="importFeedback" aria-live="polite"></div>
       <div class="form-actions">
         <button type="button" class="btn secondary" id="importCancel">Batal</button>
         <button type="submit" class="btn" id="importSubmit" disabled>Impor</button>
@@ -556,10 +571,10 @@
   <section class="view" id="newTripView">
     <button class="back" data-home>← Kembali ke semua trip</button>
     <h1 id="newTripTitle">Buat trip baru</h1><p class="lead" id="newTripLead">Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.</p>
-    <div class="notice" id="selectedToGo" style="display:none"></div>
+    <div class="notice" id="selectedToGo" aria-live="polite" style="display:none"></div>
     <form class="form-card section form-grid" id="tripForm">
-      <div class="field"><label for="tripName">Nama trip</label><input id="tripName" required maxlength="70" placeholder="Contoh: Long weekend Jogja"></div>
-      <div class="field"><label for="tripDestination">Destinasi</label><input id="tripDestination" required maxlength="80" placeholder="Contoh: Yogyakarta"></div>
+      <div class="field"><label for="tripName">Nama trip</label><input id="tripName" required maxlength="70" placeholder="Contoh: Long weekend Jogja" autocomplete="organization-title"></div>
+      <div class="field"><label for="tripDestination">Destinasi</label><input id="tripDestination" required maxlength="80" placeholder="Contoh: Yogyakarta" autocomplete="off"></div>
       <div class="twocol"><div class="field"><label for="tripStart">Mulai</label><input id="tripStart" required type="date"></div><div class="field"><label for="tripEnd">Selesai</label><input id="tripEnd" required type="date"></div></div>
       <div class="field"><label for="tripNote">Catatan awal <span style="font-weight:400">(opsional)</span></label><textarea id="tripNote" maxlength="240" placeholder="Misalnya: fokus kuliner dan museum, tanpa jadwal terlalu padat."></textarea></div>
       <div class="form-actions"><button type="button" class="btn secondary" data-home>Batal</button><button class="btn" type="submit" id="newTripSubmit">Buat planner</button></div>
@@ -3233,35 +3248,7 @@ function openProfile(){
     closeProfile();
   };
 
-  // ── Avatar upload handler ────────────────────────────────────────
-  if(profileAvatarInput){
-    profileAvatarInput.onchange=function(e){
-      var file=e.target.files[0];
-      if(!file){ profileAvatarInput.value=''; return; }
-      // Preview immediately
-      profileAvatar.classList.add('has-photo');
-      profileAvatar.style.backgroundImage='url('+URL.createObjectURL(file)+')';
-      profileAvatar.style.backgroundSize='cover';
-      profileAvatar.style.backgroundPosition='center';
-      profileAvatar.textContent='';
-      // Upload via API
-      if(typeof API.uploadAvatar==='function'){
-        API.uploadAvatar(file).then(function(res){
-          if(res && res.error){
-            profileError.textContent='Gagal upload foto: '+(res.error.message || 'Unknown error');
-            return;
-          }
-          // Success — avatar_url saved in profiles
-          profileNote.style.display='block';
-          profileNote.textContent='Foto profil berhasil diperbarui.';
-          setTimeout(function(){ profileNote.style.display='none'; }, 3000);
-        }).catch(function(err){
-          profileError.textContent='Gagal upload foto: '+((err && err.message) || 'Unknown error');
-        });
-      }
-      profileAvatarInput.value='';
-    };
-  }
+  // ── Avatar upload handler (removed duplicate — see lines ~3107-3134) ──
 
   // ── Import Trip modal ──────────────────────────────────────────
   var importModal=document.getElementById('importModal');
