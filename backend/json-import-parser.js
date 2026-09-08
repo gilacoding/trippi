@@ -124,6 +124,7 @@
   }
 
   // ── Helper: coerce monetary to string ─────────────────────────────
+  // Locale-aware: handles "1,500.00", "1.500,00" (European), "1500"
   function safeMoney(v) {
     if (v === undefined || v === null || v === '') return '0';
     if (typeof v === 'number') {
@@ -131,11 +132,11 @@
       return String(v);
     }
     var s = String(v).trim();
-    // Remove common currency symbols and separators
-    s = s.replace(/[^\d.,]/g, '');
-    // Handle "1,500" → "1500" or "1.500" (European) → handle below
+    // Remove currency symbols and whitespace
+    s = s.replace(/[^\d.,\s]/g, '').trim();
+    // Handle "1,500.00" or "1.500,00" (both separators present)
     if (s.indexOf(',') !== -1 && s.indexOf('.') !== -1) {
-      // Both present — assume last one is decimal separator
+      // Last separator is the decimal separator
       if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
         s = s.replace(/\./g, '').replace(',', '.');
       } else {
@@ -143,7 +144,8 @@
       }
     } else if (s.indexOf(',') !== -1) {
       // Only comma — could be "1,500" or "1,5"
-      if (s.split(',')[1].length === 3) s = s.replace(/,/g, '');
+      var parts = s.split(',');
+      if (parts[1].length === 3) s = s.replace(/,/g, '');
       else s = s.replace(',', '.');
     }
     var n = parseFloat(s);
@@ -152,6 +154,8 @@
   }
 
   // ── Helper: normalize date to YYYY-MM-DD ──────────────────────────
+  // Only accepts unambiguous formats. Ambiguous dates (e.g., 01/02/2026)
+  // return null rather than silently choosing one interpretation.
   function safeDate(v) {
     if (v === undefined || v === null || v === '') return null;
     if (typeof v === 'number') {
@@ -166,26 +170,26 @@
       // ISO 8601: 2026-09-15 or 2026-09-15T12:00:00 or 2026-09-15T12:00:00.000Z
       var isoMatch = v.match(/^(\d{4}-\d{2}-\d{2})/);
       if (isoMatch) return isoMatch[1];
-      // DD/MM/YYYY or MM/DD/YYYY
+      // Only accept unambiguous formats:
+      // - YYYY-MM-DD (year first, 4 digits)
+      // - DD-MM-YYYY or DD/MM/YYYY where day > 31 is impossible, so day must be > 12
       var parts = v.split(/[\/\-\.\s]/);
       if (parts.length === 3) {
         var a = parseInt(parts[0], 10);
         var b = parseInt(parts[1], 10);
         var c = parseInt(parts[2], 10);
-        if (c > 31 && parts[2].length === 4) {
-          // YYYY-MM-DD or YYYY/MM/DD
-          if (a > 12 && b <= 12) return pad(c) + '-' + pad(b) + '-' + pad(a);
-          if (b > 12 && a <= 12) return pad(c) + '-' + pad(a) + '-' + pad(b);
-          return pad(c) + '-' + pad(a) + '-' + pad(b);
+        // YYYY-MM-DD: first part is 4-digit year
+        if (parts[0].length === 4 && a > 31) {
+          if (b <= 12 && c <= 31) return pad(a) + '-' + pad(b) + '-' + pad(c);
         }
-        if (a > 31) {
-          // DD/MM/YYYY or DD-MM-YYYY → YYYY-MM-DD
-          return pad(a) + '-' + pad(b) + '-' + pad(c);
+        // DD-MM-YYYY: last part is 4-digit year, first part > 12 (unambiguous day)
+        if (parts[2].length === 4 && c > 31 && a > 12) {
+          if (a <= 31 && b <= 12) return pad(c) + '-' + pad(b) + '-' + pad(a);
         }
+        // Ambiguous (e.g., 01/02/2026) — return null
+        return null;
       }
-      // Try parsing as date
-      var d = new Date(v);
-      if (!isNaN(d.getTime())) return formatDate(d);
+      return null;
     }
     return null;
   }
@@ -540,8 +544,18 @@
     var note = getFromAliases(tripData, 'note');
     note = note ? safeString(note, 240) : '';
 
+    // ── Import size limit ───────────────────────────────────────────
+    var MAX_ITEMS = 1000;
+
     // ── Extract items (itinerary) ───────────────────────────────────
     var rawItems = extractItems(tripData);
+    if (rawItems.length > MAX_ITEMS) {
+      return {
+        valid: false,
+        errors: ['Too many items (' + rawItems.length + '). Maximum is ' + MAX_ITEMS + ' items per import.'],
+        canonical: null
+      };
+    }
 
     // Handle structured days: {days: [{day: 1, items: [...]}, ...]}
     var days = null;
@@ -644,30 +658,10 @@
     // Merge items-based wishlist with explicit wishlist
     var allWishlist = wishlist.concat(wishlistFromItems);
 
-    // ── Synthesize dates from dayNumber if no explicit dates ──────────
-    // If the source JSON provided day structure (dayNumber) but no start/end
-    // dates, synthesize dates so the Markicab UI can display day tabs and
-    // items in the correct day context. Items retain their dayNumber.
-    if (!startDate && hasDayNumbers && items.length > 0) {
-      var maxDay = 1;
-      items.forEach(function (item) {
-        if (item && item.dayNumber && item.dayNumber > maxDay) maxDay = item.dayNumber;
-      });
-      // Synthetic start: today. End: today + (maxDay - 1).
-      var today = new Date();
-      startDate = formatDate(today);
-      var endDateObj = new Date(today);
-      endDateObj.setDate(endDateObj.getDate() + maxDay - 1);
-      endDate = formatDate(endDateObj);
-      // Assign dates to items based on dayNumber
-      items.forEach(function (item) {
-        if (item && !item.date && item.dayNumber) {
-          var d = new Date(startDate);
-          d.setDate(d.getDate() + item.dayNumber - 1);
-          item.date = formatDate(d);
-        }
-      });
-    }
+    // ── Do NOT synthesize dates ───────────────────────────────────────
+    // If no dates are provided, leave them as null. The UI should ask
+    // the user to set dates explicitly. Never invent dates from today.
+    // Items retain their dayNumber for later date assignment.
 
     // ── Build canonical trip ────────────────────────────────────────
     var canonical = {

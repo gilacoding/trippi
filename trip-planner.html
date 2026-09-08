@@ -532,6 +532,7 @@
     <div class="import-card">
       <h2>Impor Trip</h2>
       <p class="muted">Tempelkan JSON travel plan di bawah. Markicab akan mengekstrak apa saja yang tersedia.</p>
+      <p class="muted" style="font-size:12px;margin-top:4px">Tip: Use YYYY-MM-DD date format for best results.</p>
       <textarea id="importTextarea" placeholder='{"name":"Bandung Trip","days":[{"day":1,"items":[{"place_name":"Kawah Putih","time":"09:00"}]}]}' spellcheck="false"></textarea>
       <div class="import-feedback" id="importFeedback"></div>
       <div class="form-actions">
@@ -3398,6 +3399,13 @@ function openProfile(){
       importFeedback.style.display='none';
       importFeedback.innerHTML='';
       importSubmit.disabled=true;
+      
+      // If no dates were extracted, prompt user to set them
+      if (!canonical.start || !canonical.end) {
+        setTimeout(function(){
+          alert('Trip imported! Please set your trip dates by clicking "Edit trip".');
+        }, 100);
+      }
     }).catch(function(e){
       console.error('[import] ingestAndOpen failed',e);
       alert('Gagal mengimpor trip: '+(e&&e.message?e.message:'Unknown error'));
