@@ -236,6 +236,8 @@
   #homeView .section-head{margin-bottom:14px}
   #homeView .btn.wide{font-family:'Outfit';font-size:16px;font-weight:600;padding:14px 24px;border-radius:14px;width:100%;border:1px solid var(--line);background:var(--surface);color:var(--accent-text);transition:transform .16s ease,box-shadow .16s ease}
   #homeView .btn.wide:hover{box-shadow:0 8px 24px rgba(0,0,0,.08);transform:translateY(-1px);border-color:rgba(250,105,0,.3)}
+  /* Buat Trip orange pill button override */
+  #newTripBtn{background:var(--accent)!important;color:#fff!important;border:0!important}
   /* Forms/Inputs — V2 visual upgrade (CSS-only, preserves all JS handlers) */
   .field{margin-bottom:16px}
   .field label{display:block;font-family:'Outfit';font-size:12px;font-weight:600;color:var(--ink);margin-bottom:6px}
@@ -457,7 +459,7 @@
     <button class="back-btn" id="globalBack" aria-label="Kembali" style="display:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <h1 class="h-title" id="globalTitle">MarkiCab</h1>
     <div class="h-spacer"></div>
-    <div class="h-actions"><div class="header-avatar" id="headerAvatar" style="display:none" title="Profil"></div></div>
+    <div class="h-actions"><div class="header-avatar" id="headerAvatar" title="Profil"></div></div>
   </header>
 
   <nav class="bottom-nav"><div class="nav-inner">
@@ -541,8 +543,7 @@
   <section class="view active" id="homeView">
     <h1>Rencanakan trip-mu,<br><span style="color:var(--accent2-text)">tanpa lupa detailnya.</span></h1>
     <p class="lead">Satu tempat untuk menyusun agenda, waktu, catatan, dan perkiraan biaya perjalananmu.</p>
-    <div class="section"><button class="btn wide" id="newTripBtn">+ Buat trip baru</button></div>
-    <div class="section"><button class="btn secondary wide" id="importTripBtn">Impor Trip</button></div>
+    <div class="section"><button class="btn wide" id="newTripBtn" style="background:var(--accent);color:#fff;border:0">+ Buat Trip</button></div>
 
     <div class="section"><div class="section-head"><h2>Trip mendatang</h2><span class="count" id="upcomingCount"></span></div><div class="trip-grid" id="upcomingTrips"></div></div>
     <div class="section" id="historySection"><div class="section-head"><h2>Riwayat trip</h2><span class="count" id="historyCount"></span></div><div class="form-card" id="historyTrips"></div></div>
@@ -560,7 +561,7 @@
       <div class="field"><label for="tripNote">Catatan awal <span style="font-weight:400">(opsional)</span></label><textarea id="tripNote" maxlength="240" placeholder="Misalnya: fokus kuliner dan museum, tanpa jadwal terlalu padat."></textarea></div>
       <div class="form-actions"><button type="button" class="btn secondary" data-home>Batal</button><button class="btn" type="submit" id="newTripSubmit">Buat planner</button></div>
     </form>
-    <p style="text-align:center;margin-top:16px"><a href="#" id="importTripLink" style="font-family:'Outfit';font-size:14px;color:var(--danger)">atau import trip</a></p>
+
   </section>
 
   <section class="view" id="plannerView">
@@ -1068,19 +1069,23 @@
   // Guardrails: idempotent (local_id upsert), per-trip failure isolation,
   // never clears localStorage, keeps markicab_personal_planner_v2 until promoted.
   async function syncTrip(trip){
-    if(!colState.uid||!trip)return;
-    try{
-      const sb=await API.upsertTrip({local_id:trip.id,name:trip.name,destination:trip.destination,start:trip.start,end:trip.end,note:trip.note});
-      if(sb.error){console.error('[sync] trip upsert failed',sb.error);return;}
-      const sbId=sb.data&&sb.data.id; if(!sbId)return;
-      trip.supabase_trip_id=sbId;
-      await API.upsertAgenda(sbId,trip.items||[]);
-      await API.upsertExpenses(sbId,trip.expenses||[]);
-      trip.synced_at=Date.now();
-      // persist the mapping locally (does not clear v2)
-      try{localStorage.setItem(STORE_KEY,JSON.stringify({trips:state.trips,toGo:state.toGo}));}catch{}
-    }catch(e){console.error('[sync] trip sync error',e);}
-  }
+      if(!colState.uid||!trip)return;
+      try{
+        console.log('[SYNC] trip.items.length=', trip.items?.length, 'trip.id=', trip.id);
+        const sb=await API.upsertTrip({local_id:trip.id,name:trip.name,destination:trip.destination,start:trip.start,end:trip.end,note:trip.note});
+        if(sb.error){console.error('[sync] trip upsert failed',sb.error);return;}
+        const sbId=sb.data&&sb.data.id; if(!sbId)return;
+        trip.supabase_trip_id=sbId;
+        console.log('[SYNC] Calling upsertAgenda with', trip.items?.length, 'items');
+        const agendaResult = await API.upsertAgenda(sbId,trip.items||[]);
+        console.log('[SYNC] upsertAgenda result:', agendaResult);
+        await API.upsertExpenses(sbId,trip.expenses||[]);
+        trip.synced_at=Date.now();
+        // persist the mapping locally (does not clear v2)
+        try{localStorage.setItem(STORE_KEY,JSON.stringify({trips:state.trips,toGo:state.toGo}));}catch{}
+        console.log('[SYNC] Saved to localStorage. trip.items.length=', trip.items?.length);
+      }catch(e){console.error('[sync] trip sync error',e);}
+    }
   async function syncActiveTrip(){
     if(!colState.uid)return;
     const t=getTrip();
@@ -1212,10 +1217,18 @@
       state.trips=now; save(); renderHome();
     }catch(e){ console.warn('[trips] loadPersonalTrips failed',e); }
   }
-  function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));now.sort((a,b)=>a.start.localeCompare(b.start));past.sort((a,b)=>b.end.localeCompare(a.end));$('upcomingCount').textContent=now.length?`${now.length} trip`:'';$('historyCount').textContent=past.length?`${past.length} trip`:'';$('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class="empty"><strong>Belum ada trip yang direncanakan.</strong>Buat planner pertamamu untuk mulai menyusun perjalanan.</div>';$('historyTrips').innerHTML=past.length?past.map(t=>`<div class="history-card"><div><h3>${esc(t.name)}</h3><div class="trip-meta">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></div><button class="btn secondary small" data-open="${t.id}">Buka</button></div>`).join(''):'<div class="empty"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openTrip(b.dataset.open));renderToGo()}
+  function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));now.sort((a,b)=>a.start.localeCompare(b.start));past.sort((a,b)=>b.end.localeCompare(a.end));$('upcomingCount').textContent=now.length?`${now.length} trip`:'';$('historyCount').textContent=past.length?`${past.length} trip`:'';$('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class="empty"><strong>Belum ada trip yang direncanakan.</strong>Buat planner pertamamu untuk mulai menyusun perjalanan.</div>';$('historyTrips').innerHTML=past.length?past.map(t=>`<div class="history-card"><div><h3>${esc(t.name)}</h3><div class="trip-meta">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></div><button class="btn secondary small" data-open="${t.id}">Buka</button></div>`).join(''):'<div class="empty"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openTrip(b.dataset.open));renderToGo();updateHeaderAvatar(colState.name||loadName()||'')}
   function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const meta=[];if(t.destination)meta.push(esc(t.destination));if(t.start)meta.push(dateText(t.start));if(t.end)meta.push(dateText(t.end));const metaStr=meta.length?' · '+meta.join(' — '):'';return '<button class="trip-card" data-open="'+t.id+'"><span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination)+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+'<span>Keluar '+money(spent)+'</span></div></button>';}
-  function openTrip(id){state.activeTripId=id;state.readOnlyTrip=null;const trip=getTrip();state.activeDate=state.activeDate&&daysBetween(trip.start,trip.end).includes(state.activeDate)?state.activeDate:trip.start;renderPlanner();show('plannerView')}
-  function renderPlanner(){const trip=getTrip();if(!trip)return;const ro=!!state.readOnlyTrip;const actions=document.querySelector('.planner-actions');if(actions)actions.style.display=ro?'none':'flex';$('readOnlyBanner').style.display=ro?'block':'none';$('addPanel').style.display=ro?'none':'';$('expensePanel').style.display=ro?'none':'';$('deleteTrip').style.display=ro?'none':'';const dates=daysBetween(trip.start,trip.end),items=trip.items||[];$('plannerName').textContent=trip.name;$('plannerMeta').textContent=`${trip.destination}${trip.start||trip.end?` · ${dateText(trip.start||'')} ${trip.end?`— ${dateText(trip.end)}`:''}`:''}`.trim();$('placeTotal').textContent=items.length;$('budgetTotal').textContent=money(items.reduce((sum,item)=>sum+(Number(item.budget)||0),0));$('dayTotal').textContent=dates.length;$('dayTabs').innerHTML=dates.map((date,index)=>`<button class="day-tab ${date===state.activeDate?'active':''}" data-day="${date}">Hari ${index+1}<br><span style="font-weight:500;opacity:.8">${dateText(date).replace(/ \d{4}/,'')}</span></button>`).join('');document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{state.activeDate=b.dataset.day;renderPlanner()});const todayItems=items.filter(i=>i.date===state.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));$('itineraryList').innerHTML=todayItems.length?todayItems.map(item=>`<article class="item"><div class="item-time" data-edit-time="${item.id}" title="Klik untuk ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'}</div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">biaya?</div>`}</div><button class="delete-item" data-delete="${item.id}" aria-label="Hapus agenda">×</button></article>`).join(''):`<div class="empty"><strong>Hari ini masih longgar.</strong>Tambahkan tempat, transport, atau agenda yang ingin kamu ingat.</div>`;document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteItem(b.dataset.delete));document.querySelectorAll('[data-edit-time]').forEach(el=>el.onclick=()=>editInline(el,'time','time'));document.querySelectorAll('[data-edit-cost]').forEach(el=>el.onclick=()=>editInline(el,'budget','number'));renderExpenses()}
+  function openTrip(id){state.activeTripId=id;state.readOnlyTrip=null;const trip=getTrip();
+  console.log('[OPEN-TRIP] id=', id, 'trip.items.length=', trip.items?.length, 'old activeDate=', state.activeDate, 'new trip.start=', trip.start, 'new trip.end=', trip.end);
+  state.activeDate=state.activeDate&&daysBetween(trip.start,trip.end).includes(state.activeDate)?state.activeDate:trip.start;
+  console.log('[OPEN-TRIP] new activeDate=', state.activeDate);
+  renderPlanner();show('plannerView')}
+  function renderPlanner(){const trip=getTrip();if(!trip)return;const ro=!!state.readOnlyTrip;const actions=document.querySelector('.planner-actions');if(actions)actions.style.display=ro?'none':'flex';$('readOnlyBanner').style.display=ro?'block':'none';$('addPanel').style.display=ro?'none':'';$('expensePanel').style.display=ro?'none':'';$('deleteTrip').style.display=ro?'none':'';const dates=daysBetween(trip.start,trip.end),items=trip.items||[];
+  console.log('[RENDER] items.length=', items.length, 'activeDate=', state.activeDate, 'dates=', dates);
+  $('plannerName').textContent=trip.name;$('plannerMeta').textContent=`${trip.destination}${trip.start||trip.end?` · ${dateText(trip.start||'')} ${trip.end?`— ${dateText(trip.end)}`:''}`:''}`.trim();$('placeTotal').textContent=items.length;$('budgetTotal').textContent=money(items.reduce((sum,item)=>sum+(Number(item.budget)||0),0));$('dayTotal').textContent=dates.length;$('dayTabs').innerHTML=dates.map((date,index)=>`<button class="day-tab ${date===state.activeDate?'active':''}" data-day="${date}">Hari ${index+1}<br><span style="font-weight:500;opacity:.8">${dateText(date).replace(/ \d{4}/,'')}</span></button>`).join('');document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{state.activeDate=b.dataset.day;renderPlanner()});const todayItems=items.filter(i=>i.date===state.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+  console.log('[RENDER] todayItems.length=', todayItems.length, 'filtered from', items.length, 'items');
+  $('itineraryList').innerHTML=todayItems.length?todayItems.map(item=>`<article class="item"><div class="item-time" data-edit-time="${item.id}" title="Klik untuk ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'}</div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">biaya?</div>`}</div><button class="delete-item" data-delete="${item.id}" aria-label="Hapus agenda">×</button></article>`).join(''):`<div class="empty"><strong>Hari ini masih longgar.</strong>Tambahkan tempat, transport, atau agenda yang ingin kamu ingat.</div>`;document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteItem(b.dataset.delete));document.querySelectorAll('[data-edit-time]').forEach(el=>el.onclick=()=>editInline(el,'time','time'));document.querySelectorAll('[data-edit-cost]').forEach(el=>el.onclick=()=>editInline(el,'budget','number'));renderExpenses()}
   function deleteItem(id){const trip=getTrip();const item=trip.items.find(i=>i.id===id);if(!confirm(`Hapus “${item.title}” dari itinerary?`))return;trip.items=trip.items.filter(i=>i.id!==id);save();syncTrip(trip);renderPlanner()}
   function editInline(el,field,type){if(state.readOnlyTrip)return;const id=el.dataset[field==='time'?'editTime':'editCost'];const trip=getTrip();const item=trip.items.find(i=>i.id===id);if(!item)return;const input=document.createElement('input');input.type=type;input.className='inline-edit';input.value=item[field]||'';el.replaceWith(input);input.focus();if(type==='time')input.showPicker&&input.showPicker();const commit=()=>{const val=input.value.trim();if(field==='budget'&&val&&!isNaN(Number(val)))item.budget=Number(val);else if(field==='time')item.time=val;save();renderPlanner()};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')renderPlanner()}}
   function busyBtn(el, label){ if(!el) return; el.dataset.origText=el.textContent; el.disabled=true; el.textContent=label; }
@@ -1225,7 +1238,12 @@
   function freeBtn(el){ if(!el) return; el.textContent=el.dataset.origText||el.textContent; el.disabled=false; }
 
   async function addOrUpdateTrip(event){event.preventDefault();const start=$('tripStart').value,end=$('tripEnd').value;if(end<start){alert('Tanggal selesai harus sama atau setelah tanggal mulai.');return}
-    if(state.editTripId){const trip=state.trips.find(t=>t.id===state.editTripId);if(!trip)return;trip.name=$('tripName').value.trim();trip.destination=$('tripDestination').value.trim();trip.start=start;trip.end=end;trip.note=$('tripNote').value.trim();state.editTripId=null;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';save();syncTrip(trip);event.target.reset();openTrip(trip.id);return}
+    if(state.editTripId){const trip=state.trips.find(t=>t.id===state.editTripId);if(!trip)return;
+      console.log('[DATE-EDIT] START: trip.items.length=', trip.items?.length, 'trip.start=', trip.start, 'trip.end=', trip.end, 'new start=', start, 'new end=', end);
+      trip.name=$('tripName').value.trim();trip.destination=$('tripDestination').value.trim();trip.start=start;trip.end=end;trip.note=$('tripNote').value.trim();
+      console.log('[DATE-EDIT] AFTER UPDATE: trip.items.length=', trip.items?.length);
+      state.editTripId=null;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';save();syncTrip(trip);event.target.reset();openTrip(trip.id);
+      console.log('[DATE-EDIT] AFTER openTrip: trip.items.length=', trip.items?.length);return}
     await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId)}
   async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const submitBtn=$('newTripSubmit');busyBtn(submitBtn,'Membuat...');try{const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const _ownerName=loadName()||ownerNameFromAccount();const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:_ownerName});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
 colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}finally{freeBtn(submitBtn)}}
@@ -3179,8 +3197,6 @@ function openProfile(){
   var importFeedback=document.getElementById('importFeedback');
   var importSubmit=document.getElementById('importSubmit');
   var importCancel=document.getElementById('importCancel');
-  var importTripBtn=document.getElementById('importTripBtn');
-
   function lineOfOffset(s,offset){var lines=s.substr(0,offset).split('\n');return{line:lines.length,col:(lines[lines.length-1]||'').length+1};}
 
   // ── Flexible JSON Import ──────────────────────────────────────────
@@ -3236,10 +3252,7 @@ function openProfile(){
 
   // ── Import Modal Event Handlers ───────────────────────────────────
   if(importTripBtn)importTripBtn.onclick=function(){importTextarea.value='';importFeedback.style.display='none';importFeedback.innerHTML='';importSubmit.disabled=true;importModal.style.display='flex';importTextarea.focus();};
-  var importTripLink=document.getElementById('importTripLink');
-  if(importTripLink)importTripLink.onclick=function(e){e.preventDefault();importTextarea.value='';importFeedback.style.display='none';importFeedback.innerHTML='';importSubmit.disabled=true;importModal.style.display='flex';importTextarea.focus();};
   if(importCancel)importCancel.onclick=function(){importModal.style.display='none';};
-  if(importModal)importModal.onclick=function(e){if(e.target===importModal)importModal.style.display='none';};
   if(importTextarea)importTextarea.oninput=renderImportFeedback;
 
   // ── Import Submission ─────────────────────────────────────────────
@@ -3326,10 +3339,6 @@ function openProfile(){
   var _openAuth=openAuth;
   openAuth=function(m){ var el=document.getElementById('showPw'); if(el){ el.checked=false; var p=document.getElementById('authPassword'); if(p) p.type='password'; } _openAuth(m); };
 
-  document.getElementById('logoutBtn').onclick=async function(){
-    await API.signOut(); // onAuthChange SIGNED_OUT will update UI
-  };
-
   // M3.5: Google OAuth button (adds a login path; email/password stays).
   // On success Supabase redirects to redirectTo; the returned session fires
   // SIGNED_IN through onAuthChange, which runs onSessionReady + soft-converts
@@ -3409,7 +3418,7 @@ function openProfile(){
       if(pendingAction){ var a=pendingAction; pendingAction=null; if(typeof a==='function') a(); else if(a==='makeGroup') makeGroupFromTrip(); }
     } else if(event==='SIGNED_OUT'||(!session)){
       colState.uid=null;
-      document.getElementById('headerAvatar').style.display='none';
+      document.getElementById('headerAvatar').textContent='?';
       // signed-out: update UI in place (no navigation — avoids reload loop)
       // Guests (?gt=) must NOT be forced into the login modal — they view read-only.
       // Also check pendingGuestToken: guestSession may not be set yet (async openGuestTrip)
