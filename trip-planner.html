@@ -1451,7 +1451,15 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // the wishlist's '+ Add to Itin' and the itinerary edit controls read
     // canEditTrip(), which was still false when they rendered first.
     const permsRes=await API.getTripPermissions(id);
-    colState.perms=(permsRes&&permsRes.data)||null;
+    // PHASE 6 INVARIANT: Distinguish RPC failure from "no permissions".
+    // On error, preserve previous perms (don't silently downgrade Creator/Member).
+    if (permsRes && permsRes.error && !permsRes.data) {
+      console.warn('[MarkiCab] getTripPermissions failed:', permsRes.error.message);
+      // Keep previous perms; if first load, default to no permissions
+      colState.perms = colState.perms || null;
+    } else {
+      colState.perms = (permsRes && permsRes.data) || null;
+    }
     await loadShared(id);await loadMembers(id);await loadGroupExpenses(id);
     await loadIdentities(id);   // P0.7: canonical names before anything renders them
     if (document.getElementById('groupWishList')) { await loadWishlists(id); }
