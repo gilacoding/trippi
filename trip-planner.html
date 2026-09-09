@@ -775,6 +775,7 @@
 <script src="assets/js/gallery-lightbox.js"></script>
 <script src="assets/js/gallery.js"></script>
 <script src="assets/js/sync.js"></script>
+<script src="assets/js/trip-domain.js"></script>
 <script>
   const STORE_KEY='markicab_personal_planner_v2';
   const LEGACY_STORE_KEY='markicab_personal_planner_v1';
@@ -1096,8 +1097,8 @@
   async function loadPersonalTrips() { return window.MarkiSync.loadPersonalTrips(); }
 
   const daysBetween=window.utils.daysBetween;
-  function tripStatus(trip){const today=new Date();today.setHours(0,0,0,0);if(!trip.start)return['planned','Rencana'];if(!trip.end)return['planned','Rencana'];const start=new Date(trip.start+'T00:00:00');start.setHours(0,0,0,0);const end=new Date(trip.end+'T00:00:00');end.setHours(0,0,0,0);if(today>end)return ['past','Selesai'];if(today>=start)return ['active','Berlangsung'];return ['upcoming','Mendatang']}
-  function getTrip(){return state.readOnlyTrip||state.trips.find(t=>t.id===state.activeTripId)}
+  function tripStatus(trip){ return window.TripDomain.tripStatus(trip); }
+  function getTrip(){ return window.TripDomain.getTrip(); }
   function show(view){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(view).classList.add('active')}
   function openSharedTrip(trip){state.readOnlyTrip=trip;state.activeTripId=null;state.editTripId=null;state.activeDate=trip.start;renderPlanner();show('plannerView')}
     
