@@ -90,7 +90,7 @@
       if (error || !data || !data.length) return;
       const now = [...state.trips];
       data.forEach(g => {
-        const existing = now.find(t => t.id === g.id || t.serverId === g.id);
+        const existing = now.find(t => t.id === g.id || t.serverId === g.id || t.groupId === g.id);
         if (existing) {
           existing.name = g.name; existing.destination = g.destination || '';
           existing.start = g.start_date || existing.start; existing.end = g.end_date || existing.end;
