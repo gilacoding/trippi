@@ -20,7 +20,8 @@
     ready: ready,
     config: cfg,
     client: null,
-    // Lazily load supabase-js + create client on first real use (keeps app light).
+    // Lazily create client on first real use.
+    // Note: supabase-js@2 is loaded via static <script> tag in <head>.
     init: function () {
       var self = this;
       if (!ready) {
@@ -28,11 +29,19 @@
         return Promise.resolve(false);
       }
       if (self.client) return Promise.resolve(true);
+      if (w.supabase && w.supabase.createClient) {
+        try {
+          self.client = w.supabase.createClient(cfg.url, cfg.anonKey);
+          return Promise.resolve(true);
+        } catch (e) { return Promise.reject(e); }
+      }
+      // Fallback: load dynamically if static tag failed
       return new Promise(function (resolve, reject) {
         var s = document.createElement('script');
         s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
         s.onload = function () {
           try {
+            if (!w.supabase) throw new Error('supabase-js not available');
             self.client = w.supabase.createClient(cfg.url, cfg.anonKey);
             resolve(true);
           } catch (e) { reject(e); }

@@ -31,6 +31,10 @@
   var cachedClient = null;   // supabase client once SB.client is ready
   var authReady = false;
 
+  /**
+   * Get the Supabase client, initializing if needed.
+   * Always returns a Promise that resolves to the client or null.
+   */
   function getClient() {
     if (cachedClient) return Promise.resolve(cachedClient);
     return SB.init().then(function (ok) {
@@ -891,6 +895,9 @@
       return getClient().then(function (client) {
         if (!client) return { data: null, error: { message: 'Backend unavailable' } };
         return client.rpc('get_crew_locations', { p_group_id: gid });
+      }).catch(function (e) {
+        console.warn('[API] getCrewLocations failed:', e && e.message);
+        return { data: null, error: { message: e && e.message || 'RPC failed' } };
       });
     },
 
