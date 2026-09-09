@@ -94,10 +94,10 @@
         if (existing) {
           existing.name = g.name; existing.destination = g.destination || '';
           existing.start = g.start_date || existing.start; existing.end = g.end_date || existing.end;
-          existing.serverId = g.id; existing.isGroup = true; existing.role = g.role;
+          existing.serverId = g.id; existing.groupId = g.id; existing.isGroup = true; existing.role = g.role;
           existing._member_count = g.member_count; existing._item_count = g.item_count; existing._expense_total = g.expense_total;
         } else {
-          now.push({ id: g.id, serverId: g.id, name: g.name, destination: g.destination || '', start: g.start_date || '2026-01-01', end: g.end_date || '2026-01-01', items: [], expenses: [], isGroup: true, role: g.role, _member_count: g.member_count, _item_count: g.item_count, _expense_total: g.expense_total });
+          now.push({ id: g.id, serverId: g.id, groupId: g.id, name: g.name, destination: g.destination || '', start: g.start_date || '2026-01-01', end: g.end_date || '2026-01-01', items: [], expenses: [], isGroup: true, role: g.role, _member_count: g.member_count, _item_count: g.item_count, _expense_total: g.expense_total });
         }
       });
       state.trips = now; save(); renderHome();

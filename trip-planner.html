@@ -1924,7 +1924,15 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         end_date: end
       });
       if(res && res.error){ alert('Gagal menyimpan: ' + (res.error.message || res.error)); return; }
-      // Re-open so day tabs, header and agenda re-derive from the new dates.
+      // Update local state immediately
+      g.name = name.trim();
+      g.destination = destination.trim() || g.destination;
+      g.start_date = start;
+      g.end_date = end;
+      // Update header
+      $('groupName').textContent = g.name;
+      $('groupMeta').textContent = `${(g.destination||'')?g.destination+' · ':''}${g.start_date?dateText(String(g.start_date)):'?'}${g.end_date?' — '+dateText(String(g.end_date)):''} · Pembuat ${creatorName()}`;
+      // Re-open so day tabs and agenda re-derive from the new dates
       await openGroup(g.id, false);
     } finally { freeBtn(btn); }
   }
