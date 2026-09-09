@@ -304,9 +304,12 @@
     joinGroup: function (payload) {
       // payload = { group_id, display_name }
       // user_id is NOT sent — RPC uses auth.uid()
-      return cachedClient.rpc('join_group', {
-        p_group_id:     payload.group_id,
-        p_display_name: payload.display_name || null
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.rpc('join_group', {
+          p_group_id:     payload.group_id,
+          p_display_name: payload.display_name || null
+        });
       });
     },
 
