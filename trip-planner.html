@@ -774,6 +774,7 @@
 <script src="assets/js/import-parser.js"></script>
 <script src="assets/js/gallery-lightbox.js"></script>
 <script src="assets/js/gallery.js"></script>
+<script src="assets/js/sync.js"></script>
 <script>
   const STORE_KEY='markicab_personal_planner_v2';
   const LEGACY_STORE_KEY='markicab_personal_planner_v1';
@@ -1085,155 +1086,23 @@
       : '<div style="font-size:13px;color:var(--muted)">Tidak ada pengeluaran tercatat.</div>';
   }
 
-  // ── M2 Sync layer (Supabase = source of truth; localStorage = cache/draft) ──
-  // Guardrails: idempotent (local_id upsert), per-trip failure isolation,
-  // never clears localStorage, keeps markicab_personal_planner_v2 until promoted.
-  async function syncTrip(trip){
-      if(!colState.uid||!trip)return;
-      try{
-        const sb=await API.upsertTrip({local_id:trip.id,name:trip.name,destination:trip.destination,start:trip.start,end:trip.end,note:trip.note});
-        if(sb.error){console.error('[sync] trip upsert failed',sb.error);return;}
-        const sbId=sb.data&&sb.data.id; if(!sbId)return;
-        trip.supabase_trip_id=sbId;
-        const agendaResult = await API.upsertAgenda(sbId,trip.items||[]);
-        await API.upsertExpenses(sbId,trip.expenses||[]);
-        trip.synced_at=Date.now();
-        // persist the mapping locally (does not clear v2)
-        try{localStorage.setItem(STORE_KEY,JSON.stringify({trips:state.trips,toGo:state.toGo}));}catch{}
-      }catch(e){console.error('[sync] trip sync error',e);}
-    }
-  async function syncActiveTrip(){
-    if(!colState.uid)return;
-    const t=getTrip();
-    if(t&&!t.readOnlyTrip) await syncTrip(t);
-  }
-  // Backfill: push all local trips lacking a server id. Idempotent via local_id.
-  async function backfillAndSync(){
-    if(!colState.uid)return;
-    const localTrips=(state.trips||[]).filter(t=>!t.supabase_trip_id);
-    for(const t of localTrips){
-      try{ await syncTrip(t); }catch(e){ console.error('[sync] backfill trip failed (skipped, non-fatal):',e); }
-    }
-    if(localTrips.length) setMig(SYNC_VERSION);
-    await verifySync();
-  }
-  // Verify local(server-backed) vs Supabase counts; logs only (read-switch happens later).
-  async function verifySync(){
-    try{
-      const sb=await API.countTrips();
-      if(sb.error){
-        console.log('[sync] verify FAILED server=request_error local='+(state.trips||[]).filter(t=>t.supabase_trip_id).length);
-        return;
-      }
-      const sbCount=(sb.data&&typeof sb.data.count==='number')?sb.data.count:(sb.count||0);
-      const localCount=(state.trips||[]).filter(t=>t.supabase_trip_id).length;
-      console.log('[sync] verify local(server-backed)='+localCount+' server='+sbCount+(sbCount===localCount?' MATCH':' MISMATCH'));
-    }catch(e){ console.error('[sync] verify error',e); }
-  }
-  // Hook: when a session appears, backfill. Preserves local-draft-before-login (only runs if uid).
-  async function onSessionReady(uid){ if(uid){ colState.uid=uid; await backfillAndSync(); await loadServerGroups(); await loadPersonalTrips(); } }
+  // ── M2 Sync layer (delegated to sync.js) ───────────────────────
+  async function syncTrip(trip) { return window.MarkiSync.syncTrip(trip); }
+  async function syncActiveTrip() { return window.MarkiSync.syncActiveTrip(); }
+  async function backfillAndSync() { return window.MarkiSync.backfillAndSync(); }
+  async function verifySync() { return window.MarkiSync.verifySync(); }
+  async function onSessionReady(uid) { return window.MarkiSync.onSessionReady(uid); }
+  async function loadServerGroups() { return window.MarkiSync.loadServerGroups(); }
+  async function loadPersonalTrips() { return window.MarkiSync.loadPersonalTrips(); }
+
   const daysBetween=window.utils.daysBetween;
   function tripStatus(trip){const today=new Date();today.setHours(0,0,0,0);if(!trip.start)return['planned','Rencana'];if(!trip.end)return['planned','Rencana'];const start=new Date(trip.start+'T00:00:00');start.setHours(0,0,0,0);const end=new Date(trip.end+'T00:00:00');end.setHours(0,0,0,0);if(today>end)return ['past','Selesai'];if(today>=start)return ['active','Berlangsung'];return ['upcoming','Mendatang']}
   function getTrip(){return state.readOnlyTrip||state.trips.find(t=>t.id===state.activeTripId)}
   function show(view){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(view).classList.add('active')}
   function openSharedTrip(trip){state.readOnlyTrip=trip;state.activeTripId=null;state.editTripId=null;state.activeDate=trip.start;renderPlanner();show('plannerView')}
-  async function loadServerGroups(){
-    if(!colState.uid)return;
-    try{
-      const { data, error } = await API.listMyGroups();
-      if(error || !data || !data.length)return;
-      // Map server groups into local state.trips so renderHome shows them.
-      // Use server id as local id to avoid dupes; merge by id.
-      const now=[...state.trips];
-      data.forEach(g=>{
-        const existing=now.find(t=>t.id===g.id||t.serverId===g.id);
-        if(existing){
-          existing.name=g.name; existing.destination=g.destination||'';
-          existing.start=g.start_date||existing.start; existing.end=g.end_date||existing.end;
-          existing.serverId=g.id; existing.isGroup=true; existing.role=g.role;
-          existing._member_count=g.member_count; existing._item_count=g.item_count; existing._expense_total=g.expense_total;
-        }else{
-          now.push({id:g.id,serverId:g.id,name:g.name,destination:g.destination||'',start:g.start_date||'2026-01-01',end:g.end_date||'2026-01-01',items:[],expenses:[],isGroup:true,role:g.role,_member_count:g.member_count,_item_count:g.item_count,_expense_total:g.expense_total});
-        }
-      });
-      state.trips=now; save(); renderHome();
-    }catch(e){ console.warn('[groups] loadServerGroups failed',e); }
-  }
-  
+    
   // Fetch personal trips from Supabase and merge into local state
-  async function loadPersonalTrips(){
-    if(!colState.uid)return;
-    try{
-      const { data, error } = await API.listPersonalTrips();
-      if(error || !data || !data.length)return;
-      const now=[...state.trips];
-      data.forEach(t=>{
-        // Check if we already have this trip (by supabase_trip_id or by local_id match)
-        const existing=now.find(trip=>trip.supabase_trip_id===t.id || (t.local_id && trip.id===t.local_id));
-        if(existing){
-          // Update existing trip with server data
-          existing.name=t.name; existing.destination=t.destination||'';
-          existing.start=t.start_date; existing.end=t.end_date;
-          existing.note=t.note||'';
-          existing.supabase_trip_id=t.id;
-          // Merge items if server has them and local doesn't
-          if(t.items && t.items.length && (!existing.items || !existing.items.length)){
-            existing.items=t.items.map(i=>({
-              id:i.local_id||i.id,
-              date:i.date,
-              title:i.title||'',
-              time:i.time||'',
-              budget:i.budget||0,
-              link:i.link||'',
-              note:i.note||''
-            }));
-          }
-          // Merge expenses if server has them and local doesn't
-          if(t.expenses && t.expenses.length && (!existing.expenses || !existing.expenses.length)){
-            existing.expenses=t.expenses.map(x=>({
-              id:x.local_id||x.id,
-              date:x.date,
-              name:x.name||'',
-              amount:x.amount||0,
-              category:x.category||'Lainnya',
-              note:x.note||''
-            }));
-          }
-        }else{
-          // Add new trip from server
-          now.push({
-            id:t.local_id||t.id,
-            supabase_trip_id:t.id,
-            name:t.name,
-            destination:t.destination||'',
-            start:t.start_date,
-            end:t.end_date,
-            note:t.note||'',
-            items:(t.items||[]).map(i=>({
-              id:i.local_id||i.id,
-              date:i.date,
-              title:i.title||'',
-              time:i.time||'',
-              budget:i.budget||0,
-              link:i.link||'',
-              note:i.note||''
-            })),
-            expenses:(t.expenses||[]).map(x=>({
-              id:x.local_id||x.id,
-              date:x.date,
-              name:x.name||'',
-              amount:x.amount||0,
-              category:x.category||'Lainnya',
-              note:x.note||''
-            })),
-            synced_at:Date.now()
-          });
-        }
-      });
-      state.trips=now; save(); renderHome();
-    }catch(e){ console.warn('[trips] loadPersonalTrips failed',e); }
-  }
-  function updateHeaderAvatar(displayName){
+    function updateHeaderAvatar(displayName){
   var headerAvatar=document.getElementById('headerAvatar');
   if(!headerAvatar) return;
   if(displayName){
@@ -1488,21 +1357,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     renderGroupPlanner();
     applyPermsUI();
   }
-  async function loadShared(id){const { data }=await API.getItems(id);
-  const ad=colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'';
-  colState.items=(data||[]).map(i=>i.date?i:{...i,date:ad});renderGroupPlanner();}
-  async function loadMembers(id){
-    // #memberList belonged to the removed "Anggota" section — guard the element.
-    const ml = document.getElementById('memberList');
-    if(ml) showLoading(ml, 'Memuat anggota...');
-    const { data }=await API.getMembers(id);
-    colState.members = data || [];
-    // Merge, do NOT reset: nameMap also carries names seeded from other sources
-    // (crew rows, guest payload). Wiping it made known people fall back to a
-    // placeholder until the next roster fetch.
-    seedIdentities(colState.members);
-    renderGroupPlanner();
-  }
+  async function loadShared(id){ return window.MarkiSync.loadShared(id); }
+  async function loadMembers(id){ return window.MarkiSync.loadMembers(id); }
   // ══════════════════════════════════════════════════════════
   // P0.5 — Trip Sync Reliability: ONE reconciliation contract.
   //
@@ -1522,79 +1378,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   //
   // Idempotent by construction: state is replaced by the snapshot and rendered by
   // full replace, keyed by primary key, so a duplicate trigger cannot duplicate a row.
-  async function reconcileTrip(reason){
-    const g = colState.group;
-    if(!g || !g.id) return;
-    const id = g.id;
+  async function reconcileTrip(reason){ return window.MarkiSync.reconcileTrip(reason); }
 
-    // Collapse concurrent triggers (event + poll + focus can fire together).
-    if(colState._reconciling){ colState._reconcileAgain = true; return; }
-    colState._reconciling = true;
-    try{
-      do {
-        colState._reconcileAgain = false;
 
-        // One consistent snapshot of everything this view renders.
-        const [itemsRes, membersRes, expensesRes] = await Promise.all([
-          API.getItems(id),
-          API.getMembers(id),
-          API.getExpenses(id)
-        ]);
+  function installSyncRecovery(){ return window.MarkiSync.installSyncRecovery(); }
 
-        // A trip switch may have happened while we awaited — discard stale work.
-        if(!colState.group || colState.group.id !== id) return;
+  function routeReconcile(reason){ return window.MarkiSync.routeReconcile(reason); }
 
-        const ad = colState.activeDate
-          || daysBetween(String(g.start_date || ''), String(g.end_date || ''))[0] || '';
-
-        if(itemsRes && !itemsRes.error){
-          colState.items = (itemsRes.data || []).map(i => i.date ? i : Object.assign({}, i, {date: ad}));
-        }
-        if(membersRes && !membersRes.error){
-          colState.members = membersRes.data || [];
-          seedIdentities(colState.members);
-          await loadIdentities(id);   // P0.7: names can change without a row change
-        }
-        if(expensesRes && !expensesRes.error){
-          colState.expenses = expensesRes.data || [];
-        }
-
-        renderGroupPlanner();
-        renderGroupExpenses();
-
-        if(document.getElementById('groupWishList')) await loadWishlists(id);
-        if(colState.journey && colState.journey.status === 'active') await loadCrewMap();
-      } while(colState._reconcileAgain);
-    } catch(e){
-      console.warn('[sync] reconcileTrip(' + reason + ') failed:', e && e.message);
-    } finally {
-      colState._reconciling = false;
-    }
-  }
-
-  // Recovery triggers that previously did nothing: coming back to a suspended
-  // tab, or regaining network/socket, must converge without a reload.
-  function installSyncRecovery(){
-    if(colState._syncRecoveryWired) return;
-    colState._syncRecoveryWired = true;
-
-    document.addEventListener('visibilitychange', function(){
-      if(!document.hidden) routeReconcile('visibility');
-    });
-    window.addEventListener('focus', function(){ routeReconcile('focus'); });
-    window.addEventListener('online', function(){ routeReconcile('online'); });
-  }
-
-  // Both surfaces (member planner and guest view) reconcile through one router.
-  function routeReconcile(reason){
-    if(colState.isGuest){
-      if(colState._guestTrip) reconcileGuestTrip(reason);
-      return;
-    }
-    if(colState.group && colState.group.id) reconcileTrip(reason);
-  }
-
-  async function loadGroupExpenses(id){const { data }=await API.getExpenses(id);colState.expenses=data||[];renderGroupExpenses();}
+  async function loadGroupExpenses(id){ return window.MarkiSync.loadGroupExpenses(id); }
   // ── Fase C: Group Wishlist ─────────────────────────────────
   async function loadWishlists(id){
     const wl = document.getElementById('groupWishList');
@@ -2191,121 +1982,11 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     }
   }
 
-  // Guest counterpart of reconcileTrip: get_guest_trip IS the guest's snapshot.
-  async function reconcileGuestTrip(reason){
-    if(!guestSession || !guestSession.token) return;
-    if(colState._guestReconciling){ colState._guestReconcileAgain = true; return; }
-    colState._guestReconciling = true;
-    try{
-      do {
-        colState._guestReconcileAgain = false;
-        const { data, error } = await API.getGuestTrip(guestSession.token);
-        if(error || !data) return;
-        colState._guestTrip = data;
-        seedIdentities(data.members);
-        renderGuestItinerary(data);              // full replace, keyed by row
-        await renderGuestWishlist();
-        if(colState.group && colState.group.id){
-          const mem = await API.getMembers(colState.group.id);
-          if(mem && !mem.error && Array.isArray(mem.data) && mem.data.length){
-            colState.members = mem.data;
-            seedIdentities(mem.data);
-          }
-          await loadIdentities(colState.group.id);
-        }
-        renderCrewStatusList();
-        if(colState.journey && colState.journey.status === 'active') await loadCrewMap();
-      } while(colState._guestReconcileAgain);
-    } catch(e){
-      console.warn('[sync] reconcileGuestTrip(' + reason + ') failed:', e && e.message);
-    } finally {
-      colState._guestReconciling = false;
-    }
-  }
+  async function reconcileGuestTrip(reason){ return window.MarkiSync.reconcileGuestTrip(reason); }
 
-  // ── P2: guest realtime ────────────────────────────────────
-  // The guest view previously had NO subscription at all (verified: the guest
-  // page reported zero Supabase channels), so a creator's change only appeared
-  // after a manual refresh. A joined guest is a real group member, so it can
-  // subscribe to exactly the same tables as the member planner.
-  //
-  // Every handler re-fetches from the server and re-renders by full replace, so
-  // an event delivered twice, or an event racing the initial fetch, still yields
-  // one card per database row (idempotent by primary key).
-  async function initGuestRealtime(){
-    const sb = API._getSb && API._getSb();
-    if(!sb || !colState.group || !colState.group.id) return;
-    const gid = colState.group.id;
+  async function initGuestRealtime(){ return window.MarkiSync.initGuestRealtime(); }
 
-    // Never stack subscriptions. sb.channel(topic) hands back an EXISTING channel
-    // when one is still registered, and calling .on() on an already-subscribed
-    // channel throws and duplicates handlers — so remove by topic, not just the
-    // reference we happen to hold.
-    const topic = 'guest:' + gid;
-    if(colState.guestChannel){
-      try{ await sb.removeChannel(colState.guestChannel); }
-      catch(e){ console.warn('[guest rt] removeChannel failed:', e && e.message); }
-      colState.guestChannel = null;
-    }
-    const stale = sb.getChannels().filter(function(x){
-      return x.topic === topic || x.topic === 'realtime:' + topic;
-    });
-    for(let i = 0; i < stale.length; i++){
-      try{ await sb.removeChannel(stale[i]); }
-      catch(e){ console.warn('[guest rt] stale removeChannel failed:', e && e.message); }
-    }
-
-    // P0.5: identical contract to the member planner — events only invalidate.
-    const invalidate = (why) => () => reconcileGuestTrip('realtime:' + why);
-
-    const ch = sb.channel(topic);
-    ch.on('postgres_changes', {event:'*', schema:'public', table:'shared_items',
-        filter:'group_id=eq.' + gid}, invalidate('shared_items'))
-      .on('postgres_changes', {event:'*', schema:'public', table:'group_expenses',
-        filter:'group_id=eq.' + gid}, invalidate('group_expenses'))
-      .on('postgres_changes', {event:'*', schema:'public', table:'wishlist_items',
-        filter:'group_id=eq.' + gid}, invalidate('wishlist_items'))
-      .on('postgres_changes', {event:'*', schema:'public', table:'group_members',
-        filter:'group_id=eq.' + gid}, invalidate('group_members'))
-      .on('postgres_changes', {event:'*', schema:'public', table:'member_locations',
-        filter:'group_id=eq.' + gid}, () => {
-          if(colState.journey && colState.journey.status === 'active') loadCrewMap();
-        })
-      .on('postgres_changes', {event:'*', schema:'public', table:'journey_sessions',
-        filter:'group_id=eq.' + gid}, () => {
-          // Journey started/ended by the creator: re-derive the whole journey UI.
-          if(colState._guestTrip) renderGuestLocationActions(colState._guestTrip);
-        });
-
-    ch.subscribe(function(status){
-      console.log('[MarkiCab] realtime guest:' + gid + ' status:', status);
-      if(status === 'SUBSCRIBED'){
-        // A resubscribe means we were deaf for a while — reconcile to catch up.
-        if(colState._guestSubscribedOnce) reconcileGuestTrip('resubscribe');
-        colState._guestSubscribedOnce = true;
-      }
-    });
-    colState.guestChannel = ch;
-
-    // Safety net + recovery, same single path.
-    if(colState.guestPoll) clearInterval(colState.guestPoll);
-    colState.guestPoll = setInterval(function(){
-      if(guestSession && colState.group && colState.group.id === gid){
-        reconcileGuestTrip('poll');
-      }
-    }, 5000);
-    installSyncRecovery();
-  }
-
-  async function teardownGuestSession(){
-    const sb = API._getSb && API._getSb();
-    if(colState.guestChannel && sb){
-      try{ await sb.removeChannel(colState.guestChannel); }
-      catch(e){ console.warn('[guest rt] teardown failed:', e && e.message); }
-    }
-    colState.guestChannel = null;
-    if(colState.guestPoll){ clearInterval(colState.guestPoll); colState.guestPoll = null; }
-  }
+  async function teardownGuestSession(){ return window.MarkiSync.teardownGuestSession(); }
 
   // ── Guest Group Wishlist (view + add; convert stays creator-only) ──
   async function renderGuestWishlist(){
@@ -2722,30 +2403,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     renderHome(); show('homeView');
   }
 
-  // ── Group session lifecycle teardown (P0 Fase A) ──────────
-  // Single source of truth for leaving a group view. Guarantees:
-  //   1. Realtime group channel removed
-  //   2. Realtime member_locations channel removed
-  //   3. Polling interval stopped AND handle nulled
-  //   4. All per-group state cleared so trip B never renders trip A data
-  async function teardownGroupSession(){
-    if(colState.poll){ clearInterval(colState.poll); colState.poll=null; }
-    if(colState.channel){
-      const sb=API._getSb();
-      if(sb){ try{ await sb.removeChannel(colState.channel); }catch(e){ console.warn('[MarkiCab] removeChannel failed:',e&&e.message); } }
-      colState.channel=null;
-    }
-    await stopJourneyRealtime();
-    colState.group=null;
-    colState.items=[];
-    colState.members=[];
-    colState.expenses=[];
-    colState.nameMap={};
-    colState.activeDate=null;
-    colState.journey=null;
-    colState.perms=null;
-    colState.crewLocations=[];
-  }
+  async function teardownGroupSession(){ return window.MarkiSync.teardownGroupSession(); }
 
   // ── M4.2 Route (HIDDEN — UI removed, backend preserved for future) ──
   async function loadRoute(groupId){
