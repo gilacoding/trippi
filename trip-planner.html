@@ -1162,7 +1162,15 @@
 }
 
 
-function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));now.sort((a,b)=>a.start.localeCompare(b.start));past.sort((a,b)=>b.end.localeCompare(a.end));$('upcomingCount').textContent=now.length?`${now.length} trip`:'';$('historyCount').textContent=past.length?`${past.length} trip`:'';$('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class="empty"><strong>Belum ada trip yang direncanakan.</strong>Buat planner pertamamu untuk mulai menyusun perjalanan.</div>';$('historyTrips').innerHTML=past.length?past.map(t=>`<div class="history-card"><div><h3>${esc(t.name)}</h3><div class="trip-meta">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></div><button class="btn secondary small" data-open="${t.id}">Buka</button></div>`).join(''):'<div class="empty"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openTrip(b.dataset.open));renderToGo();updateHeaderAvatar(colState.name||loadName()||'')}
+function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));now.sort((a,b)=>a.start.localeCompare(b.start));past.sort((a,b)=>b.end.localeCompare(a.end));$('upcomingCount').textContent=now.length?`${now.length} trip`:'';$('historyCount').textContent=past.length?`${past.length} trip`:'';$('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class="empty"><strong>Belum ada trip yang direncanakan.</strong>Buat planner pertamamu untuk mulai menyusun perjalanan.</div>';$('historyTrips').innerHTML=past.length?past.map(t=>`<div class="history-card"><div><h3>${esc(t.name)}</h3><div class="trip-meta">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></div><button class="btn secondary small" data-open="${t.id}">Buka</button></div>`).join(''):'<div class="empty"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';document.querySelectorAll('[data-open]').forEach(b=>{
+  const tripId = b.dataset.open;
+  const trip = state.trips.find(t => t.id === tripId);
+  if(trip && trip.groupId){
+    b.onclick = async()=>{ await openGroup(trip.groupId, false); };
+  } else {
+    b.onclick = ()=>openTrip(tripId);
+  }
+});renderToGo();updateHeaderAvatar(colState.name||loadName()||'')}
   function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const meta=[];if(t.destination)meta.push(esc(t.destination));if(t.start)meta.push(dateText(t.start));if(t.end)meta.push(dateText(t.end));const metaStr=meta.length?' · '+meta.join(' — '):'';return '<button class="trip-card" data-open="'+t.id+'"><span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination)+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+'<span>Keluar '+money(spent)+'</span></div></button>';}
   function openTrip(id){
   state.activeTripId=id;
@@ -1210,7 +1218,7 @@ function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)
         $('newTripSubmit').textContent='Buat planner';
         save();
         // Check if this is a shared trip (group)
-        if(trip.groupId && colState.group && colState.group.id === trip.groupId){
+        if(trip.groupId){
           // Update via group API
           const res = await API.updateGroup(trip.groupId, {
             name: trip.name,
@@ -1219,16 +1227,22 @@ function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)
             end_date: trip.end
           });
           if(res && res.error){ alert('Gagal menyimpan: ' + (res.error.message || res.error)); return; }
-          // Update local group state
-          colState.group.name = trip.name;
-          colState.group.destination = trip.destination;
-          colState.group.start_date = trip.start;
-          colState.group.end_date = trip.end;
+          // Update local group state if loaded
+          if(colState.group && colState.group.id === trip.groupId){
+            colState.group.name = trip.name;
+            colState.group.destination = trip.destination;
+            colState.group.start_date = trip.start;
+            colState.group.end_date = trip.end;
+          }
         } else {
           await syncTrip(trip);
         }
         event.target.reset();
-        openTrip(trip.id);
+        if(trip.groupId){
+          await openGroup(trip.groupId, false);
+        } else {
+          openTrip(trip.id);
+        }
         return
       }
       await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId);
