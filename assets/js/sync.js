@@ -114,6 +114,11 @@
       if (error || !data || !data.length) return;
       const now = [...state.trips];
       data.forEach(t => {
+        // PHASE 3 INVARIANT: Skip trips that have been converted to groups.
+        // A converted trip has groupId set locally; the server trips record
+        // may still exist but should not create a duplicate local trip.
+        const converted = now.find(trip => trip.groupId && (trip.supabase_trip_id === t.id || (t.local_id && trip.id === t.local_id)));
+        if (converted) return;
         const existing = now.find(trip => trip.supabase_trip_id === t.id || (t.local_id && trip.id === t.local_id));
         if (existing) {
           existing.name = t.name; existing.destination = t.destination || '';
@@ -163,8 +168,9 @@
    */
   async function loadShared(id) {
     const { data } = await API.getItems(id);
-    const ad = colState.activeDate || (colState.group && daysBetween(String(colState.group.start_date || ''), String(colState.group.end_date || ''))[0]) || '';
-    colState.items = (data || []).map(i => i.date ? i : { ...i, date: ad });
+    // PHASE 5 INVARIANT: Do not fabricate dates. Items without dates stay undated.
+    // Empty string, null, or undefined dates remain as-is.
+    colState.items = (data || []).map(i => i);
     renderGroupPlanner();
   }
 
@@ -198,42 +204,50 @@
    * @param {string} reason - Trigger reason for logging
    */
   async function reconcileTrip(reason) {
-    const g = colState.group;
-    if (!g || !g.id) return;
-    const id = g.id;
+      const g = colState.group;
+      if (!g || !g.id) return;
+      const id = g.id;
 
-    if (colState._reconciling) { colState._reconcileAgain = true; return; }
-    colState._reconciling = true;
-    try {
-      do {
-        colState._reconcileAgain = false;
-        const [itemsRes, membersRes, expensesRes] = await Promise.all([
-          API.getItems(id), API.getMembers(id), API.getExpenses(id)
-        ]);
-        if (!colState.group || colState.group.id !== id) return;
-        const ad = colState.activeDate || daysBetween(String(g.start_date || ''), String(g.end_date || ''))[0] || '';
-        if (itemsRes && !itemsRes.error) {
-          colState.items = (itemsRes.data || []).map(i => i.date ? i : Object.assign({}, i, { date: ad }));
-        }
-        if (membersRes && !membersRes.error) {
-          colState.members = membersRes.data || [];
-          seedIdentities(colState.members);
-          await loadIdentities(id);
-        }
-        if (expensesRes && !expensesRes.error) {
-          colState.expenses = expensesRes.data || [];
-        }
-        renderGroupPlanner();
-        renderGroupExpenses();
-        if (document.getElementById('groupWishList')) await loadWishlists(id);
-        if (colState.journey && colState.journey.status === 'active') await loadCrewMap();
-      } while (colState._reconcileAgain);
-    } catch (e) {
-      console.warn('[sync] reconcileTrip(' + reason + ') failed:', e && e.message);
-    } finally {
-      colState._reconciling = false;
+      if (colState._reconciling) { colState._reconcileAgain = true; return; }
+      colState._reconciling = true;
+      try {
+        do {
+          colState._reconcileAgain = false;
+          const [itemsRes, membersRes, expensesRes] = await Promise.all([
+            API.getItems(id), API.getMembers(id), API.getExpenses(id)
+          ]);
+          if (!colState.group || colState.group.id !== id) return;
+          if (itemsRes && !itemsRes.error) {
+            // PHASE 4 INVARIANT: Preserve local items not yet confirmed by server.
+            // Items with temp IDs (localId prefix) are optimistic local writes.
+            const serverItems = itemsRes.data || [];
+            const localOnly = colState.items.filter(i => i.localId && !i.id);
+            const merged = [...serverItems];
+            localOnly.forEach(lo => {
+              if (!merged.find(si => si.id === lo.id)) merged.push(lo);
+            });
+            // PHASE 5 INVARIANT: Do not fabricate dates. Items without dates stay undated.
+            colState.items = merged.map(i => i);
+          }
+          if (membersRes && !membersRes.error) {
+            colState.members = membersRes.data || [];
+            seedIdentities(colState.members);
+            await loadIdentities(id);
+          }
+          if (expensesRes && !expensesRes.error) {
+            colState.expenses = expensesRes.data || [];
+          }
+          renderGroupPlanner();
+          renderGroupExpenses();
+          if (document.getElementById('groupWishList')) await loadWishlists(id);
+          if (colState.journey && colState.journey.status === 'active') await loadCrewMap();
+        } while (colState._reconcileAgain);
+      } catch (e) {
+        console.warn('[sync] reconcileTrip(' + reason + ') failed:', e && e.message);
+      } finally {
+        colState._reconciling = false;
+      }
     }
-  }
 
   /**
    * Install recovery triggers for visibility/focus/online events.
@@ -271,15 +285,20 @@
       colState.channel = null;
     }
     await stopJourneyRealtime();
+    // PHASE 2 INVARIANT: Full teardown — all group state must be cleared.
     colState.group = null;
     colState.items = [];
     colState.members = [];
     colState.expenses = [];
+    colState.wishlists = [];
     colState.nameMap = {};
+    colState.identities = {};
     colState.activeDate = null;
     colState.journey = null;
     colState.perms = null;
     colState.crewLocations = [];
+    colState.isGuest = false;
+    colState._subscribedOnce = false;
   }
 
   // ── Guest Sync ────────────────────────────────────────────────────

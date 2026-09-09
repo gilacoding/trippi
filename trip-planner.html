@@ -993,8 +993,9 @@
           }
           // Step 3: reload trip with isMember=true
           const tk = guestSession.token;
-          guestSession.isMember = true; // render next frame as joined
-          if(name) colState.name = name; // Fase B: persist join name for identity display
+          guestSession.isMember = true;
+          colState.isGuest = false; // PHASE 2: Guest became a member — clear guest flag
+          if(name) colState.name = name;
           unlockNav();
           if(tk) await openGuestTrip(tk);
         }catch(e){
@@ -1147,7 +1148,17 @@
   function tripStatus(trip){ return window.TripDomain.tripStatus(trip); }
   function getTrip(){ return window.TripDomain.getTrip(); }
   function show(view){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));$(view).classList.add('active')}
-  function openSharedTrip(trip){state.readOnlyTrip=trip;state.activeTripId=null;state.editTripId=null;state.activeDate=trip.start;renderPlanner();show('plannerView')}
+  function openSharedTrip(trip){
+    // PHASE 0 INVARIANT: Creator never becomes read-only on their own trip.
+    // Keep readOnlyTrip set so getTrip() can resolve the trip object.
+    // renderPlanner() will check ownership to decide edit controls.
+    state.readOnlyTrip = trip;
+    state.activeTripId = null;
+    state.editTripId = null;
+    state.activeDate = trip.start;
+    renderPlanner();
+    show('plannerView');
+  }
     
   // Fetch personal trips from Supabase and merge into local state
     function updateHeaderAvatar(displayName){
@@ -1173,20 +1184,30 @@ function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)
 });renderToGo();updateHeaderAvatar(colState.name||loadName()||'')}
   function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const meta=[];if(t.destination)meta.push(esc(t.destination));if(t.start)meta.push(dateText(t.start));if(t.end)meta.push(dateText(t.end));const metaStr=meta.length?' · '+meta.join(' — '):'';return '<button class="trip-card" data-open="'+t.id+'"><span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination)+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+'<span>Keluar '+money(spent)+'</span></div></button>';}
   function openTrip(id){
-  state.activeTripId=id;
-  state.readOnlyTrip=null;
-  const trip=getTrip();
-  const dates=daysBetween(trip.start,trip.end);
-  // Use trip.start as activeDate if current activeDate is invalid
-  if(state.activeDate && dates.includes(state.activeDate)){
-    // Keep current activeDate
-  } else {
-    state.activeDate = trip.start;
+    // PHASE 2 INVARIANT: Opening a private trip must tear down any active group session.
+    // Prevents leaked realtime channels, polls, and stale group state.
+    teardownGroupSession();
+    state.activeTripId=id;
+    state.readOnlyTrip=null;
+    const trip=getTrip();
+    const dates=daysBetween(trip.start,trip.end);
+    // Use trip.start as activeDate if current activeDate is invalid
+    if(state.activeDate && dates.includes(state.activeDate)){
+      // Keep current activeDate
+    } else {
+      state.activeDate = trip.start;
+    }
+    renderPlanner();
+    show('plannerView')
   }
-  renderPlanner();
-  show('plannerView')
-}
-  function renderPlanner(){const trip=getTrip();if(!trip)return;const ro=!!state.readOnlyTrip;const actions=document.querySelector('.planner-actions');if(actions)actions.style.display=ro?'none':'flex';$('readOnlyBanner').style.display=ro?'block':'none';$('addPanel').style.display=ro?'none':'';$('expensePanel').style.display=ro?'none':'';$('deleteTrip').style.display=ro?'none':'';const dates=daysBetween(trip.start,trip.end),items=trip.items||[];
+  function renderPlanner(){
+  const trip = getTrip();
+  if (!trip) return;
+  // PHASE 0 INVARIANT: Creator never becomes read-only on their own trip.
+  const isOwner = !!(trip.created_by && colState.uid && trip.created_by === colState.uid);
+  // Read-only mode: only applies if NOT owner AND not in group view (colState.group)
+  const ro = !!state.readOnlyTrip && !isOwner && !colState.group;
+  const actions=document.querySelector('.planner-actions');if(actions)actions.style.display=ro?'none':'flex';$('readOnlyBanner').style.display=ro?'block':'none';$('addPanel').style.display=ro?'none':'';$('expensePanel').style.display=ro?'none':'';$('deleteTrip').style.display=ro?'none':'';const dates=daysBetween(trip.start,trip.end),items=trip.items||[];
   $('plannerName').textContent=trip.name;$('plannerMeta').textContent=`${trip.destination}${trip.start||trip.end?` · ${dateText(trip.start||'')} ${trip.end?`— ${dateText(trip.end)}`:''}`:''}`.trim();$('placeTotal').textContent=items.length;$('budgetTotal').textContent=money(items.reduce((sum,item)=>sum+(Number(item.budget)||0),0));$('dayTotal').textContent=dates.length;$('dayTabs').innerHTML=dates.map((date,index)=>`<button class="day-tab ${date===state.activeDate?'active':''}" data-day="${date}">Hari ${index+1}<br><span style="font-weight:500;opacity:.8">${dateText(date).replace(/ \d{4}/,'')}</span></button>`).join('');document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{state.activeDate=b.dataset.day;renderPlanner()});
   const todayItems=items.filter(i=>i.date===state.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
   $('itineraryList').innerHTML=todayItems.length?todayItems.map(item=>`<article class="item"><div class="item-time" data-edit-time="${item.id}" title="Klik untuk ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'}</div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">biaya?</div>`}</div><button class="delete-item" data-delete="${item.id}" aria-label="Hapus agenda">×</button></article>`).join(''):`<div class="empty"><strong>Hari ini masih longgar.</strong>Tambahkan tempat, transport, atau agenda yang ingin kamu ingat.</div>`;document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteItem(b.dataset.delete));document.querySelectorAll('[data-edit-time]').forEach(el=>el.onclick=()=>editInline(el,'time','time'));document.querySelectorAll('[data-edit-cost]').forEach(el=>el.onclick=()=>editInline(el,'budget','number'));renderExpenses()}
@@ -1331,27 +1352,28 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   function groupLink(id){return `${location.origin}${location.pathname}?group=${id}`;}
   // Convert a shared (read-only) trip into a collaborative group.
   async function makeGroupFromTrip(){
-    const trip=getTrip();if(!trip)return;
-    if(trip.groupId){await openGroup(trip.groupId,false,trip);return trip.groupId;}
-    const uid=await ensureAuth();if(!uid){pendingAction='makeGroup';openAuth('login');return;}
-    const name=askName();if(!name)return;
-    const { data:g,error }=await API.createGroup({name:trip.name,destination:trip.destination||'',start_date:trip.start,end_date:trip.end,created_by:uid});
-    if(error){alert('Gagal buat grup: '+error.message);return;}
-    if(trip.items&&trip.items.length){
-      const rows=trip.items.map(i=>({group_id:g.id,title:i.title||'',time:i.time||'',date:i.date||colState.activeDate||'',budget:Number(i.budget)||0,note:i.note||'',link:i.link||'',done:i.done||false,created_by:uid}));
-      await API.addItemsBatch(rows);
+      const trip=getTrip();if(!trip)return;
+      if(trip.groupId){await openGroup(trip.groupId,false,trip);return trip.groupId;}
+      const uid=await ensureAuth();if(!uid){pendingAction='makeGroup';openAuth('login');return;}
+      const name=askName();if(!name)return;
+      const { data:g,error }=await API.createGroup({name:trip.name,destination:trip.destination||'',start_date:trip.start,end_date:trip.end,created_by:uid});
+      if(error){alert('Gagal buat grup: '+error.message);return;}
+      if(trip.items&&trip.items.length){
+        // PHASE 5 INVARIANT: Preserve empty dates. Do NOT assign default dates to items.
+        const rows=trip.items.map(i=>({group_id:g.id,title:i.title||'',time:i.time||'',date:i.date||null,budget:Number(i.budget)||0,note:i.note||'',link:i.link||'',done:i.done||false,created_by:uid}));
+        await API.addItemsBatch(rows);
+      }
+      if(trip.expenses&&trip.expenses.length){
+        const rows=trip.expenses.map(x=>({group_id:g.id,name:x.name||'',amount:Number(x.amount)||0,category:x.category||'',note:x.note||'',date:x.date||'',created_by:uid}));
+        await API.addExpensesBatch(rows);
+      }
+      const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:name});
+      if(em){console.error('[createGroup] group_members insert failed:',em);alert('Gagal membuat anggota grup: '+em.message);return null}
+      trip.groupId=g.id;save();state.activeTripId=trip.id;
+      await openGroup(g.id,true,trip);
+      history.replaceState({}, '', `?group=${g.id}`);
+      return g.id;
     }
-    if(trip.expenses&&trip.expenses.length){
-      const rows=trip.expenses.map(x=>({group_id:g.id,name:x.name||'',amount:Number(x.amount)||0,category:x.category||'',note:x.note||'',date:x.date||'',created_by:uid}));
-      await API.addExpensesBatch(rows);
-    }
-    const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:name});
-    if(em){console.error('[createGroup] group_members insert failed:',em);alert('Gagal membuat anggota grup: '+em.message);return null}
-    trip.groupId=g.id;save();state.activeTripId=trip.id;
-    await openGroup(g.id,true,trip);
-    history.replaceState({}, '', `?group=${g.id}`);
-    return g.id;
-  }
   async function joinGroup(id){
     dbg('joinGroup: start id='+id);
     const uid=await ensureAuth();
