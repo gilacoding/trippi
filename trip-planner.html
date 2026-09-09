@@ -1190,36 +1190,53 @@ function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)
   function hideLoading(el){ if(!el||!el.dataset.origHTML) return; el.innerHTML=el.dataset.origHTML; delete el.dataset.origHTML; }
   
   async function addOrUpdateTrip(event){
-  try {
-    event.preventDefault();
-    const start=$('tripStart').value,end=$('tripEnd').value;
-    if(end<start){alert('Tanggal selesai harus sama atau setelah tanggal mulai.');return}
-    if(state.editTripId){
-      const trip=state.trips.find(t=>t.id===state.editTripId);
-      if(!trip)return;
-      // Do NOT shift item dates - items keep their original dates
-      // Trip dates define the day tab range; items display on matching dates
-      trip.name=$('tripName').value.trim();
-      trip.destination=$('tripDestination').value.trim();
-      trip.start=start;
-      trip.end=end;
-      trip.note=$('tripNote').value.trim();
-      state.editTripId=null;
-      $('newTripTitle').textContent='Buat trip baru';
-      $('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';
-      $('newTripSubmit').textContent='Buat planner';
-      save();
-      await syncTrip(trip);
-      event.target.reset();
-      openTrip(trip.id);
-      return
+    try {
+      event.preventDefault();
+      const start=$('tripStart').value,end=$('tripEnd').value;
+      if(end<start){alert('Tanggal selesai harus sama atau setelah tanggal mulai.');return}
+      if(state.editTripId){
+        const trip=state.trips.find(t=>t.id===state.editTripId);
+        if(!trip)return;
+        // Do NOT shift item dates - items keep their original dates
+        // Trip dates define the day tab range; items display on matching dates
+        trip.name=$('tripName').value.trim();
+        trip.destination=$('tripDestination').value.trim();
+        trip.start=start;
+        trip.end=end;
+        trip.note=$('tripNote').value.trim();
+        state.editTripId=null;
+        $('newTripTitle').textContent='Buat trip baru';
+        $('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';
+        $('newTripSubmit').textContent='Buat planner';
+        save();
+        // Check if this is a shared trip (group)
+        if(trip.groupId && colState.group && colState.group.id === trip.groupId){
+          // Update via group API
+          const res = await API.updateGroup(trip.groupId, {
+            name: trip.name,
+            destination: trip.destination,
+            start_date: trip.start,
+            end_date: trip.end
+          });
+          if(res && res.error){ alert('Gagal menyimpan: ' + (res.error.message || res.error)); return; }
+          // Update local group state
+          colState.group.name = trip.name;
+          colState.group.destination = trip.destination;
+          colState.group.start_date = trip.start;
+          colState.group.end_date = trip.end;
+        } else {
+          await syncTrip(trip);
+        }
+        event.target.reset();
+        openTrip(trip.id);
+        return
+      }
+      await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId);
+    } catch(e) {
+      console.error('[DATE-EDIT] ERROR:', e);
+      alert('Error editing trip dates: ' + (e.message || e));
     }
-    await createGroupDirectly($('tripName').value.trim(),$('tripDestination').value.trim(),start,end,$('tripNote').value.trim(),state.pendingToGoId);
-  } catch(e) {
-    console.error('[DATE-EDIT] ERROR:', e);
-    alert('Error editing trip dates: ' + (e.message || e));
   }
-}
   async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const submitBtn=$('newTripSubmit');busyBtn(submitBtn,'Membuat...');try{const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const _ownerName=loadName()||ownerNameFromAccount();const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:_ownerName});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
 colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}finally{freeBtn(submitBtn)}}
   const normalizeLink=window.utils.normalizeLink;
