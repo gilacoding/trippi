@@ -458,6 +458,10 @@
   .import-preview-sub{font-family:'Outfit';font-size:12px;opacity:.7;line-height:1.4}
   .import-preview-sub.muted{opacity:.4}
   .btn[disabled]{opacity:.5;cursor:not-allowed}
+  /* Members panel */
+  #membersPanel{margin-top:24px}
+  #membersPanel .section-head{margin-bottom:12px}
+  #membersPanel .section-head h2{font-family:'Poppins';font-size:18px;font-weight:600;margin:0}
   /* ── Accessibility & UX additions ─────────────────────────────── */
   .auth-modal,.import-modal,.gallery-lightbox{overscroll-behavior:contain}
   .btn,.nav-tab,.day-tab,.view-tab,.delete-item,.delete-btn,.capture-btn,.cancel-btn,.nav-btn,.close-btn,.retry-btn,.remove-btn,.back-btn{touch-action:manipulation}
@@ -747,6 +751,11 @@
           </div>
           <div id="galleryGrid" class="gallery-grid"></div>
         </div>
+      </div>
+      <!-- Members panel (always visible for creator management) -->
+      <div class="view-panel" id="membersPanel">
+        <div class="section-head"><h2>Anggota</h2></div>
+        <div class="to-go-list" id="groupMembersList"></div>
       </div>
       <!-- Camera overlay for direct photo capture -->
       <div class="camera-overlay" id="cameraOverlay">
@@ -1609,9 +1618,41 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       try{ renderJourneyContent(); }
       catch(e){ console.warn('[MarkiCab] crew prerender skipped:', e && e.message); }
     }
+    renderGroupMembersList();
     renderCrewStatusList();
   }
   function renderGroupExpenses(){
+
+  function renderGroupMembersList(){
+    const el = document.getElementById('groupMembersList');
+    if(!el) return;
+    const members = colState.members || [];
+    const canManage = canManageMembers();
+    const uid = colState.uid;
+
+    el.innerHTML = members.length ? members.map(function(m){
+      const ident = resolveIdentity(m.user_id);
+      const name = ident.name || m.display_name || 'Tanpa nama';
+      const role = ident.role || (m.role === 'owner' ? 'Trip Creator' : 'Member');
+      const isMe = m.user_id === uid;
+      const removable = canManage && !isMe && m.role !== 'owner';
+      return '<article class="to-go-item" data-uid="' + esc(m.user_id) + '">' +
+        '<div class="to-go-copy">' +
+          '<div class="to-go-name">' + esc(name) + '</div>' +
+          '<div class="muted" style="font-size:11px">' + esc(role) + (isMe ? ' · kamu' : '') + '</div>' +
+        '</div>' +
+        (removable
+          ? '<div class="to-go-actions"><button class="btn secondary small remove-member" data-rm="' + esc(m.user_id) + '" aria-label="Keluarkan dari trip">×</button></div>'
+          : '') +
+        '</article>';
+    }).join('') : '<div class="empty">Belum ada anggota.</div>';
+
+    if(canManage){
+      el.querySelectorAll('[data-rm]').forEach(function(b){
+        b.onclick = function(){ removeMemberFromCrew(b.dataset.rm); };
+      });
+    }
+  }
     const dayExp=colState.expenses.filter(i=>i.date===colState.activeDate);
     const sum=l=>l.reduce((s,i)=>s+(Number(i.amount)||0),0);
     $('groupDailyExpense').textContent=money(sum(dayExp));
@@ -2268,6 +2309,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const res = await API.removeMember(colState.group.id, uid);
     if(res && res.error){ alert('Gagal: ' + (res.error.message || res.error)); return; }
     await loadMembers(colState.group.id);
+    renderGroupMembersList();
     renderCrewStatusList();
   }
 
@@ -2504,6 +2546,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const { error }=await API.removeMember(colState.group.id, userId);
     if(error){ alert('Gagal: '+humanErr(error)); return; }
     await loadMembers(colState.group.id);
+    renderGroupMembersList();
   }
 
   function openFromHash(){if(location.hash.startsWith('#t=')){try{const json=LZString.decompressFromEncodedURIComponent(location.hash.slice(3));const trip=JSON.parse(json);if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}if(location.hash.startsWith('#trip=')){try{const trip=JSON.parse(decodeURIComponent(location.hash.slice(6)));if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}return false}
