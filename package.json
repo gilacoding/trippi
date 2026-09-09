@@ -24,6 +24,7 @@
   },
   "homepage": "https://github.com/gilacoding/trippi#readme",
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "pg": "^8.23.0"
   },
   "devDependencies": {

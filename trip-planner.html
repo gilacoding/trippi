@@ -1972,48 +1972,50 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   // destination and dates. Guests/members cannot — the button is owner-only in
   // the UI and the existing RLS policy on public.groups enforces it server-side.
   async function editGroupTrip(){
-    const g = colState.group;
-    if(!g) return;
-    if(!(colState.perms && colState.perms.is_owner)){
-      alert('Hanya pembuat trip yang bisa mengubah detail trip.');
-      return;
+      const g = colState.group;
+      if(!g) return;
+      if(!(colState.perms && colState.perms.is_owner)){
+        alert('Hanya pembuat trip yang bisa mengubah detail trip.');
+        return;
+      }
+      const name = prompt('Nama trip:', g.name || '');
+      if(name === null) return;
+      if(!name.trim()){ alert('Nama trip tidak boleh kosong.'); return; }
+      const destination = prompt('Destinasi:', g.destination || '');
+      if(destination === null) return;
+      const start = prompt('Tanggal mulai (YYYY-MM-DD):', g.start_date ? String(g.start_date) : '');
+      if(start === null) return;
+      const end = prompt('Tanggal selesai (YYYY-MM-DD):', g.end_date ? String(g.end_date) : '');
+      if(end === null) return;
+
+      const iso = /^\d{4}-\d{2}-\d{2}$/;
+      if(!iso.test(start) || !iso.test(end)){ alert('Format tanggal harus YYYY-MM-DD.'); return; }
+      if(end < start){ alert('Tanggal selesai tidak boleh sebelum tanggal mulai.'); return; }
+
+      const btn = document.getElementById('editGroupBtn');
+      busyBtn(btn, 'Menyimpan...');
+      try{
+        const res = await API.updateGroup(g.id, {
+          name: name.trim(),
+          destination: destination.trim() || null,
+          start_date: start,
+          end_date: end
+        });
+        if(res && res.error){ alert('Gagal menyimpan: ' + (res.error.message || res.error)); return; }
+        // Update local state immediately
+        g.name = name.trim();
+        g.destination = destination.trim() || g.destination;
+        g.start_date = start;
+        g.end_date = end;
+        // Update header
+        $('groupName').textContent = g.name;
+        $('groupMeta').textContent = `${(g.destination||'')?g.destination+' · ':''}${g.start_date?dateText(String(g.start_date)):'?'}${g.end_date?' — '+dateText(String(g.end_date)):''} · Pembuat ${creatorName()}`;
+        // Re-derive day tabs and agenda from the new dates WITHOUT reloading from server
+        // (which would overwrite local updates with potentially stale PostgREST cache)
+        renderGroupPlanner();
+        renderGroupExpenses();
+      } finally { freeBtn(btn); }
     }
-    const name = prompt('Nama trip:', g.name || '');
-    if(name === null) return;
-    if(!name.trim()){ alert('Nama trip tidak boleh kosong.'); return; }
-    const destination = prompt('Destinasi:', g.destination || '');
-    if(destination === null) return;
-    const start = prompt('Tanggal mulai (YYYY-MM-DD):', g.start_date ? String(g.start_date) : '');
-    if(start === null) return;
-    const end = prompt('Tanggal selesai (YYYY-MM-DD):', g.end_date ? String(g.end_date) : '');
-    if(end === null) return;
-
-    const iso = /^\d{4}-\d{2}-\d{2}$/;
-    if(!iso.test(start) || !iso.test(end)){ alert('Format tanggal harus YYYY-MM-DD.'); return; }
-    if(end < start){ alert('Tanggal selesai tidak boleh sebelum tanggal mulai.'); return; }
-
-    const btn = document.getElementById('editGroupBtn');
-    busyBtn(btn, 'Menyimpan...');
-    try{
-      const res = await API.updateGroup(g.id, {
-        name: name.trim(),
-        destination: destination.trim() || null,
-        start_date: start,
-        end_date: end
-      });
-      if(res && res.error){ alert('Gagal menyimpan: ' + (res.error.message || res.error)); return; }
-      // Update local state immediately
-      g.name = name.trim();
-      g.destination = destination.trim() || g.destination;
-      g.start_date = start;
-      g.end_date = end;
-      // Update header
-      $('groupName').textContent = g.name;
-      $('groupMeta').textContent = `${(g.destination||'')?g.destination+' · ':''}${g.start_date?dateText(String(g.start_date)):'?'}${g.end_date?' — '+dateText(String(g.end_date)):''} · Pembuat ${creatorName()}`;
-      // Re-open so day tabs and agenda re-derive from the new dates
-      await openGroup(g.id, false);
-    } finally { freeBtn(btn); }
-  }
 
   // ── Group Settings ──────────────────────────────────────────────
   function openGroupSettings(){
