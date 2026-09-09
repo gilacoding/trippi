@@ -458,6 +458,18 @@
   .import-preview-sub{font-family:'Outfit';font-size:12px;opacity:.7;line-height:1.4}
   .import-preview-sub.muted{opacity:.4}
   .btn[disabled]{opacity:.5;cursor:not-allowed}
+  /* Toggle Switch */
+  .toggle-switch{position:relative;display:inline-block;width:44px;height:24px;flex:0 0 auto}
+  .toggle-switch input{opacity:0;width:0;height:0}
+  .toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--line);border-radius:99px;transition:.2s}
+  .toggle-slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+  .toggle-switch input:checked+.toggle-slider{background:var(--accent)}
+  .toggle-switch input:checked+.toggle-slider:before{transform:translateX(20px)}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0}
+  .toggle-row+.toggle-row{border-top:1px solid var(--line)}
+  .toggle-label{flex:1;min-width:0}
+  .toggle-label b{display:block;font-size:13px;font-weight:600}
+  .toggle-label span{display:block;font-size:11px;color:var(--muted);margin-top:2px}
   /* Members panel */
   #membersPanel{margin-top:24px}
   #membersPanel .section-head{margin-bottom:12px}
@@ -555,6 +567,27 @@
       <div class="form-actions">
         <button type="button" class="btn secondary" id="importCancel">Batal</button>
         <button type="submit" class="btn" id="importSubmit" disabled>Impor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Group Settings modal -->
+  <div class="auth-modal" id="groupSettingsModal" style="display:none">
+    <div class="auth-card" style="max-width:420px">
+      <h2>Pengaturan Grup</h2>
+      <p class="muted">Kontrol siapa yang bisa menambahkan agenda.</p>
+      <div class="toggle-row">
+        <div class="toggle-label">
+          <b>Member dapat menambahkan agenda</b>
+          <span>Member dapat menambahkan agenda ke itinerary bersama.</span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="membersCanAddItinerary" onchange="toggleMembersCanAddItinerary(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="form-actions" style="margin-top:16px">
+        <button type="button" class="btn secondary" onclick="closeGroupSettings()">Tutup</button>
       </div>
     </div>
   </div>
@@ -667,7 +700,7 @@
   <section class="view" id="groupView">
     <button class="back" data-home>← Semua trip</button>
     <div class="planner-head"><h1 id="groupName"></h1><div class="trip-meta" id="groupMeta"></div>
-      <div class="planner-actions"><button class="btn secondary small" id="editGroupBtn" style="display:none">Edit trip</button><button class="btn secondary small" id="inviteGroupBtn">Bagikan grup</button><button class="btn secondary small" id="leaveGroupBtn">Keluar</button></div>
+      <div class="planner-actions"><button class="btn secondary small" id="groupSettingsBtn" style="display:none">Pengaturan</button><button class="btn secondary small" id="editGroupBtn" style="display:none">Edit trip</button><button class="btn secondary small" id="inviteGroupBtn">Bagikan grup</button><button class="btn secondary small" id="leaveGroupBtn">Keluar</button></div>
     </div>
     <div class="trip-stats" id="groupStats"></div>
     <div class="view-tabs" id="groupViewTabs">
@@ -1858,6 +1891,40 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     } finally { freeBtn(btn); }
   }
 
+  // ── Group Settings ──────────────────────────────────────────────
+  function openGroupSettings(){
+    const modal = document.getElementById('groupSettingsModal');
+    if(!modal) return;
+    const g = colState.group;
+    if(!g) return;
+    const checkbox = document.getElementById('membersCanAddItinerary');
+    if(checkbox) checkbox.checked = !!g.members_can_add_itinerary;
+    modal.style.display = 'flex';
+  }
+  function closeGroupSettings(){
+    const modal = document.getElementById('groupSettingsModal');
+    if(modal) modal.style.display = 'none';
+  }
+  async function toggleMembersCanAddItinerary(enabled){
+    const g = colState.group;
+    if(!g) return;
+    const btn = document.getElementById('groupSettingsBtn');
+    if(btn) btn.disabled = true;
+    try{
+      const res = await API.updateGroup(g.id, { members_can_add_itinerary: enabled });
+      if(res && res.error){ alert('Gagal: ' + (res.error.message || res.error)); return; }
+      g.members_can_add_itinerary = enabled;
+      // Refresh perms
+      const permsRes = await API.getTripPermissions(g.id);
+      colState.perms = (permsRes && permsRes.data) || null;
+      applyPermsUI();
+    }catch(e){
+      alert('Gagal menyimpan: ' + (e.message || e));
+    }finally{
+      if(btn) btn.disabled = false;
+    }
+  }
+
   // ── Journey Mode control (owner) ──────────────────────────
   async function startJourneyMode(){
     const btn=$('startJourneyBtn'); busyBtn(btn,'Memulai...');
@@ -2528,6 +2595,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   function canEditTrip(){ const p=colState.perms||{}; return !!p.can_edit; }
   function canInvite(){ const p=colState.perms||{}; return !!p.can_invite; }
   function canManageMembers(){ const p=colState.perms||{}; return !!p.can_manage_members; }
+  function canAddItinerary(){ const p=colState.perms||{}; return !!(p.can_edit || p.can_add_itinerary); }
   function applyPermsUI(){
     const p=colState.perms||{};
     const ig=document.getElementById('inviteGroupBtn'); if(ig) ig.style.display = canInvite() ? '' : 'none';
@@ -2536,10 +2604,12 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const egb=document.getElementById('editGroupBtn'); if(egb) egb.style.display = p.is_owner ? '' : 'none';
     // Hide edit controls for non-owners
     const addAgendaPanel=document.querySelector('#itineraryPanel details');
-    if(addAgendaPanel) addAgendaPanel.style.display = canEditTrip() ? '' : 'none';
+    if(addAgendaPanel) addAgendaPanel.style.display = canAddItinerary() ? '' : 'none';
     const addExpensePanel=document.getElementById('expensesPanel');
     if(addExpensePanel) addExpensePanel.style.display = canEditTrip() ? '' : 'none';
     const cr=document.getElementById('createRouteBtn'); if(cr) cr.style.display = 'none'; // route hidden
+    const _groupSettingsBtn=document.getElementById('groupSettingsBtn'); if(_groupSettingsBtn) _groupSettingsBtn.style.display = p.is_owner ? '' : 'none';
+    if(_groupSettingsBtn) _groupSettingsBtn.onclick = openGroupSettings;
   }
   async function removeMemberFromTrip(userId){
     if(!confirm('Hapus anggota ini dari trip?')) return;

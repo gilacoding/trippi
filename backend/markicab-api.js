@@ -616,7 +616,14 @@
     updateGroup: function (groupId, fields) {
       return getClient().then(function (client) {
         if (!client) return { data: null, error: { message: 'Backend unavailable' } };
-        return client.from('groups').update(fields).eq('id', groupId).select().single();
+        return client.rpc('update_group', {
+          p_group_id: groupId,
+          p_name: fields.name || null,
+          p_destination: fields.destination || null,
+          p_start_date: fields.start_date || null,
+          p_end_date: fields.end_date || null,
+          p_members_can_add_itinerary: fields.members_can_add_itinerary !== undefined ? fields.members_can_add_itinerary : null
+        });
       });
     },
     // P0.7 identity foundation: canonical per-user names.
