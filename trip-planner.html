@@ -1661,6 +1661,16 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
   function renderGroupExpenses(){
 
+      const dayExp=colState.expenses.filter(i=>i.date===colState.activeDate);
+    const sum=l=>l.reduce((s,i)=>s+(Number(i.amount)||0),0);
+    $('groupDailyExpense').textContent=money(sum(dayExp));
+    $('groupTripExpense').textContent=money(sum(colState.expenses));
+    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div>${canEditTrip()?`<button class="expense-delete" data-gdelexp="${item.id}">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
+    if(canEditTrip()){
+      document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
+    }
+  }
+
   function renderGroupMembersList(){
     const el = document.getElementById('groupMembersList');
     if(!el) return;
@@ -1691,15 +1701,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       });
     }
   }
-    const dayExp=colState.expenses.filter(i=>i.date===colState.activeDate);
-    const sum=l=>l.reduce((s,i)=>s+(Number(i.amount)||0),0);
-    $('groupDailyExpense').textContent=money(sum(dayExp));
-    $('groupTripExpense').textContent=money(sum(colState.expenses));
-    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div>${canEditTrip()?`<button class="expense-delete" data-gdelexp="${item.id}">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
-    if(canEditTrip()){
-      document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
-    }
-  }
+
   // M3 Phase 2: payer select on the expense form (member list)
   function populatePayerSelect(){
     const sel=document.getElementById('groupExpensePayer'); if(!sel) return;
