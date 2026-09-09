@@ -654,6 +654,13 @@
         <button class="btn wide" id="guestJoinBtn">Gabung Trip</button>
         <div style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center">Tidak perlu akun MarkiCab. Masukkan nama untuk ikut.</div>
       </div>
+      <!-- MarkiCab CTA for unregistered users -->
+      <div style="margin-top:16px;padding:14px;background:rgba(54,211,153,.06);border:1px solid rgba(54,211,153,.18);border-radius:14px;font-size:13px">
+        <strong>Mau menyimpan perjalanan ini ke akun MarkiCab?</strong><br>
+        <span style="color:var(--muted)">Daftar gratis untuk menyimpan trip, mengikuti creator, dan mendapatkan Trip History.</span>
+        <button class="btn secondary" style="margin-top:10px" id="guestUpgradeBtn">Daftar MarkiCab</button>
+      </div>
+      <!-- 
       <!-- NAME FORM (hidden until Gabung Trip clicked) -->
       <div id="guestNameForm" style="display:none;margin-top:16px">
         <div class="form-card form-grid">
@@ -685,12 +692,6 @@
 
         <!-- Journey Mode: status + consent + map + Crew -->
         <div id="guestLocationActions" style="margin-top:22px"></div>
-
-        <div style="margin-top:22px;padding:14px;background:rgba(54,211,153,.06);border:1px solid rgba(54,211,153,.18);border-radius:14px;font-size:13px">
-          <strong>Mau menyimpan perjalanan ini ke akun MarkiCab?</strong><br>
-          <span style="color:var(--muted)">Daftar gratis untuk menyimpan trip, mengikuti creator, dan mendapatkan Trip History.</span>
-          <button class="btn secondary" style="margin-top:10px" id="guestUpgradeBtn">Daftar MarkiCab</button>
-        </div>
 
         <button class="btn secondary wide" style="margin-top:14px" id="guestLeaveBtn">Keluar dari Trip</button>
       </div>
@@ -907,7 +908,7 @@
     const nameSubmit = $('guestNameSubmit');
     const nameCancel = $('guestNameCancel');
     const upgradeBtn = $('guestUpgradeBtn');
-
+    const upgradeBtn = $('guestUpgradeBtn');
     // Reset all sections
     if(previewEl) previewEl.style.display = 'none';
     if(nameForm) nameForm.style.display = 'none';
@@ -954,6 +955,11 @@
         if(nameForm) nameForm.style.display = 'none';
         if(previewEl) previewEl.style.display = '';
       };
+    }
+
+    // Upgrade button → signup
+    if(upgradeBtn && !isMember){
+      upgradeBtn.onclick = ()=>{ openAuth('signup'); };
     }
 
     // Submit name → anonymous sign-in → redeem invitation
