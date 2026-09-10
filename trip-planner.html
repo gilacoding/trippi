@@ -1459,28 +1459,20 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   function groupLink(id){return `${location.origin}${location.pathname}?group=${id}`;}
   // Convert a shared (read-only) trip into a collaborative group.
   async function makeGroupFromTrip(){
-      const trip=getTrip();if(!trip)return;
-      if(trip.groupId){await openGroup(trip.groupId,false,trip);return trip.groupId;}
-      const uid=await ensureAuth();if(!uid){pendingAction='makeGroup';openAuth('login');return;}
-      const name=askName();if(!name)return;
-      const { data:g,error }=await API.createGroup({name:trip.name,destination:trip.destination||'',start_date:trip.start,end_date:trip.end,created_by:uid});
-      if(error){alert('Gagal buat grup: '+error.message);return;}
-      if(trip.items&&trip.items.length){
-        // PHASE 5 INVARIANT: Preserve empty dates. Do NOT assign default dates to items.
-        const rows=trip.items.map(i=>({group_id:g.id,title:i.title||'',time:i.time||'',date:i.date||null,budget:Number(i.budget)||0,note:i.note||'',link:i.link||'',done:i.done||false,created_by:uid}));
-        await API.addItemsBatch(rows);
+        const trip=getTrip();if(!trip)return;
+        if(trip.groupId){await openGroup(trip.groupId,false,trip);return trip.groupId;}
+        const uid=await ensureAuth();if(!uid){pendingAction='makeGroup';openAuth('login');return;}
+        const name=askName();if(!name)return;
+        const { data:g,error }=await API.createGroup({name:trip.name,destination:trip.destination||'',start_date:trip.start,end_date:trip.end,created_by:uid});
+        if(error){alert('Gagal buat grup: '+error.message);return;}
+        const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:name});
+        if(em){console.error('[createGroup] group_members insert failed:',em);alert('Gagal membuat anggota grup: '+em.message);return null}
+        trip.groupId=g.id;save();state.activeTripId=trip.id;
+        // Let openGroup handle the initial item/expense copy (fresh=true + trip.items)
+        await openGroup(g.id,true,trip);
+        history.replaceState({}, '', `?group=${g.id}`);
+        return g.id;
       }
-      if(trip.expenses&&trip.expenses.length){
-        const rows=trip.expenses.map(x=>({group_id:g.id,name:x.name||'',amount:Number(x.amount)||0,category:x.category||'',note:x.note||'',date:x.date||'',created_by:uid}));
-        await API.addExpensesBatch(rows);
-      }
-      const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:name});
-      if(em){console.error('[createGroup] group_members insert failed:',em);alert('Gagal membuat anggota grup: '+em.message);return null}
-      trip.groupId=g.id;save();state.activeTripId=trip.id;
-      await openGroup(g.id,true,trip);
-      history.replaceState({}, '', `?group=${g.id}`);
-      return g.id;
-    }
   async function joinGroup(id){
       dbg('joinGroup: start id='+id);
       const uid=await ensureAuth();
@@ -1581,13 +1573,21 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     colState.poll=setInterval(()=>{ if(colState.group&&colState.group.id===id) reconcileTrip('poll'); },5000);
     installSyncRecovery();
     if(fresh&&trip&&trip.items){
-      const agenda=trip.items.filter(i=>i.title&&i.title.trim());
-      if(agenda.length){
-        const rows=agenda.map(i=>({group_id:id,title:i.title.trim(),note:i.note||'',link:i.link||'',date:i.date||'',time:i.time||'',budget:Number(i.budget)||0}));
-        const {error:ce}=await API.addItemsBatch(rows);
-        if(ce)console.warn('[MarkiCab] copy agenda failed:',ce.message);
-      }
-    }
+          const agenda=trip.items.filter(i=>i.title&&i.title.trim());
+          if(agenda.length){
+            const rows=agenda.map(i=>({group_id:id,title:i.title.trim(),note:i.note||'',link:i.link||'',date:i.date||'',time:i.time||'',budget:Number(i.budget)||0}));
+            const {error:ce}=await API.addItemsBatch(rows);
+            if(ce)console.warn('[MarkiCab] copy agenda failed:',ce.message);
+          }
+        }
+        if(fresh&&trip&&trip.expenses){
+          const expenses=trip.expenses.filter(x=>x.name&&x.name.trim());
+          if(expenses.length){
+            const rows=expenses.map(x=>({group_id:id,name:x.name.trim(),amount:Number(x.amount)||0,category:x.category||'',note:x.note||'',date:x.date||''}));
+            const {error:xe}=await API.addExpensesBatch(rows);
+            if(xe)console.warn('[MarkiCab] copy expenses failed:',xe.message);
+          }
+        }
     // Permissions must be resolved BEFORE anything permission-gated renders:
     // the wishlist's '+ Add to Itin' and the itinerary edit controls read
     // canEditTrip(), which was still false when they rendered first.
