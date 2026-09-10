@@ -108,8 +108,20 @@
   MapRenderer.prototype.fitToMarkers = function () {
     if (!this.map || !this.markers) return;
 
-    var bounds = this.markers.getBounds();
-    if (bounds.isValid()) {
+    var bounds = null;
+    var self = this;
+    this.markers.eachLayer(function (layer) {
+      if (layer.getLatLng) {
+        var latlng = layer.getLatLng();
+        if (bounds) {
+          bounds.extend(latlng);
+        } else {
+          bounds = L.latLngBounds([latlng]);
+        }
+      }
+    });
+
+    if (bounds && bounds.isValid()) {
       this.map.fitBounds(bounds, { padding: [20, 20], maxZoom: 15 });
     }
   };
