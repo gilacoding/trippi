@@ -1,7 +1,7 @@
 // MarkiCab service worker — hardened cache
 // P1 fix: versioned cache + stale-cache cleanup on activate +
 //        network-first for API JS so backend/markicab-api.js is never permanently cached.
-const CACHE_VERSION = 'markicab-personal-v4';
+const CACHE_VERSION = 'markicab-personal-v5';
 const CORE_FILES = [
   './index.html',
   './trip-planner.html',
