@@ -592,6 +592,42 @@
     </div>
   </div>
 
+  <!-- Edit Trip Modal (replaces browser prompt()) -->
+  <div class="auth-modal" id="editTripModal" style="display:none">
+    <div class="auth-card" style="max-width:420px">
+      <h2>Edit Trip</h2>
+      <p class="muted">Perbarui detail trip ini.</p>
+      <form class="form-grid" id="editTripForm" onsubmit="saveEditTrip(event)">
+        <div class="field">
+          <label for="editTripName">Nama trip</label>
+          <input id="editTripName" required maxlength="70" placeholder="Contoh: Long weekend Jogja">
+        </div>
+        <div class="field">
+          <label for="editTripDestination">Destinasi</label>
+          <input id="editTripDestination" maxlength="80" placeholder="Contoh: Yogyakarta">
+        </div>
+        <div class="twocol">
+          <div class="field">
+            <label for="editTripStart">Mulai</label>
+            <input id="editTripStart" required type="date">
+          </div>
+          <div class="field">
+            <label for="editTripEnd">Selesai</label>
+            <input id="editTripEnd" required type="date">
+          </div>
+        </div>
+        <div class="field">
+          <label for="editTripNote">Catatan <span style="font-weight:400">(opsional)</span></label>
+          <textarea id="editTripNote" maxlength="240" placeholder="Catatan tentang trip ini"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn secondary" onclick="closeEditTripModal()">Batal</button>
+          <button type="submit" class="btn">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <section class="view active" id="homeView">
     <h1>Rencanakan trip-mu,<br><span style="color:var(--accent2-text)">tanpa lupa detailnya.</span></h1>
     <p class="lead">Satu tempat untuk menyusun agenda, waktu, catatan, dan perkiraan biaya perjalananmu.</p>
@@ -1972,50 +2008,82 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   // destination and dates. Guests/members cannot — the button is owner-only in
   // the UI and the existing RLS policy on public.groups enforces it server-side.
   async function editGroupTrip(){
-      const g = colState.group;
-      if(!g) return;
-      if(!(colState.perms && colState.perms.is_owner)){
-        alert('Hanya pembuat trip yang bisa mengubah detail trip.');
-        return;
+        const g = colState.group;
+        if(!g) return;
+        if(!(colState.perms && colState.perms.is_owner)){
+          alert('Hanya pembuat trip yang bisa mengubah detail trip.');
+          return;
+        }
+        // Open edit modal instead of browser prompts
+        openEditTripModal(g);
       }
-      const name = prompt('Nama trip:', g.name || '');
-      if(name === null) return;
-      if(!name.trim()){ alert('Nama trip tidak boleh kosong.'); return; }
-      const destination = prompt('Destinasi:', g.destination || '');
-      if(destination === null) return;
-      const start = prompt('Tanggal mulai (YYYY-MM-DD):', g.start_date ? String(g.start_date) : '');
-      if(start === null) return;
-      const end = prompt('Tanggal selesai (YYYY-MM-DD):', g.end_date ? String(g.end_date) : '');
-      if(end === null) return;
 
-      const iso = /^\d{4}-\d{2}-\d{2}$/;
-      if(!iso.test(start) || !iso.test(end)){ alert('Format tanggal harus YYYY-MM-DD.'); return; }
-      if(end < start){ alert('Tanggal selesai tidak boleh sebelum tanggal mulai.'); return; }
+      function openEditTripModal(g) {
+        $('editTripName').value = g.name || '';
+        $('editTripDestination').value = g.destination || '';
+        $('editTripStart').value = g.start_date ? String(g.start_date).slice(0,10) : '';
+        $('editTripEnd').value = g.end_date ? String(g.end_date).slice(0,10) : '';
+        $('editTripNote').value = g.note || '';
+        const modal = document.getElementById('editTripModal');
+        modal.style.display = 'flex';
+      }
 
-      const btn = document.getElementById('editGroupBtn');
-      busyBtn(btn, 'Menyimpan...');
-      try{
-        const res = await API.updateGroup(g.id, {
-          name: name.trim(),
-          destination: destination.trim() || null,
-          start_date: start,
-          end_date: end
-        });
-        if(res && res.error){ alert('Gagal menyimpan: ' + (res.error.message || res.error)); return; }
-        // Update local state immediately
-        g.name = name.trim();
-        g.destination = destination.trim() || g.destination;
-        g.start_date = start;
-        g.end_date = end;
-        // Update header
-        $('groupName').textContent = g.name;
-        $('groupMeta').textContent = `${(g.destination||'')?g.destination+' · ':''}${g.start_date?dateText(String(g.start_date)):'?'}${g.end_date?' — '+dateText(String(g.end_date)):''} · Pembuat ${creatorName()}`;
-        // Re-derive day tabs and agenda from the new dates WITHOUT reloading from server
-        // (which would overwrite local updates with potentially stale PostgREST cache)
-        renderGroupPlanner();
-        renderGroupExpenses();
-      } finally { freeBtn(btn); }
-    }
+      function closeEditTripModal() {
+        document.getElementById('editTripModal').style.display = 'none';
+      }
+
+      // Close modal on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          const modal = document.getElementById('editTripModal');
+          if (modal && modal.style.display !== 'none') {
+            closeEditTripModal();
+          }
+        }
+      });
+
+      async function saveEditTrip(event) {
+        event.preventDefault();
+        const g = colState.group;
+        if(!g) return;
+
+        const name = $('editTripName').value.trim();
+        if(!name){ alert('Nama trip tidak boleh kosong.'); return; }
+        const destination = $('editTripDestination').value.trim();
+        const start = $('editTripStart').value;
+        const end = $('editTripEnd').value;
+        const note = $('editTripNote').value.trim();
+
+        if(!start || !end){ alert('Tanggal mulai dan selesai harus diisi.'); return; }
+        if(end < start){ alert('Tanggal selesai tidak boleh sebelum tanggal mulai.'); return; }
+
+        const btn = document.getElementById('editGroupBtn');
+        busyBtn(btn, 'Menyimpan...');
+        try{
+          const res = await API.updateGroup(g.id, {
+            name: name,
+            destination: destination || null,
+            start_date: start,
+            end_date: end,
+            note: note || null
+          });
+          if(res && res.error){ alert('Gagal menyimpan: ' + (res.error.message || res.error)); return; }
+          // Update local state immediately
+          g.name = name;
+          g.destination = destination || g.destination;
+          g.start_date = start;
+          g.end_date = end;
+          g.note = note || g.note;
+          // Update header
+          $('groupName').textContent = g.name;
+          $('groupMeta').textContent = `${(g.destination||'')?g.destination+' · ':''}${g.start_date?dateText(String(g.start_date)):'?'}${g.end_date?' — '+dateText(String(g.end_date)):''} · Pembuat ${creatorName()}`;
+          // Close modal
+          closeEditTripModal();
+          // Re-derive day tabs and agenda from the new dates
+          renderGroupPlanner();
+          renderGroupExpenses();
+        } finally { freeBtn(btn); }
+      }
 
   // ── Group Settings ──────────────────────────────────────────────
   function openGroupSettings(){
