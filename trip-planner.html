@@ -1150,7 +1150,6 @@
 
         const rows = byDate[d].map(function(item){
           return '<article class="item">' +
-            (item.link ? '<div class="item-pin" title="Titik lokasi">📍</div>' : '') +
             '<div class="item-time">' + esc(item.time || '—') + '</div>' +
             '<div><div class="item-title">' + esc(item.title) + '</div>' +
             (item.note ? '<div class="item-detail">' + esc(item.note) + '</div>' : '') +
@@ -1844,7 +1843,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     document.querySelectorAll('[data-gday]').forEach(b=>b.onclick=()=>{colState.activeDate=b.dataset.gday;renderGroupPlanner();});
     const dayItems=colState.items.filter(i=>i.date===colState.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
     $('groupDayTitle').textContent=`Itinerary · ${colState.activeDate?dateText(colState.activeDate):'pilih hari'} · ${dayItems.length} titik`;
-    $('groupItineraryList').innerHTML=dayItems.length?dayItems.map(item=>`<article class="item">${item.link?`<div class="item-pin" title="Titik lokasi">📍</div>`:''}<div class="item-time" data-gtime="${item.id}" title="Klik ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'} · <span class="by">oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-gcost="${item.id}" title="Klik ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-gcost="${item.id}" title="Klik ubah biaya">biaya?</div>`}</div>${canEditTrip()?`<button class="delete-item" data-gdel="${item.id}" aria-label="Hapus">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada agenda hari ini.</strong>Tambah kegiatan bareng-bareng.</div>';
+    $('groupItineraryList').innerHTML=dayItems.length?dayItems.map(item=>`<article class="item"><div class="item-time" data-gtime="${item.id}" title="Klik ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'} · <span class="by">oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-gcost="${item.id}" title="Klik ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-gcost="${item.id}" title="Klik ubah biaya">biaya?</div>`}</div>${canEditTrip()?`<button class="delete-item" data-gdel="${item.id}" aria-label="Hapus">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada agenda hari ini.</strong>Tambah kegiatan bareng-bareng.</div>';
     if(canEditTrip()){
       document.querySelectorAll('[data-gtime]').forEach(el=>el.onclick=()=>editGroupTime(el));
       document.querySelectorAll('[data-gcost]').forEach(el=>el.onclick=()=>editGroupCost(el));
