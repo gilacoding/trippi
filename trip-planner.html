@@ -1216,7 +1216,8 @@ function navigateHome(reason) {
     history.replaceState({}, '', window.location.pathname);
   }
   if (typeof teardownGroupSession === 'function') teardownGroupSession();
-  if (typeof renderHome === 'function') navigateHome("home");
+  if (typeof renderHome === 'function') renderHome();
+  show('homeView');
 }
 
 function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));
