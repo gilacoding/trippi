@@ -1491,6 +1491,12 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       if(!g){
         dbg('joinGroup: group not found — deleted or invalid id');
         alert('Trip tidak ditemukan atau sudah dihapus.');
+        // Remove dead group reference from local state
+        const deadIdx = state.trips.findIndex(t => t.groupId === id || t.serverId === id);
+        if (deadIdx >= 0) {
+          state.trips.splice(deadIdx, 1);
+          save();
+        }
         navigateHome('group-not-found');
         return;
       }
@@ -1521,7 +1527,21 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       await new Promise(r => setTimeout(r, 2000));
       g = (await API.getGroup(id)).data;
     }
-    if(!g){alert('Grup tidak ditemukan.');navigateHome('openGroup-not-found');return;}
+    if(!g){
+      alert('Grup tidak ditemukan.');
+      // Remove dead group reference from local state
+      if (colState.group && colState.group.id === id) {
+        colState.group = null;
+      }
+      // Also remove from state.trips if it's a group trip
+      const deadIdx = state.trips.findIndex(t => t.groupId === id || t.serverId === id);
+      if (deadIdx >= 0) {
+        state.trips.splice(deadIdx, 1);
+        save();
+      }
+      navigateHome('openGroup-not-found');
+      return;
+    }
     // Fase A: tear down any previous group session BEFORE wiring the new one.
     // Guarantees no leaked channel/interval and no stale trip-A data in trip B.
     await teardownGroupSession();
@@ -2731,17 +2751,23 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   async function removeGroupItem(id){await API.deleteItem(id);}
   async function removeGroupExpense(id){await API.deleteExpense(id);}
   async function leaveGroup(){
-    if(colState.perms&&colState.perms.is_owner){
-      if(!confirm('Hapus trip ini secara permanen? Tindakan tidak bisa dibatalkan.')) return;
-      const { error }=await API.deleteGroup(colState.group.id);
-      if(error){ alert('Gagal: '+humanErr(error)); return; }
-    } else {
-      if(!confirm('Keluar dari trip ini?')) return;
-      const { error }=await API.leaveGroup(colState.group.id, colState.uid);
-      if(error){ alert('Gagal: '+humanErr(error)); return; }
+      const g = colState.group;
+      if(!g) return;
+      const gid = g.id;
+      if(colState.perms && colState.perms.is_owner){
+        if(!confirm('Hapus trip ini secara permanen? Tindakan tidak bisa dibatalkan.')) return;
+        const { error }=await API.deleteGroup(gid);
+        if(error){ alert('Gagal: '+humanErr(error)); return; }
+      } else {
+        if(!confirm('Keluar dari trip ini?')) return;
+        const { error }=await API.leaveGroup(gid, colState.uid);
+        if(error){ alert('Gagal: '+humanErr(error)); return; }
+      }
+      // Remove from local state
+      state.trips = state.trips.filter(t => t.groupId !== gid && t.serverId !== gid);
+      save();
+      navigateHome("teardown+home");
     }
-    navigateHome("teardown+home");
-  }
 
   async function teardownGroupSession(){ return window.MarkiSync.teardownGroupSession(); }
 
