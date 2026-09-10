@@ -844,7 +844,8 @@
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="markicab-ls-migrate.js"></script>
-<script src="backend/supabase-client.js"></script>
+<script src="assets/js/map-renderer.js"></script>
+  <script src="backend/supabase-client.js"></script>
 <script src="backend/markicab-api.js"></script>
 <script src="backend/canonical-adapter.js"></script>
 <script src="backend/json-import-parser.js"></script>
@@ -1099,7 +1100,7 @@
     el.innerHTML =
       '<div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Journey Mode</h2><span class="count" id="crewStatus"></span></div>' +
       consentHtml +
-      '<div id="crewMap" style="display:none;width:100%;height:240px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden;margin-top:12px"></div>' +
+      '<div id="consentMapPreview" style="display:none;width:100%;height:240px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden;margin-top:12px"></div>' +
       '<div class="empty" id="crewEmpty" style="margin-top:12px">Belum ada lokasi yang dibagikan.</div>' +
       '<div class="section-head" style="margin-top:14px"><h3 style="font-size:13px">Crew</h3></div>' +
       '<div class="to-go-list" id="crewStatusList"></div>';
@@ -1978,6 +1979,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
     if(colState.journey.status === 'active'){
       loadCrewMap();
+      // Ensure map resizes correctly after tab becomes visible
+      if (window._journeyMap) {
+        setTimeout(function() { window._journeyMap.invalidateSize(); }, 200);
+      }
       startCrewRefresh();
       initJourneyRealtime();  // M4.5.6
       installLocationLifecycleHandlers();
@@ -2474,38 +2479,48 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   // ── Crew map (CSS-based markers, no external lib) ────────
-  async function loadCrewMap(){
-    const map = document.getElementById('crewMap');
-    const empty = document.getElementById('crewEmpty');
-    if(map && empty && map.style.display !== 'none') showLoading(map, 'Memuat lokasi grup...');
+  function loadCrewMap(){
+      const mapEl = document.getElementById('crewMap');
+      const empty = document.getElementById('crewEmpty');
+    
+      const res = await API.getCrewLocations();
+      colState.crewLocations = (res && res.data) || [];
 
-    const res = await API.getCrewLocations();
-    colState.crewLocations = (res && res.data) || [];
+      // Fase D: only positions with real coordinates can be plotted.
+      const plottable = colState.crewLocations.filter(function(m){
+        return typeof m.latitude === 'number' && typeof m.longitude === 'number';
+      });
 
-    // Fase D: only positions with real coordinates can be plotted. Everything
-    // else (consent granted but no fix yet, stale, never shared) is expressed
-    // through the crew status list instead of a marker.
-    const plottable = colState.crewLocations.filter(function(m){
-      return typeof m.latitude === 'number' && typeof m.longitude === 'number';
-    });
-
-    if(map && empty){
-      if(plottable.length === 0){
-        // No blank map box for a demo — say plainly that nothing is shared yet.
-        map.style.display = 'none';
-        map.innerHTML = '';
-        empty.style.display = 'block';
-        empty.textContent = 'Belum ada lokasi yang dibagikan.';
-      } else {
-        map.style.display = 'block';
-        empty.style.display = 'none';
-        map.innerHTML = renderCrewMarkers(plottable);
+      if(mapEl && empty){
+        if(plottable.length === 0){
+          mapEl.style.display = 'none';
+          empty.style.display = 'block';
+          empty.textContent = 'Belum ada lokasi yang dibagikan.';
+          // Destroy map if it exists to free resources
+          if (window._journeyMap) {
+            window._journeyMap.destroy();
+            window._journeyMap = null;
+          }
+        } else {
+          mapEl.style.display = 'block';
+          empty.style.display = 'none';
+          mapEl.innerHTML = '';
+        
+          // Initialize Leaflet map if not yet initialized
+          if (!window._journeyMap) {
+            window._journeyMap = new MapRenderer('crewMap');
+            await window._journeyMap.init();
+          }
+        
+          // Set markers and fit bounds
+          window._journeyMap.setMarkers(plottable);
+          window._journeyMap.fitToMarkers();
+        }
       }
-    }
 
-    renderCrewStatusList();
-    updateCrewStatus();
-  }
+      renderCrewStatusList();
+      updateCrewStatus();
+    }
 
   // Simple functional map: a subtle grid plus one labelled marker per person
   // who actually has coordinates. No tiles, no library, no empty rectangle.
