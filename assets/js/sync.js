@@ -87,20 +87,25 @@
     if (!colState.uid) return;
     try {
       const { data, error } = await API.listMyGroups();
+      // GUARD: Only prune on confirmed successful response
       if (error || !data || !data.length) return;
+      const serverGroupIds = new Set(data.map(g => g.id));
       const now = [...state.trips];
+      // PRUNE: Remove local group trips whose groupId is NOT in server response
+      const pruned = now.filter(t => !t.groupId || serverGroupIds.has(t.groupId));
+      // MERGE: Update/add server groups
       data.forEach(g => {
-        const existing = now.find(t => t.id === g.id || t.serverId === g.id || t.groupId === g.id);
+        const existing = pruned.find(t => t.id === g.id || t.serverId === g.id || t.groupId === g.id);
         if (existing) {
           existing.name = g.name; existing.destination = g.destination || '';
           existing.start = g.start_date || existing.start; existing.end = g.end_date || existing.end;
           existing.serverId = g.id; existing.groupId = g.id; existing.isGroup = true; existing.role = g.role;
           existing._member_count = g.member_count; existing._item_count = g.item_count; existing._expense_total = g.expense_total;
         } else {
-          now.push({ id: g.id, serverId: g.id, groupId: g.id, name: g.name, destination: g.destination || '', start: g.start_date || '2026-01-01', end: g.end_date || '2026-01-01', items: [], expenses: [], isGroup: true, role: g.role, _member_count: g.member_count, _item_count: g.item_count, _expense_total: g.expense_total });
+          pruned.push({ id: g.id, serverId: g.id, groupId: g.id, name: g.name, destination: g.destination || '', start: g.start_date || '2026-01-01', end: g.end_date || '2026-01-01', items: [], expenses: [], isGroup: true, role: g.role, _member_count: g.member_count, _item_count: g.item_count, _expense_total: g.expense_total });
         }
       });
-      state.trips = now; save(); renderHome();
+      state.trips = pruned; save(); renderHome();
     } catch (e) { console.warn('[groups] loadServerGroups failed', e); }
   }
 
@@ -111,15 +116,18 @@
     if (!colState.uid) return;
     try {
       const { data, error } = await API.listPersonalTrips();
+      // GUARD: Only prune on confirmed successful response
       if (error || !data || !data.length) return;
+      const serverTripIds = new Set(data.map(t => t.id));
       const now = [...state.trips];
+      // PRUNE: Remove local personal trips whose server ID is NOT in server response
+      const pruned = now.filter(t => t.groupId || !t.supabase_trip_id || serverTripIds.has(t.supabase_trip_id));
+      // MERGE: Update/add server personal trips
       data.forEach(t => {
         // PHASE 3 INVARIANT: Skip trips that have been converted to groups.
-        // A converted trip has groupId set locally; the server trips record
-        // may still exist but should not create a duplicate local trip.
-        const converted = now.find(trip => trip.groupId && (trip.supabase_trip_id === t.id || (t.local_id && trip.id === t.local_id)));
+        const converted = pruned.find(trip => trip.groupId && (trip.supabase_trip_id === t.id || (t.local_id && trip.id === t.local_id)));
         if (converted) return;
-        const existing = now.find(trip => trip.supabase_trip_id === t.id || (t.local_id && trip.id === t.local_id));
+        const existing = pruned.find(trip => trip.supabase_trip_id === t.id || (t.local_id && trip.id === t.local_id));
         if (existing) {
           existing.name = t.name; existing.destination = t.destination || '';
           existing.start = t.start_date; existing.end = t.end_date;
@@ -136,7 +144,7 @@
             }));
           }
         } else {
-          now.push({
+          pruned.push({
             id: t.local_id || t.id, supabase_trip_id: t.id, name: t.name, destination: t.destination || '',
             start: t.start_date, end: t.end_date, note: t.note || '',
             items: (t.items || []).map(i => ({
@@ -149,7 +157,7 @@
           });
         }
       });
-      state.trips = now; save(); renderHome();
+      state.trips = pruned; save(); renderHome();
     } catch (e) { console.warn('[trips] loadPersonalTrips failed', e); }
   }
 
