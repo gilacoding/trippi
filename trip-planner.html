@@ -1220,15 +1220,27 @@ function navigateHome(reason) {
   show('homeView');
 }
 
-function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));
-  const tripId = b.dataset.open;
-  const trip = state.trips.find(t => t.id === tripId);
-  if(trip && trip.groupId){
-    b.onclick = async()=>{ await openGroup(trip.groupId, false); };
-  } else {
-    b.onclick = ()=>openTrip(tripId);
-  }
-});renderToGo();updateHeaderAvatar(colState.name||loadName()||'')}
+function renderHome(){
+  const now=[],past=[];
+  state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));
+  now.sort((a,b)=>a.start.localeCompare(b.start));
+  past.sort((a,b)=>b.end.localeCompare(a.end));
+  $('upcomingCount').textContent=now.length?`${now.length} trip`:'';
+  $('historyCount').textContent=past.length?`${past.length} trip`:'';
+  $('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class=\"empty\"><strong>Belum ada trip yang direncanakan.</strong>Buat planner pertamamu untuk mulai menyusun perjalanan.</div>';
+  $('historyTrips').innerHTML=past.length?past.map(t=>`<div class=\"history-card\"><div><h3>${esc(t.name)}</h3><div class=\"trip-meta\">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></div><button class=\"btn secondary small\" data-open=\"${t.id}\">Buka</button></div>`).join(''):'<div class=\"empty\"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';
+  document.querySelectorAll('[data-open]').forEach(b=>{
+    const tripId = b.dataset.open;
+    const trip = state.trips.find(t => t.id === tripId);
+    if(trip && trip.groupId){
+      b.onclick = async()=>{ await openGroup(trip.groupId, false); };
+    } else {
+      b.onclick = ()=>openTrip(tripId);
+    }
+  });
+  renderToGo();
+  updateHeaderAvatar(colState.name||loadName()||'');
+}
   function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const meta=[];if(t.destination)meta.push(esc(t.destination));if(t.start)meta.push(dateText(t.start));if(t.end)meta.push(dateText(t.end));const metaStr=meta.length?' · '+meta.join(' — '):'';return '<button class="trip-card" data-open="'+t.id+'"><span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination)+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+'<span>Keluar '+money(spent)+'</span></div></button>';}
   function openTrip(id){
     // PHASE 2 INVARIANT: Opening a private trip must tear down any active group session.
