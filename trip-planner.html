@@ -903,13 +903,13 @@
   async function openGuestTrip(token){
     try{
       const { data, error } = await API.getGuestTrip(token);
-      if(error){ alert('Undangan tidak valid, kedaluwarsa, atau sudah dibatalkan.'); renderHome(); show('homeView'); return; }
-      if(!data){ alert('Undangan tidak valid.'); renderHome(); show('homeView'); return; }
+      if(error){ alert('Undangan tidak valid, kedaluwarsa, atau sudah dibatalkan.'); navigateHome("home"); return; }
+      if(!data){ alert('Undangan tidak valid.'); navigateHome("home"); return; }
       guestSession = { token, trip: data, isMember: !!(colState.uid && data.is_member) };
       lockNavForGuest();
       await renderGuestView(data, guestSession.isMember);
       show('guestView');
-    }catch(e){ console.error('[guest] open failed', e); alert('Gagal membuka undangan.'); renderHome(); show('homeView'); }
+    }catch(e){ console.error('[guest] open failed', e); alert('Gagal membuka undangan.'); navigateHome("home"); }
   }
 
   function lockNavForGuest(){
@@ -1209,7 +1209,17 @@
 }
 
 
-function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));now.sort((a,b)=>a.start.localeCompare(b.start));past.sort((a,b)=>b.end.localeCompare(a.end));$('upcomingCount').textContent=now.length?`${now.length} trip`:'';$('historyCount').textContent=past.length?`${past.length} trip`:'';$('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class="empty"><strong>Belum ada trip yang direncanakan.</strong>Buat planner pertamamu untuk mulai menyusun perjalanan.</div>';$('historyTrips').innerHTML=past.length?past.map(t=>`<div class="history-card"><div><h3>${esc(t.name)}</h3><div class="trip-meta">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></div><button class="btn secondary small" data-open="${t.id}">Buka</button></div>`).join(''):'<div class="empty"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';document.querySelectorAll('[data-open]').forEach(b=>{
+function navigateHome(reason) {
+  // PHASE 0 INVARIANT: All home navigation cleans URL state.
+  // Prevents stale ?group=, ?t=, ?trip=, ?gt= from surviving across mutations.
+  if (window.location.search || window.location.hash) {
+    history.replaceState({}, '', window.location.pathname);
+  }
+  if (typeof teardownGroupSession === 'function') teardownGroupSession();
+  if (typeof renderHome === 'function') navigateHome("home");
+}
+
+function renderHome(){const now=[],past=[];state.trips.forEach(t=>(tripStatus(t)[0]==='past'?past:now).push(t));
   const tripId = b.dataset.open;
   const trip = state.trips.find(t => t.id === tripId);
   if(trip && trip.groupId){
@@ -1459,22 +1469,36 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       return g.id;
     }
   async function joinGroup(id){
-    dbg('joinGroup: start id='+id);
-    const uid=await ensureAuth();
-    if(!uid){dbg('joinGroup: ensureAuth FAILED (uid null)');pendingAction=()=>joinGroup(id);openAuth('login');return;}
-    dbg('joinGroup: uid='+uid);
-    let name=loadName();if(!name){name=askName();if(!name)return;}
-    const { data:g }=await API.getGroup(id);
-    if(!g){
-      dbg('joinGroup: group not found via list_my_groups (not yet a member)');
-      // Fall through: try isMember + join_group RPC directly for new members
+      dbg('joinGroup: start id='+id);
+      const uid=await ensureAuth();
+      if(!uid){dbg('joinGroup: ensureAuth FAILED (uid null)');pendingAction=()=>joinGroup(id);openAuth('login');return;}
+      dbg('joinGroup: uid='+uid);
+      let name=loadName();if(!name){name=askName();if(!name)return;}
+      const { data:g }=await API.getGroup(id);
+      if(!g){
+        dbg('joinGroup: group not found — deleted or invalid id');
+        alert('Trip tidak ditemukan atau sudah dihapus.');
+        navigateHome('group-not-found');
+        return;
+      }
+      dbg('joinGroup: group found '+g.name);
+      const { data:existing}=await API.isMember(id,uid);
+      if(!existing){
+        const {error:ee}=await API.joinGroup({group_id:id,user_id:uid,display_name:name});
+        if(ee){
+          dbg('joinGroup: insert member FAILED: '+ee.message);
+          // Group may have been deleted between getGroup and joinGroup
+          if(ee.message && (ee.message.includes('not found') || ee.message.includes('does not exist') || ee.message.includes('foreign key'))){
+            alert('Trip tidak ditemukan atau sudah dihapus.');
+            navigateHome('join-failed-not-found');
+            return;
+          }
+        }
+        dbg('joinGroup: insert member '+(!ee?'OK':'ERR '+ee.message));
+      }
+      else dbg('joinGroup: already member');
+      await openGroup(id,false);
     }
-    else dbg('joinGroup: group found '+g.name);
-    const { data:existing}=await API.isMember(id,uid);
-    if(!existing){const {error:ee}=await API.joinGroup({group_id:id,user_id:uid,display_name:name});dbg('joinGroup: insert member '+(!ee?'OK':'ERR '+ee.message));}
-    else dbg('joinGroup: already member');
-    await openGroup(id,false);
-  }
   async function openGroup(id,fresh,trip){
     const uid=await ensureAuth();if(!uid)return;
     let g = (await API.getGroup(id)).data;
@@ -1484,7 +1508,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       await new Promise(r => setTimeout(r, 2000));
       g = (await API.getGroup(id)).data;
     }
-    if(!g){alert('Grup tidak ditemukan.');return;}
+    if(!g){alert('Grup tidak ditemukan.');navigateHome('openGroup-not-found');return;}
     // Fase A: tear down any previous group session BEFORE wiring the new one.
     // Guarantees no leaked channel/interval and no stale trip-A data in trip B.
     await teardownGroupSession();
@@ -2703,8 +2727,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       const { error }=await API.leaveGroup(colState.group.id, colState.uid);
       if(error){ alert('Gagal: '+humanErr(error)); return; }
     }
-    await teardownGroupSession();
-    renderHome(); show('homeView');
+    navigateHome("teardown+home");
   }
 
   async function teardownGroupSession(){ return window.MarkiSync.teardownGroupSession(); }
@@ -2815,7 +2838,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
   function openFromHash(){if(location.hash.startsWith('#t=')){try{const json=LZString.decompressFromEncodedURIComponent(location.hash.slice(3));const trip=JSON.parse(json);if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}if(location.hash.startsWith('#trip=')){try{const trip=JSON.parse(decodeURIComponent(location.hash.slice(6)));if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}return false}
 
-  $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=async()=>{await teardownGroupSession();renderHome();show('homeView')});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;if($('toGoForm'))$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};if($('cancelToGo'))$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=async()=>{const t=getTrip();if(confirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)){await deleteTripFromServer(t);state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;if(typeof renderHome==='function')renderHome();show('homeView')}};  async function deleteTripFromServer(t){if(!colState.uid||!t){console.log('[delete] no uid or trip, skipping server delete');return;}try{if(t.isGroup&&t.serverId){const r=await API.deleteGroup(t.serverId);if(r&&r.error)console.error('[delete] group delete failed',r.error);else console.log('[delete] group deleted on server',t.serverId);}else if(t.supabase_trip_id){const r=await API.deleteTrip(t.supabase_trip_id);if(r&&r.error)console.error('[delete] trip delete failed',r.error);else console.log('[delete] trip deleted on server',t.supabase_trip_id);}else{console.log('[delete] local-only trip, no server sync needed',t.id);}}catch(e){console.error('[delete] server delete error',e);}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;if($('toGoSearch'))$('toGoSearch').oninput=renderToGo;
+  $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=async()=>{navigateHome("teardown+home")});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;if($('toGoForm'))$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};if($('cancelToGo'))$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=async()=>{const t=getTrip();if(confirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)){await deleteTripFromServer(t);state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;if(typeof renderHome==='function')navigateHome("home")}};  async function deleteTripFromServer(t){if(!colState.uid||!t){console.log('[delete] no uid or trip, skipping server delete');return;}try{if(t.isGroup&&t.serverId){const r=await API.deleteGroup(t.serverId);if(r&&r.error)console.error('[delete] group delete failed',r.error);else console.log('[delete] group deleted on server',t.serverId);}else if(t.supabase_trip_id){const r=await API.deleteTrip(t.supabase_trip_id);if(r&&r.error)console.error('[delete] trip delete failed',r.error);else console.log('[delete] trip deleted on server',t.supabase_trip_id);}else{console.log('[delete] local-only trip, no server sync needed',t.id);}}catch(e){console.error('[delete] server delete error',e);}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;if($('toGoSearch'))$('toGoSearch').oninput=renderToGo;
   // P2 collaborative wiring (elements may not exist if not in group view)
   const _makeGroupBtn=document.getElementById('makeGroupBtn'); if(_makeGroupBtn) _makeGroupBtn.onclick=()=>makeGroupFromTrip();
   const _inviteGroupBtn=document.getElementById('inviteGroupBtn'); if(_inviteGroupBtn) _inviteGroupBtn.onclick=shareGroup;
@@ -2894,7 +2917,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   (async()=>{
     const gid=new URLSearchParams(location.search).get('group');
     dbg('startup: group param = '+(gid||'none')+' search='+location.search);
-    if(gid){dbg('joinGroup invoked for '+gid);try{await joinGroup(gid);dbg('joinGroup resolved g='+JSON.stringify(colState.group?{id:colState.group.id,name:colState.group.name}:null));}catch(err){console.error('[startup] joinGroup error for '+gid+':',err);dbg('joinGroup error:'+err?.message);if(colState.group){openGroup(colState.group.id,false)}else{renderHome();show('homeView');alert('Trip tidak ditemukan. UUID '+gid+' tidak valid atau grup sudah dihapus.')}}}
+    if(gid){dbg('joinGroup invoked for '+gid);try{await joinGroup(gid);dbg('joinGroup resolved g='+JSON.stringify(colState.group?{id:colState.group.id,name:colState.group.name}:null));}catch(err){console.error('[startup] joinGroup error for '+gid+':',err);dbg('joinGroup error:'+err?.message);if(colState.group){openGroup(colState.group.id,false)}else{navigateHome("home");alert('Trip tidak ditemukan. UUID '+gid+' tidak valid atau grup sudah dihapus.')}}}
   })();
   // ── Service worker: registration WITH update handling ──────────────────
   // Audit finding: a bare register() means a long-lived tab never learns that a new
@@ -3431,7 +3454,7 @@ function openProfile(){
       // Guests (?gt=) must NOT be forced into the login modal — they view read-only.
       // Also check pendingGuestToken: guestSession may not be set yet (async openGuestTrip)
       if(isGuest() || pendingGuestToken){ return; }
-      renderHome(); show('homeView'); openAuth('login');
+      navigateHome("home"); openAuth('login');
     }
   });
 
@@ -3450,14 +3473,14 @@ function openProfile(){
     document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.nav===name); });
   }
   function goNav(name){
-    if(name==='trip'){ setActiveNav('trip'); renderHome(); show('homeView'); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; }
-    else if(name==='plan'){ setActiveNav('plan'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); } else if(state.activeTripId || state.readOnlyTrip){ show('plannerView'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display=''; } else { setActiveNav('trip'); renderHome(); show('homeView'); } }
-    else if(name==='journey'){ setActiveNav('journey'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); document.getElementById('globalTitle').textContent='Journey Mode'; document.getElementById('globalBack').style.display=''; } else { setActiveNav('trip'); renderHome(); show('homeView'); } }
+    if(name==='trip'){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; }
+    else if(name==='plan'){ setActiveNav('plan'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); } else if(state.activeTripId || state.readOnlyTrip){ show('plannerView'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display=''; } else { setActiveNav('trip'); navigateHome("home"); } }
+    else if(name==='journey'){ setActiveNav('journey'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); document.getElementById('globalTitle').textContent='Journey Mode'; document.getElementById('globalBack').style.display=''; } else { setActiveNav('trip'); navigateHome("home"); } }
   }
   document.querySelectorAll('.nav-tab').forEach(function(t){ t.onclick=function(){ goNav(t.dataset.nav); }; });
   // global back → return to Trip
   var gb=document.getElementById('globalBack');
-  if(gb) gb.onclick=function(){ setActiveNav('trip'); renderHome(); show('homeView'); document.getElementById('globalTitle').textContent='Trip Kamu'; gb.style.display='none'; };
+  if(gb) gb.onclick=function(){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; gb.style.display='none'; };
   // keep nav synced when views change via in-app links
   var _show=show;
   show=function(v){ _show(v); if(v==='homeView'){ setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; } else if(v==='plannerView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display=''; } else if(v==='groupView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent=colState.group?colState.group.name:'Grup'; document.getElementById('globalBack').style.display=''; } };
