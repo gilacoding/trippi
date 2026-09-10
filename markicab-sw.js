@@ -1,7 +1,22 @@
 // MarkiCab service worker — hardened cache
 // P1 fix: versioned cache + stale-cache cleanup on activate +
 //        network-first for API JS so backend/markicab-api.js is never permanently cached.
-const CACHE_VERSION = 'markicab-personal-v6';
+const CACHE_VERSION = 'markicab-personal-v8';
+
+// Immediate activation — don't wait for old tabs to close
+self.addEventListener('install', function (event) {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function (event) {
+  event.waitUntil(
+    caches.keys().then(function (keys) {
+      return Promise.all(keys.filter(function (key) { return key !== CACHE_VERSION; }).map(function (key) { return caches.delete(key); }));
+    }).then(function () {
+      return self.clients.claim();
+    })
+  );
+});
 const CORE_FILES = [
   './index.html',
   './trip-planner.html',
@@ -27,7 +42,8 @@ const NETWORK_FIRST = [
   /\/backend\/supabase-client\.js(\?|$)/,
   /\/markicab-sw\.js(\?|$)/,
   /\/markicab\.webmanifest(\?|$)/,
-  /\/markicab-icon\.svg(\?|$)/
+  /\/markicab-icon\.svg(\?|$)/,
+  /\/assets\/js\/.*\.js(\?|$)/
 ];
 
 self.addEventListener('install', event => {
