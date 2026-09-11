@@ -41,6 +41,15 @@
   // ── Module-level registry: one MapRenderer per container ─────────
   var _activeMaps = {};
 
+  // ── DIAGNOSTIC: Trace map lifecycle ────────────────────────────────
+  var _mapLog = [];
+  var _allRenderers = []; // Track ALL MapRenderer instances ever created
+  function _trace(msg, data) {
+    var entry = { t: Date.now(), msg: msg, data: data };
+    _mapLog.push(entry);
+    console.log('[MAP-TRACE]', msg, data || '');
+  }
+
   // ── MapRenderer ─────────────────────────────────────────────────────
   function MapRenderer(elementId) {
     this.elementId = elementId;
@@ -49,51 +58,64 @@
     this.tileLayer = null;
     this._initGeneration = 0;
     this._completedGeneration = 0;
-    this._capturedEl = null; // Element reference captured at init time
+    this._capturedEl = null;
+    this._rendererId = _allRenderers.length;
+    _allRenderers.push(this);
+    _trace('RENDERER_CREATED', { rendererId: this._rendererId, elementId: this.elementId });
   }
 
   MapRenderer.prototype.init = function () {
     var self = this;
     
     // POINT 1: Prevent multiple concurrent init() for same container
-    // If another MapRenderer already owns this container, destroy it first
     if (_activeMaps[this.elementId] && _activeMaps[this.elementId] !== this) {
+      _trace('INIT_DESTROY_OLD', { rendererId: this._rendererId, oldRendererId: _activeMaps[this.elementId]._rendererId });
       _activeMaps[this.elementId].destroy();
     }
     _activeMaps[this.elementId] = this;
     
     var myGeneration = ++this._initGeneration;
+    _trace('INIT_START', { rendererId: this._rendererId, generation: myGeneration });
     
     return loadLeaflet().then(function (L) {
       // ABORT: A newer init() has started since this one
       if (myGeneration !== self._initGeneration) {
+        _trace('INIT_ABORT_STALE_GENERATION', { rendererId: self._rendererId, myGeneration: myGeneration, current: self._initGeneration });
         return null;
       }
       
-      // POINT 3: Verify element is still the current attached #crewMap
       var el = document.getElementById(self.elementId);
-      if (!el) return null;
+      if (!el) {
+        _trace('INIT_ABORT_NO_ELEMENT', { rendererId: self._rendererId, elementId: self.elementId });
+        return null;
+      }
       
       // ABORT: Element is detached from DOM
       if (!document.contains(el)) {
+        _trace('INIT_ABORT_DETACHED', { rendererId: self._rendererId, elementId: self.elementId });
         return null;
       }
-      
-      // Capture element reference for later verification
-      self._capturedEl = el;
 
-      // Ensure container has dimensions before Leaflet init
+      // POINT 3: Capture element reference for later verification
+      self._capturedEl = el;
+      _trace('INIT_CAPTURE_ELEMENT', { rendererId: self._rendererId, elId: el.id });
+
       var attempts = 0;
       function tryInit() {
         // ABORT: A newer init() has started while we were waiting
         if (myGeneration !== self._initGeneration) {
+          _trace('TRY_INIT_ABORT_STALE_GENERATION', { rendererId: self._rendererId, myGeneration: myGeneration, current: self._initGeneration });
           return;
         }
         
         // POINT 3: Re-verify element is still current and attached
         var currentEl = document.getElementById(self.elementId);
         if (!currentEl || currentEl !== self._capturedEl) {
-          // Container was replaced — abort
+          _trace('TRY_INIT_ABORT_ELEMENT_REPLACED', { 
+            rendererId: self._rendererId, 
+            capturedId: self._capturedEl ? self._capturedEl.id : null,
+            currentId: currentEl ? currentEl.id : null
+          });
           return;
         }
         
@@ -101,14 +123,23 @@
         if (el.offsetWidth > 0 && el.offsetHeight > 0) {
           // POINT 5: Ensure only one Leaflet instance owns this container
           if (_activeMaps[self.elementId] !== self) {
-            return; // Another MapRenderer took over
+            _trace('TRY_INIT_ABORT_NOT_OWNER', { rendererId: self._rendererId, ownerId: _activeMaps[self.elementId] ? _activeMaps[self.elementId]._rendererId : null });
+            return;
           }
+          
+          // POINT 3 (final): Verify still attached
+          if (!document.contains(el)) {
+            _trace('TRY_INIT_ABORT_NOW_DETACHED', { rendererId: self._rendererId });
+            return;
+          }
+          
+          _trace('CREATE_MAP_ABOUT_TO', { rendererId: self._rendererId, elId: el.id, parentId: el.parentNode ? el.parentNode.id : null });
           self._createMap(L, el);
           self._completedGeneration = myGeneration;
+          _trace('CREATE_MAP_DONE', { rendererId: self._rendererId, mapExists: !!self.map });
         } else if (attempts < 20) {
           setTimeout(tryInit, 50);
         } else {
-          // Fallback: force minimum dimensions
           el.style.width = el.style.width || '100%';
           el.style.height = el.style.height || '280px';
           if (document.contains(el) && _activeMaps[self.elementId] === self) {
@@ -120,20 +151,24 @@
       tryInit();
 
       return self;
+    }).catch(function(e) {
+      _trace('INIT_ERROR', { rendererId: self._rendererId, error: e.message });
+      throw e;
     });
   };
 
   MapRenderer.prototype._createMap = function (L, el) {
     var self = this;
 
-    // POINT 3 (final check): Verify element is still current and attached
+    // Final safety check
     var currentEl = document.getElementById(this.elementId);
     if (!currentEl || currentEl !== el || !document.contains(el)) {
+      _trace('CREATE_MAP_ABORT_DETACHED', { rendererId: this._rendererId });
       return;
     }
     
-    // POINT 5: Ensure only one Leaflet instance owns this container
     if (_activeMaps[this.elementId] !== this) {
+      _trace('CREATE_MAP_ABORT_NOT_OWNER', { rendererId: this._rendererId });
       return;
     }
 
@@ -154,6 +189,7 @@
     this.map.setView([-2.5, 118], 4);
 
     setTimeout(function () { self.map.invalidateSize(); }, 100);
+    _trace('LEAFLET_MAP_CREATED', { rendererId: this._rendererId });
   };
 
   MapRenderer.prototype.setMarkers = function (points) {
@@ -210,8 +246,14 @@
 
   MapRenderer.prototype.destroy = function () {
     // POINT 4: Invalidate pending initialization
-    // Increment generation so any pending init() aborts
     this._initGeneration++;
+    
+    _trace('DESTROY', { 
+      rendererId: this._rendererId, 
+      hadMap: !!this.map,
+      capturedElId: this._capturedEl ? this._capturedEl.id : null,
+      capturedAttached: this._capturedEl ? document.contains(this._capturedEl) : null
+    });
     
     if (this.map) {
       this.map.remove();
@@ -239,50 +281,50 @@
     return (now - updated) < 300000;
   };
 
-  
-  // ── DIAGNOSTIC: Trace map lifecycle ────────────────────────────────
-  var _mapLog = [];
-  function _trace(msg, data) {
-    var entry = { t: Date.now(), msg: msg, data: data };
-    _mapLog.push(entry);
-    if (window._mapDebug) console.log('[MAP-TRACE]', msg, data || '');
-  }
-  
-  // Wrap _createMap to trace element state
-  var _origCreateMap = MapRenderer.prototype._createMap;
-  MapRenderer.prototype._createMap = function (L, el) {
-    _trace('CREATE_MAP_START', {
-      elementId: this.elementId,
-      elId: el.id,
-      elParent: el.parentNode ? el.parentNode.id : null,
-      attached: document.contains(el),
-      visible: el.offsetWidth > 0 && el.offsetHeight > 0,
-      currentCrewMap: document.getElementById('crewMap') ? document.getElementById('crewMap').id : null,
-      sameAsCurrent: document.getElementById('crewMap') === el,
-      capturedEl: this._capturedEl ? this._capturedEl.id : null,
-      capturedSame: this._capturedEl === el,
-      activeMaps: Object.keys(_activeMaps)
-    });
-    _origCreateMap.call(this, L, el);
-    _trace('CREATE_MAP_END', { mapCreated: !!this.map });
+  // ── Crash diagnostics ──────────────────────────────────────────────
+  window._diagnoseMapCrash = function() {
+    var crewMapEl = document.getElementById('crewMap');
+    var allLeafletContainers = document.querySelectorAll('.leaflet-container');
+    var allCrewMapEls = document.querySelectorAll('#crewMap');
+    
+    return {
+      renderers: _allRenderers.map(function(r) {
+        return {
+          rendererId: r._rendererId,
+          elementId: r.elementId,
+          hasMap: !!r.map,
+          capturedElId: r._capturedEl ? r._capturedEl.id : null,
+          capturedAttached: r._capturedEl ? document.contains(r._capturedEl) : null,
+          capturedIsCurrent: r._capturedEl === crewMapEl,
+          initGeneration: r._initGeneration,
+          completedGeneration: r._completedGeneration
+        };
+      }),
+      activeMaps: Object.keys(_activeMaps).map(function(k) {
+        return { elementId: k, rendererId: _activeMaps[k]._rendererId };
+      }),
+      crewMapElement: crewMapEl ? {
+        id: crewMapEl.id,
+        attached: document.contains(crewMapEl),
+        parent: crewMapEl.parentNode ? crewMapEl.parentNode.id : null,
+        visible: crewMapEl.offsetWidth > 0 && crewMapEl.offsetHeight > 0
+      } : null,
+      leafletContainers: allLeafletContainers.length,
+      allCrewMapEls: allCrewMapEls.length,
+      crewMapCount: document.querySelectorAll('[id=crewMap]').length,
+      log: _mapLog.slice(-30)
+    };
   };
-  
-  // Wrap destroy to trace
-  var _origDestroy = MapRenderer.prototype.destroy;
-  MapRenderer.prototype.destroy = function () {
-    _trace('DESTROY', {
-      elementId: this.elementId,
-      hadMap: !!this.map,
-      capturedEl: this._capturedEl ? this._capturedEl.id : null,
-      capturedAttached: this._capturedEl ? document.contains(this._capturedEl) : null
-    });
-    _origDestroy.call(this);
-  };
-  
-  // Expose for console debugging
-  window._getMapLog = function() { return _mapLog; };
-  window._mapDebug = true;
+
+  // Auto-diagnose on error
+  window.addEventListener('error', function(e) {
+    if (e.message && e.message.includes('offsetWidth')) {
+      console.error('[MAP-CRASH] Diagnosing...', window._diagnoseMapCrash());
+    }
+  });
 
   // ── Export ──────────────────────────────────────────────────────────
   window.MapRenderer = MapRenderer;
+  window._getMapLog = function() { return _mapLog; };
+  window._getAllRenderers = function() { return _allRenderers; };
 })();
