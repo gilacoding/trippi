@@ -123,26 +123,31 @@
         }
         
         attempts++;
-        if (el.offsetWidth > 0 && el.offsetHeight > 0) {
-          // Force reflow to ensure parents have layout
-          // Without this, innerHTML replacement creates elements with
-          // zero dimensions, and Leaflet's getSizedParentNode walks
-          // all the way up to null looking for sized parents
-          document.body.offsetHeight; // Force reflow
-          
-          // Verify the entire parent chain has layout
+        
+        // Force reflow BEFORE checking dimensions.
+        // Without this, elements recently made visible via display:block
+        // or innerHTML replacement will report zero dimensions because
+        // the browser hasn't recalculated layout yet.
+        document.body.offsetHeight;
+        
+        // Use getBoundingClientRect() for more reliable dimension detection
+        var rect = el.getBoundingClientRect();
+        var hasLayout = rect.width > 0 && rect.height > 0;
+        
+        // Verify the entire parent chain also has layout
+        if (hasLayout) {
           var parent = el.parentNode;
           while (parent && parent !== document.body) {
-            if (parent.offsetWidth === 0 || parent.offsetHeight === 0) {
-              // Parent has no layout yet, retry
-              if (attempts < 20) {
-                setTimeout(tryInit, 50);
-                return;
-              }
+            var parentRect = parent.getBoundingClientRect();
+            if (parentRect.width === 0 || parentRect.height === 0) {
+              hasLayout = false;
+              break;
             }
             parent = parent.parentNode;
           }
-          
+        }
+        
+        if (hasLayout) {
           // POINT 5: Ensure only one Leaflet instance owns this container
           if (_activeMaps[self.elementId] !== self) {
             _trace('TRY_INIT_ABORT_NOT_OWNER', { rendererId: self._rendererId, ownerId: _activeMaps[self.elementId] ? _activeMaps[self.elementId]._rendererId : null });
@@ -155,18 +160,24 @@
             return;
           }
           
-          _trace('CREATE_MAP_ABOUT_TO', { rendererId: self._rendererId, elId: el.id, parentId: el.parentNode ? el.parentNode.id : null });
+          _trace('CREATE_MAP_ABOUT_TO', { rendererId: self._rendererId, elId: el.id, parentId: el.parentNode ? el.parentNode.id : null, width: rect.width, height: rect.height });
           self._createMap(L, el);
           self._completedGeneration = myGeneration;
           _trace('CREATE_MAP_DONE', { rendererId: self._rendererId, mapExists: !!self.map });
-        } else if (attempts < 20) {
-          setTimeout(tryInit, 50);
+        } else if (attempts < 30) {
+          // Wait for layout to settle (tab transition, innerHTML replacement, etc.)
+          requestAnimationFrame(tryInit);
         } else {
+          // Fallback: force minimum dimensions and try once more
           el.style.width = el.style.width || '100%';
           el.style.height = el.style.height || '280px';
+          document.body.offsetHeight;
           if (document.contains(el) && _activeMaps[self.elementId] === self) {
-            self._createMap(L, el);
-            self._completedGeneration = myGeneration;
+            var fallbackRect = el.getBoundingClientRect();
+            if (fallbackRect.width > 0 && fallbackRect.height > 0) {
+              self._createMap(L, el);
+              self._completedGeneration = myGeneration;
+            }
           }
         }
       }
@@ -210,7 +221,12 @@
 
     this.map.setView([-2.5, 118], 4);
 
-    setTimeout(function () { self.map.invalidateSize(); }, 100);
+    // Force recalc after container becomes visible
+    var invalidateTimer = setTimeout(function () { 
+      if (self.map && self._completedGeneration === myGeneration) {
+        self.map.invalidateSize(); 
+      }
+    }, 100);
     _trace('LEAFLET_MAP_CREATED', { rendererId: this._rendererId });
   };
 
@@ -267,7 +283,7 @@
   };
 
   MapRenderer.prototype.destroy = function () {
-    // POINT 4: Invalidate pending initialization
+    // POINT 4: Invalidate pending initialization FIRST
     this._initGeneration++;
     
     _trace('DESTROY', { 
