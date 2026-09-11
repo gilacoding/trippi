@@ -1997,10 +1997,16 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   function renderJourneyContent(){
-    const isOwner = colState.perms && colState.perms.is_owner;
-    const active = colState.journey && colState.journey.status === 'active';
-    const hasConsent = colState.locationConsent === 'granted';
-    const html=[];
+      const isOwner = colState.perms && colState.perms.is_owner;
+      const active = colState.journey && colState.journey.status === 'active';
+      const hasConsent = colState.locationConsent === 'granted';
+      const html=[];
+
+      // Destroy old map before replacing HTML
+      if (window._journeyMap) {
+        window._journeyMap.destroy();
+        window._journeyMap = null;
+      }
 
     // Journey Mode banner — owner controls start/end
     if(isOwner){
