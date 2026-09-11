@@ -395,6 +395,12 @@
   #plannerView .expense-total,#groupView .expense-total{border-radius:16px;padding:16px;background:linear-gradient(135deg,rgba(54,211,153,.13),rgba(54,211,153,.03)),var(--surface);border:1px solid rgba(54,211,153,.25)}
   #plannerView .expense-total span,#groupView .expense-total span{font-family:'Outfit';font-size:12px;color:var(--text-muted);margin-bottom:6px}
   #plannerView .expense-total b,#groupView .expense-total b{font-family:'Poppins';font-size:18px;font-weight:700;color:var(--success-text)}
+  /* Expense type toggle (personal vs trip) */
+  .exp-type-seg{display:flex;gap:8px}
+  .exp-type-seg label{flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface2);border-radius:11px;padding:10px 12px;font-size:13px;font-weight:600;cursor:pointer}
+  .exp-type-seg label:has(input:checked){border-color:var(--accent);background:rgba(255,122,69,.08)}
+  .exp-badge{font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(156,166,184,.14);color:var(--muted)}
+  .exp-badge.pribadi{background:rgba(255,122,69,.12);color:var(--accent-text)}
 
   /* ── Reduced motion support ─────────────────────────────────────── */
   @media(prefers-reduced-motion:reduce){
@@ -761,18 +767,19 @@
       </form></details>
     </div>
     <div class="view-panel" id="expensesPanel">
-      <div class="section-head"><div><h2>Pengeluaran</h2></div></div>
-      <div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="groupDailyExpense">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="groupTripExpense">Rp0</b></div></div>
-      <div class="expense-list" id="groupExpenseList"></div>
-      <details class="add-panel"><summary><span class="btn secondary wide">+ Catat pengeluaran grup</span></summary><form class="form-card form-grid" id="groupExpenseForm">
-        <div class="field"><label for="groupExpenseName">Nama</label><input id="groupExpenseName" required maxlength="60" placeholder="Makan siang"></div>
-        <div class="field"><label for="groupExpenseAmount">Jumlah</label><input id="groupExpenseAmount" type="number" min="0" required placeholder="0"></div>
-        <div class="field"><label for="groupExpenseCategory">Kategori</label><select id="groupExpenseCategory"><option>Makan</option><option>Transport</option><option>Hotel</option><option>Tiket</option><option>Belanja</option><option>Lainnya</option></select></div>
-        <div class="field"><label for="groupExpensePayer">Dibayar oleh</label><select id="groupExpensePayer"><option value="">— saya —</option></select><div class="muted" style="font-size:12px;margin-top:4px">Kosongkan = kamu yang bayar.</div></div>
-        <div class="field"><label for="groupExpenseNote">Catatan</label><input id="groupExpenseNote" maxlength="120" placeholder="Opsional"></div>
-        <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupExpense">Batal</button><button class="btn" type="submit">Catat</button></div>
-      </form></details>
-      </div>
+          <div class="section-head"><div><h2>Pengeluaran</h2></div></div>
+          <div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="groupDailyExpense">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="groupTripExpense">Rp0</b></div><div class="expense-row" id="myExpenseRow"><span>Milikku (pribadi)</span><b id="groupMyExpense">Rp0</b></div></div>
+          <div class="expense-list" id="groupExpenseList"></div>
+          <details class="add-panel"><summary><span class="btn secondary wide">+ Catat pengeluaran</span></summary><form class="form-card form-grid" id="groupExpenseForm">
+            <div class="field"><label>Jenis</label><div class="exp-type-seg" role="radiogroup" aria-label="Jenis pengeluaran"><label><input type="radio" name="groupExpenseType" value="trip" checked>Pengeluaran trip</label><label><input type="radio" name="groupExpenseType" value="personal">Milikku (pribadi)</label></div><div class="muted" style="font-size:12px;margin-top:4px" id="expTypeHint">Dilihat semua anggota trip.</div></div>
+            <div class="field"><label for="groupExpenseName">Nama</label><input id="groupExpenseName" required maxlength="60" placeholder="Makan siang"></div>
+            <div class="field"><label for="groupExpenseAmount">Jumlah</label><input id="groupExpenseAmount" type="number" min="0" required placeholder="0"></div>
+            <div class="field"><label for="groupExpenseCategory">Kategori</label><select id="groupExpenseCategory"><option>Makan</option><option>Transport</option><option>Hotel</option><option>Tiket</option><option>Belanja</option><option>Lainnya</option></select></div>
+            <div class="field" id="payerField"><label for="groupExpensePayer">Dibayar oleh</label><select id="groupExpensePayer"><option value="">— saya —</option></select><div class="muted" style="font-size:12px;margin-top:4px">Kosongkan = kamu yang bayar.</div></div>
+            <div class="field"><label for="groupExpenseNote">Catatan</label><input id="groupExpenseNote" maxlength="120" placeholder="Opsional"></div>
+            <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupExpense">Batal</button><button class="btn" type="submit">Catat</button></div>
+          </form></details>
+          </div>
 
       <!-- Fase C: Group Wishlist view panel -->
       <div class="view-panel" id="wishlistPanel">
@@ -1903,11 +1910,19 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
   function renderGroupExpenses(){
 
-      const dayExp=colState.expenses.filter(i=>i.date===colState.activeDate);
+      // RLS guarantees colState.expenses holds only: trip rows + MY personal rows.
+      const isMine = i => i.type === 'personal' && i.created_by === colState.uid;
+      const shared = colState.expenses.filter(i => !isMine(i));
+      const mine   = colState.expenses.filter(isMine);
+    const dayExp=colState.expenses.filter(i=>i.date===colState.activeDate);
     const sum=l=>l.reduce((s,i)=>s+(Number(i.amount)||0),0);
-    $('groupDailyExpense').textContent=money(sum(dayExp));
-    $('groupTripExpense').textContent=money(sum(colState.expenses));
-    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div>${canEditTrip()?`<button class="expense-delete" data-gdelexp="${item.id}">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
+    // Shared totals count TRIP rows only — personal money never enters aggregates.
+    $('groupDailyExpense').textContent=money(sum(dayExp.filter(i=>!isMine(i))));
+    $('groupTripExpense').textContent=money(sum(shared));
+    const myRow=document.getElementById('myExpenseRow');
+    if(myRow){ myRow.style.display = mine.length ? '' : 'none'; }
+    $('groupMyExpense').textContent=money(sum(mine));
+    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} ${isMine(item)?'<span class="exp-badge pribadi">Pribadi</span>':''} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by&&!isMine(item)?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div>${(item.type!=='personal'&&canEditTrip())||isMine(item)?`<button class="expense-delete" data-gdelexp="${item.id}">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
     if(canEditTrip()){
       document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
     }
@@ -2839,7 +2854,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>removeMemberFromTrip(b.dataset.rm));
   }
   async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}
-  async function addGroupExpense(event){event.preventDefault();const g=colState.group;if(!g)return;const payer=$('groupExpensePayer').value||'';const {error}=await API.addExpense({group_id:g.id,name:$('groupExpenseName').value.trim(),amount:Number($('groupExpenseAmount').value)||0,category:$('groupExpenseCategory').value,note:$('groupExpenseNote').value.trim(),date:colState.activeDate||'',paid_by:payer||null});if(error)alert('Gagal: '+error.message);else{$('groupExpenseForm').reset();$('groupExpensePayer').innerHTML='<option value="">— saya —</option>';populatePayerSelect();$('groupExpenseForm').parentElement.open=false;await loadGroupExpenses(g.id);}}
+  async function addGroupExpense(event){event.preventDefault();const g=colState.group;if(!g)return;const typeEl=document.querySelector('input[name="groupExpenseType"]:checked');const type=(typeEl&&typeEl.value==='personal')?'personal':'trip';const payer=type==='personal'?'':($('groupExpensePayer').value||'');const {error}=await API.addExpense({group_id:g.id,name:$('groupExpenseName').value.trim(),amount:Number($('groupExpenseAmount').value)||0,category:$('groupExpenseCategory').value,note:$('groupExpenseNote').value.trim(),date:colState.activeDate||'',paid_by:payer||null,type:type});if(error)alert('Gagal: '+error.message);else{$('groupExpenseForm').reset();$('groupExpensePayer').innerHTML='<option value="">— saya —</option>';populatePayerSelect();updateExpTypeUI();$('groupExpenseForm').parentElement.open=false;await loadGroupExpenses(g.id);}}
   // NOTE: groupWishForm removed from DOM — addGroupWish only called if element exists
   async function addGroupWish(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupWishTitle').value.trim(),link:normalizeLink($('groupWishLink').value),note:$('groupWishNote').value.trim(),created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{const f=$('groupWishForm');if(f){f.reset();f.parentElement.open=false;}await loadShared(g.id);}}
   async function editGroupTime(el){const id=el.dataset.gtime;const it=colState.items.find(i=>i.id===id);if(!it)return;const input=document.createElement('input');input.type='time';input.className='inline-edit';input.value=it.time||'';el.replaceWith(input);input.focus();if(input.showPicker)input.showPicker();const commit=async()=>{const v=input.value.trim();await API.updateItem(id,{time:v});await loadShared(colState.group.id);};input.onblur=commit;input.onkeydown=e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape')loadShared(colState.group.id);};}
@@ -2981,6 +2996,15 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   const _editGroupBtn=document.getElementById('editGroupBtn'); if(_editGroupBtn) _editGroupBtn.onclick=()=>editGroupTrip();
   const _groupAgendaForm=document.getElementById('groupAgendaForm'); if(_groupAgendaForm) _groupAgendaForm.onsubmit=addGroupAgenda;
   const _cancelGroupAgenda=document.getElementById('cancelGroupAgenda'); if(_cancelGroupAgenda) _cancelGroupAgenda.onclick=()=>{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false};
+  function updateExpTypeUI(){
+    const t=document.querySelector('input[name="groupExpenseType"]:checked');
+    const personal=t&&t.value==='personal';
+    const hint=document.getElementById('expTypeHint');
+    const pf=document.getElementById('payerField');
+    if(hint) hint.textContent = personal ? 'Hanya kamu yang bisa melihat pengeluaran ini.' : 'Dilihat semua anggota trip.';
+    if(pf) pf.style.display = personal ? 'none' : '';
+  }
+  document.querySelectorAll('input[name="groupExpenseType"]').forEach(r=>r.addEventListener('change',updateExpTypeUI));
   const _groupExpenseForm=document.getElementById('groupExpenseForm'); if(_groupExpenseForm) _groupExpenseForm.onsubmit=addGroupExpense;
   const _cancelGroupExpense=document.getElementById('cancelGroupExpense'); if(_cancelGroupExpense) _cancelGroupExpense.onclick=()=>{$('groupExpenseForm').reset();$('groupExpenseForm').parentElement.open=false};
   // Fase C: wishlist form wiring

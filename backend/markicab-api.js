@@ -431,9 +431,10 @@
     // OLD: .from('group_expenses').insert(payload)
     // NEW: rpc('create_expense')
     addExpense: function (payload) {
-      // payload = { group_id, name, amount, category, note, date, paid_by? }
+      // payload = { group_id, name, amount, category, note, date, paid_by?, type? }
       // created_by is NOT sent — RPC uses auth.uid()
       // paid_by defaults to the logging user inside the RPC
+      // type: 'trip' (default) | 'personal' — personal rows are private to created_by
       return cachedClient.rpc('create_expense', {
         p_group_id:  payload.group_id,
         p_name:      payload.name,
@@ -441,7 +442,8 @@
         p_category:  payload.category || '',
         p_note:      payload.note || '',
         p_date:      payload.date || null,
-        p_paid_by:   payload.paid_by || null
+        p_paid_by:   payload.paid_by || null,
+        p_type:      payload.type || 'trip'
       });
     },
 
