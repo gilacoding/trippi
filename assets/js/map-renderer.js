@@ -25,13 +25,11 @@
     if (window.L) return Promise.resolve(window.L);
     
     return new Promise(function (resolve, reject) {
-      // Load CSS
       var link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = LEAFLET_CSS;
       document.head.appendChild(link);
       
-      // Load JS
       var script = document.createElement('script');
       script.src = LEAFLET_JS;
       script.onload = function () { resolve(window.L); };
@@ -40,18 +38,30 @@
     });
   }
 
+  // ── Module-level registry: one MapRenderer per container ─────────
+  var _activeMaps = {};
+
   // ── MapRenderer ─────────────────────────────────────────────────────
   function MapRenderer(elementId) {
     this.elementId = elementId;
     this.map = null;
     this.markers = null;
     this.tileLayer = null;
-    this._initGeneration = 0; // Incremented on each init attempt
-    this._completedGeneration = 0; // Last successful init
+    this._initGeneration = 0;
+    this._completedGeneration = 0;
+    this._capturedEl = null; // Element reference captured at init time
   }
 
   MapRenderer.prototype.init = function () {
     var self = this;
+    
+    // POINT 1: Prevent multiple concurrent init() for same container
+    // If another MapRenderer already owns this container, destroy it first
+    if (_activeMaps[this.elementId] && _activeMaps[this.elementId] !== this) {
+      _activeMaps[this.elementId].destroy();
+    }
+    _activeMaps[this.elementId] = this;
+    
     var myGeneration = ++this._initGeneration;
     
     return loadLeaflet().then(function (L) {
@@ -60,8 +70,17 @@
         return null;
       }
       
+      // POINT 3: Verify element is still the current attached #crewMap
       var el = document.getElementById(self.elementId);
       if (!el) return null;
+      
+      // ABORT: Element is detached from DOM
+      if (!document.contains(el)) {
+        return null;
+      }
+      
+      // Capture element reference for later verification
+      self._capturedEl = el;
 
       // Ensure container has dimensions before Leaflet init
       var attempts = 0;
@@ -71,11 +90,18 @@
           return;
         }
         
+        // POINT 3: Re-verify element is still current and attached
+        var currentEl = document.getElementById(self.elementId);
+        if (!currentEl || currentEl !== self._capturedEl) {
+          // Container was replaced — abort
+          return;
+        }
+        
         attempts++;
         if (el.offsetWidth > 0 && el.offsetHeight > 0) {
-          // ABORT: Element is detached from DOM
-          if (!document.contains(el)) {
-            return;
+          // POINT 5: Ensure only one Leaflet instance owns this container
+          if (_activeMaps[self.elementId] !== self) {
+            return; // Another MapRenderer took over
           }
           self._createMap(L, el);
           self._completedGeneration = myGeneration;
@@ -85,7 +111,7 @@
           // Fallback: force minimum dimensions
           el.style.width = el.style.width || '100%';
           el.style.height = el.style.height || '280px';
-          if (document.contains(el)) {
+          if (document.contains(el) && _activeMaps[self.elementId] === self) {
             self._createMap(L, el);
             self._completedGeneration = myGeneration;
           }
@@ -99,6 +125,17 @@
 
   MapRenderer.prototype._createMap = function (L, el) {
     var self = this;
+
+    // POINT 3 (final check): Verify element is still current and attached
+    var currentEl = document.getElementById(this.elementId);
+    if (!currentEl || currentEl !== el || !document.contains(el)) {
+      return;
+    }
+    
+    // POINT 5: Ensure only one Leaflet instance owns this container
+    if (_activeMaps[this.elementId] !== this) {
+      return;
+    }
 
     this.map = L.map(el, {
       zoomControl: true,
@@ -114,10 +151,8 @@
 
     this.markers = L.layerGroup().addTo(this.map);
 
-    // Initial view (will be overridden by fitToMarkers)
-    this.map.setView([-2.5, 118], 4); // Indonesia center
+    this.map.setView([-2.5, 118], 4);
 
-    // Force recalc after container becomes visible
     setTimeout(function () { self.map.invalidateSize(); }, 100);
   };
 
@@ -174,12 +209,23 @@
   };
 
   MapRenderer.prototype.destroy = function () {
+    // POINT 4: Invalidate pending initialization
+    // Increment generation so any pending init() aborts
+    this._initGeneration++;
+    
     if (this.map) {
       this.map.remove();
       this.map = null;
       this.markers = null;
       this.tileLayer = null;
     }
+    
+    // POINT 5: Remove from registry
+    if (_activeMaps[this.elementId] === this) {
+      delete _activeMaps[this.elementId];
+    }
+    
+    this._capturedEl = null;
   };
 
   MapRenderer.prototype.invalidateSize = function () {
@@ -190,7 +236,7 @@
     if (!p.updated_at) return false;
     var updated = new Date(p.updated_at);
     var now = new Date();
-    return (now - updated) < 300000; // 5 minutes
+    return (now - updated) < 300000;
   };
 
   // ── Export ──────────────────────────────────────────────────────────
