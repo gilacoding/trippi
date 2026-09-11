@@ -2550,14 +2550,15 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         } else {
           mapEl.style.display = 'block';
           empty.style.display = 'none';
-          mapEl.innerHTML = '';
-        
+          
           // Initialize Leaflet map if not yet initialized
           if (!window._journeyMap) {
+            // Only wipe innerHTML when creating a NEW map
+            mapEl.innerHTML = '';
             window._journeyMap = new MapRenderer('crewMap');
             await window._journeyMap.init();
           }
-        
+          
           // Set markers and fit bounds
           window._journeyMap.setMarkers(plottable);
           window._journeyMap.fitToMarkers();
@@ -2692,8 +2693,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   function hideCrewMap(){
-    // Hide the map surface only: the Crew roster inside this container is the
-    // single member list and must stay visible when a journey is not running.
+    // Destroy the Leaflet map properly instead of just wiping innerHTML
+    // Wiping innerHTML detaches Leaflet's internal panes while leaving
+    // document-level Draggable event listeners alive — causing the
+    // "Cannot read properties of null (reading 'offsetWidth')" crash
+    if (window._journeyMap) {
+      window._journeyMap.destroy();
+      window._journeyMap = null;
+    }
     var m = document.getElementById('crewMap');
     if(m){ m.style.display = 'none'; m.innerHTML = ''; }
     var e = document.getElementById('crewEmpty');

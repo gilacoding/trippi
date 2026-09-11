@@ -59,6 +59,7 @@
     this._initGeneration = 0;
     this._completedGeneration = 0;
     this._capturedEl = null;
+    this._destroyed = false;
     this._rendererId = _allRenderers.length;
     _allRenderers.push(this);
     _trace('RENDERER_CREATED', { rendererId: this._rendererId, elementId: this.elementId });
@@ -66,6 +67,9 @@
 
   MapRenderer.prototype.init = function () {
     var self = this;
+    
+    // Reset destroyed state on re-initialization
+    this._destroyed = false;
     
     // POINT 1: Prevent multiple concurrent init() for same container
     if (_activeMaps[this.elementId] && _activeMaps[this.elementId] !== this) {
@@ -223,7 +227,7 @@
 
     // Force recalc after container becomes visible
     setTimeout(function () { 
-      if (self.map && self._completedGeneration === myGeneration) {
+      if (!self._destroyed && self.map && self._completedGeneration === myGeneration) {
         self.map.invalidateSize(); 
       }
     }, 100);
@@ -283,7 +287,10 @@
   };
 
   MapRenderer.prototype.destroy = function () {
-    // POINT 4: Invalidate pending initialization FIRST
+    // Mark as destroyed FIRST to prevent any async callbacks from operating
+    this._destroyed = true;
+    
+    // POINT 4: Invalidate pending initialization
     this._initGeneration++;
     
     _trace('DESTROY', { 
@@ -366,6 +373,12 @@
   function _instrumentDraggable(L) {
     if (!L || !L.Draggable) return;
     
+    // GUARD: Prevent repeated instrumentation wrapping
+    if (L.Draggable.prototype._mapicabInstrumented) {
+      return;
+    }
+    L.Draggable.prototype._mapicabInstrumented = true;
+    
     var _origDraggableInit = L.Draggable.prototype.initialize;
     L.Draggable.prototype.initialize = function(element, dragStartTarget, preventOutline) {
       this._mapicabElement = element;
@@ -377,33 +390,8 @@
     var _origOnDown = L.Draggable.prototype._onDown;
     L.Draggable.prototype._onDown = function(e) {
       var el = this._mapicabElement || this._element;
-      var parentChain = [];
-      var current = el;
-      while (current && current !== document.body) {
-        parentChain.push({
-          tag: current.tagName,
-          id: current.id || null,
-          attached: document.contains(current),
-          w: current.offsetWidth,
-          h: current.offsetHeight
-        });
-        current = current.parentNode;
-      }
       
-      console.error('[MAP-CRASH] _onDown element:', {
-        elId: el ? el.id : null,
-        elAttached: el ? document.contains(el) : null,
-        elW: el ? el.offsetWidth : null,
-        elH: el ? el.offsetHeight : null,
-        currentCrewMapId: document.getElementById('crewMap') ? document.getElementById('crewMap').id : null,
-        sameAsCurrent: el === document.getElementById('crewMap'),
-        parentChain: parentChain
-      });
-      
-      // FIX: If element is detached from DOM, do not call original _onDown
-      // This happens when Leaflet's internal panes/containers become detached
-      // after map.destroy() and recreate, but their Draggable's document-level
-      // event listeners survive
+      // DEFENSE: Skip if element is detached from DOM
       if (!el || !document.contains(el)) {
         return;
       }
