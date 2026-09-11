@@ -121,6 +121,25 @@
         
         attempts++;
         if (el.offsetWidth > 0 && el.offsetHeight > 0) {
+          // Force reflow to ensure parents have layout
+          // Without this, innerHTML replacement creates elements with
+          // zero dimensions, and Leaflet's getSizedParentNode walks
+          // all the way up to null looking for sized parents
+          document.body.offsetHeight; // Force reflow
+          
+          // Verify the entire parent chain has layout
+          var parent = el.parentNode;
+          while (parent && parent !== document.body) {
+            if (parent.offsetWidth === 0 || parent.offsetHeight === 0) {
+              // Parent has no layout yet, retry
+              if (attempts < 20) {
+                setTimeout(tryInit, 50);
+                return;
+              }
+            }
+            parent = parent.parentNode;
+          }
+          
           // POINT 5: Ensure only one Leaflet instance owns this container
           if (_activeMaps[self.elementId] !== self) {
             _trace('TRY_INIT_ABORT_NOT_OWNER', { rendererId: self._rendererId, ownerId: _activeMaps[self.elementId] ? _activeMaps[self.elementId]._rendererId : null });
