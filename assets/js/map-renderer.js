@@ -239,6 +239,50 @@
     return (now - updated) < 300000;
   };
 
+  
+  // ── DIAGNOSTIC: Trace map lifecycle ────────────────────────────────
+  var _mapLog = [];
+  function _trace(msg, data) {
+    var entry = { t: Date.now(), msg: msg, data: data };
+    _mapLog.push(entry);
+    if (window._mapDebug) console.log('[MAP-TRACE]', msg, data || '');
+  }
+  
+  // Wrap _createMap to trace element state
+  var _origCreateMap = MapRenderer.prototype._createMap;
+  MapRenderer.prototype._createMap = function (L, el) {
+    _trace('CREATE_MAP_START', {
+      elementId: this.elementId,
+      elId: el.id,
+      elParent: el.parentNode ? el.parentNode.id : null,
+      attached: document.contains(el),
+      visible: el.offsetWidth > 0 && el.offsetHeight > 0,
+      currentCrewMap: document.getElementById('crewMap') ? document.getElementById('crewMap').id : null,
+      sameAsCurrent: document.getElementById('crewMap') === el,
+      capturedEl: this._capturedEl ? this._capturedEl.id : null,
+      capturedSame: this._capturedEl === el,
+      activeMaps: Object.keys(_activeMaps)
+    });
+    _origCreateMap.call(this, L, el);
+    _trace('CREATE_MAP_END', { mapCreated: !!this.map });
+  };
+  
+  // Wrap destroy to trace
+  var _origDestroy = MapRenderer.prototype.destroy;
+  MapRenderer.prototype.destroy = function () {
+    _trace('DESTROY', {
+      elementId: this.elementId,
+      hadMap: !!this.map,
+      capturedEl: this._capturedEl ? this._capturedEl.id : null,
+      capturedAttached: this._capturedEl ? document.contains(this._capturedEl) : null
+    });
+    _origDestroy.call(this);
+  };
+  
+  // Expose for console debugging
+  window._getMapLog = function() { return _mapLog; };
+  window._mapDebug = true;
+
   // ── Export ──────────────────────────────────────────────────────────
   window.MapRenderer = MapRenderer;
 })();
