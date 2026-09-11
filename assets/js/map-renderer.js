@@ -54,28 +54,51 @@
       var el = document.getElementById(self.elementId);
       if (!el) return null;
 
-      self.map = L.map(el, {
-        zoomControl: true,
-        attributionControl: true,
-        minZoom: 3,
-        maxZoom: 18
-      });
-
-      self.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19
-      }).addTo(self.map);
-
-      self.markers = L.layerGroup().addTo(self.map);
-
-      // Initial view (will be overridden by fitToMarkers)
-      self.map.setView([-2.5, 118], 4); // Indonesia center
-
-      // Force recalc after container becomes visible
-      setTimeout(function () { self.map.invalidateSize(); }, 100);
+      // Ensure container has dimensions before Leaflet init
+      // Leaflet's getSizedParentNode traverses up and crashes on null
+      var attempts = 0;
+      function tryInit() {
+        attempts++;
+        if (el.offsetWidth > 0 && el.offsetHeight > 0) {
+          self._createMap(L, el);
+        } else if (attempts < 20) {
+          // Wait for layout to settle (tab transition, etc.)
+          setTimeout(tryInit, 50);
+        } else {
+          // Fallback: force minimum dimensions
+          el.style.width = el.style.width || '100%';
+          el.style.height = el.style.height || '280px';
+          self._createMap(L, el);
+        }
+      }
+      tryInit();
 
       return self;
     });
+  };
+
+  MapRenderer.prototype._createMap = function (L, el) {
+    var self = this;
+
+    this.map = L.map(el, {
+      zoomControl: true,
+      attributionControl: true,
+      minZoom: 3,
+      maxZoom: 18
+    });
+
+    this.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19
+    }).addTo(this.map);
+
+    this.markers = L.layerGroup().addTo(this.map);
+
+    // Initial view (will be overridden by fitToMarkers)
+    this.map.setView([-2.5, 118], 4); // Indonesia center
+
+    // Force recalc after container becomes visible
+    setTimeout(function () { self.map.invalidateSize(); }, 100);
   };
 
   MapRenderer.prototype.setMarkers = function (points) {
