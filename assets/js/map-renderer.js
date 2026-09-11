@@ -161,7 +161,7 @@
           }
           
           _trace('CREATE_MAP_ABOUT_TO', { rendererId: self._rendererId, elId: el.id, parentId: el.parentNode ? el.parentNode.id : null, width: rect.width, height: rect.height });
-          self._createMap(L, el);
+          self._createMap(L, el, myGeneration);
           self._completedGeneration = myGeneration;
           _trace('CREATE_MAP_DONE', { rendererId: self._rendererId, mapExists: !!self.map });
         } else if (attempts < 30) {
@@ -175,7 +175,7 @@
           if (document.contains(el) && _activeMaps[self.elementId] === self) {
             var fallbackRect = el.getBoundingClientRect();
             if (fallbackRect.width > 0 && fallbackRect.height > 0) {
-              self._createMap(L, el);
+              self._createMap(L, el, myGeneration);
               self._completedGeneration = myGeneration;
             }
           }
@@ -190,7 +190,7 @@
     });
   };
 
-  MapRenderer.prototype._createMap = function (L, el) {
+  MapRenderer.prototype._createMap = function (L, el, myGeneration) {
     var self = this;
 
     // Final safety check
@@ -222,7 +222,7 @@
     this.map.setView([-2.5, 118], 4);
 
     // Force recalc after container becomes visible
-    var invalidateTimer = setTimeout(function () { 
+    setTimeout(function () { 
       if (self.map && self._completedGeneration === myGeneration) {
         self.map.invalidateSize(); 
       }
