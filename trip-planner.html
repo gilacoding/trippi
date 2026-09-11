@@ -2021,7 +2021,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       loadCrewMap();
       // Ensure map resizes correctly after tab becomes visible
       if (window._journeyMap) {
-        setTimeout(function() { window._journeyMap.invalidateSize(); }, 200);
+        window._journeyMap.invalidateSize();
       }
       startCrewRefresh();
       initJourneyRealtime();  // M4.5.6
@@ -2041,12 +2041,6 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       const active = colState.journey && colState.journey.status === 'active';
       const hasConsent = colState.locationConsent === 'granted';
       const html=[];
-
-      // Destroy old map before replacing HTML
-      if (window._journeyMap) {
-        window._journeyMap.destroy();
-        window._journeyMap = null;
-      }
 
     // Journey Mode banner — owner controls start/end
     if(isOwner){
@@ -2082,7 +2076,19 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     html.push('<div id="crewMapContainer" style="margin-top:16px"><div class="section-head"><h2>Journey Mode</h2><span class="count" id="crewStatus"></span></div><div id="crewMap" style="display:none;width:100%;height:280px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden"></div><div class="empty" id="crewEmpty" style="margin-top:12px">Belum ada lokasi yang dibagikan.</div><div class="section-head" style="margin-top:14px"><h3 style="font-size:13px">Crew</h3></div><div class="to-go-list" id="crewStatusList"></div></div>');
 
     const jc = document.getElementById('journeyContent');
-    if(jc) jc.innerHTML = html.join('');
+    if(jc) {
+      // The generated HTML contains a fresh #crewMap placeholder. If Leaflet
+      // already owns the existing element, swap the placeholder out for it —
+      // never leave the Leaflet container detached.
+      var oldCrewMap = document.getElementById('crewMap');
+      jc.innerHTML = html.join('');
+      if (oldCrewMap) {
+        var freshEl = document.getElementById('crewMap');
+        if (freshEl && freshEl !== oldCrewMap && freshEl.parentNode) {
+          freshEl.parentNode.replaceChild(oldCrewMap, freshEl);
+        }
+      }
+    }
 
     // Wire buttons
     var sb = document.getElementById('startJourneyBtn');
@@ -2542,21 +2548,20 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
           mapEl.style.display = 'none';
           empty.style.display = 'block';
           empty.textContent = 'Belum ada lokasi yang dibagikan.';
-          // Destroy map if it exists to free resources
-          if (window._journeyMap) {
-            window._journeyMap.destroy();
-            window._journeyMap = null;
-          }
         } else {
           mapEl.style.display = 'block';
           empty.style.display = 'none';
           
           // Initialize Leaflet map if not yet initialized
           if (!window._journeyMap) {
-            // Only wipe innerHTML when creating a NEW map
-            mapEl.innerHTML = '';
             window._journeyMap = new MapRenderer('crewMap');
             await window._journeyMap.init();
+            // If Journey was torn down while awaiting Leaflet, this renderer
+            // is orphaned — drop it so a later visit starts clean.
+            if (window._journeyMap && window._journeyMap.map === null) {
+              window._journeyMap = null;
+              return;
+            }
           }
           
           // Set markers and fit bounds
@@ -2693,16 +2698,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   function hideCrewMap(){
-    // Destroy the Leaflet map properly instead of just wiping innerHTML
-    // Wiping innerHTML detaches Leaflet's internal panes while leaving
-    // document-level Draggable event listeners alive — causing the
-    // "Cannot read properties of null (reading 'offsetWidth')" crash
-    if (window._journeyMap) {
-      window._journeyMap.destroy();
-      window._journeyMap = null;
-    }
+    // Hide the map display only — do NOT destroy Leaflet.
+    // The map stays alive for the entire Journey session.
     var m = document.getElementById('crewMap');
-    if(m){ m.style.display = 'none'; m.innerHTML = ''; }
+    if(m){ m.style.display = 'none'; }
     var e = document.getElementById('crewEmpty');
     if(e){ e.style.display = 'block'; e.textContent = 'Belum ada lokasi yang dibagikan.'; }
   }
