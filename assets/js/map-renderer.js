@@ -400,6 +400,14 @@
         parentChain: parentChain
       });
       
+      // FIX: If element is detached from DOM, do not call original _onDown
+      // This happens when Leaflet's internal panes/containers become detached
+      // after map.destroy() and recreate, but their Draggable's document-level
+      // event listeners survive
+      if (!el || !document.contains(el)) {
+        return;
+      }
+      
       return _origOnDown.apply(this, arguments);
     };
   }
