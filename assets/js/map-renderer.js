@@ -78,6 +78,9 @@
     _trace('INIT_START', { rendererId: this._rendererId, generation: myGeneration });
     
     return loadLeaflet().then(function (L) {
+      // Instrument Draggable AFTER Leaflet is loaded
+      _instrumentDraggable(L);
+      
       // ABORT: A newer init() has started since this one
       if (myGeneration !== self._initGeneration) {
         _trace('INIT_ABORT_STALE_GENERATION', { rendererId: self._rendererId, myGeneration: myGeneration, current: self._initGeneration });
@@ -343,43 +346,47 @@
   });
 
   // ── Instrument Leaflet Draggable._onDown ────────────────────────────
-  // Patch Draggable to capture element state at moment of crash
-  var _origDraggableInit = L.Draggable.prototype.initialize;
-  L.Draggable.prototype.initialize = function(element, dragStartTarget, preventOutline) {
-    this._mapicabElement = element;
-    this._mapicabElementId = element ? element.id : null;
-    this._mapicabAttached = element ? document.contains(element) : null;
-    return _origDraggableInit.apply(this, arguments);
-  };
+  // NOTE: This must run AFTER Leaflet is loaded, not at script load time
+  function _instrumentDraggable(L) {
+    if (!L || !L.Draggable) return;
+    
+    var _origDraggableInit = L.Draggable.prototype.initialize;
+    L.Draggable.prototype.initialize = function(element, dragStartTarget, preventOutline) {
+      this._mapicabElement = element;
+      this._mapicabElementId = element ? element.id : null;
+      this._mapicabAttached = element ? document.contains(element) : null;
+      return _origDraggableInit.apply(this, arguments);
+    };
 
-  var _origOnDown = L.Draggable.prototype._onDown;
-  L.Draggable.prototype._onDown = function(e) {
-    var el = this._mapicabElement || this._element;
-    var parentChain = [];
-    var current = el;
-    while (current && current !== document.body) {
-      parentChain.push({
-        tag: current.tagName,
-        id: current.id || null,
-        attached: document.contains(current),
-        w: current.offsetWidth,
-        h: current.offsetHeight
+    var _origOnDown = L.Draggable.prototype._onDown;
+    L.Draggable.prototype._onDown = function(e) {
+      var el = this._mapicabElement || this._element;
+      var parentChain = [];
+      var current = el;
+      while (current && current !== document.body) {
+        parentChain.push({
+          tag: current.tagName,
+          id: current.id || null,
+          attached: document.contains(current),
+          w: current.offsetWidth,
+          h: current.offsetHeight
+        });
+        current = current.parentNode;
+      }
+      
+      console.error('[MAP-CRASH] _onDown element:', {
+        elId: el ? el.id : null,
+        elAttached: el ? document.contains(el) : null,
+        elW: el ? el.offsetWidth : null,
+        elH: el ? el.offsetHeight : null,
+        currentCrewMapId: document.getElementById('crewMap') ? document.getElementById('crewMap').id : null,
+        sameAsCurrent: el === document.getElementById('crewMap'),
+        parentChain: parentChain
       });
-      current = current.parentNode;
-    }
-    
-    console.error('[MAP-CRASH] _onDown element:', {
-      elId: el ? el.id : null,
-      elAttached: el ? document.contains(el) : null,
-      elW: el ? el.offsetWidth : null,
-      elH: el ? el.offsetHeight : null,
-      currentCrewMapId: document.getElementById('crewMap') ? document.getElementById('crewMap').id : null,
-      sameAsCurrent: el === document.getElementById('crewMap'),
-      parentChain: parentChain
-    });
-    
-    return _origOnDown.apply(this, arguments);
-  };
+      
+      return _origOnDown.apply(this, arguments);
+    };
+  }
 
   // ── Export ──────────────────────────────────────────────────────────
   window.MapRenderer = MapRenderer;
