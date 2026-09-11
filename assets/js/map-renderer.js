@@ -44,31 +44,51 @@
   function MapRenderer(elementId) {
     this.elementId = elementId;
     this.map = null;
-    this.markers = null; // LayerGroup
+    this.markers = null;
     this.tileLayer = null;
+    this._initGeneration = 0; // Incremented on each init attempt
+    this._completedGeneration = 0; // Last successful init
   }
 
   MapRenderer.prototype.init = function () {
     var self = this;
+    var myGeneration = ++this._initGeneration;
+    
     return loadLeaflet().then(function (L) {
+      // ABORT: A newer init() has started since this one
+      if (myGeneration !== self._initGeneration) {
+        return null;
+      }
+      
       var el = document.getElementById(self.elementId);
       if (!el) return null;
 
       // Ensure container has dimensions before Leaflet init
-      // Leaflet's getSizedParentNode traverses up and crashes on null
       var attempts = 0;
       function tryInit() {
+        // ABORT: A newer init() has started while we were waiting
+        if (myGeneration !== self._initGeneration) {
+          return;
+        }
+        
         attempts++;
         if (el.offsetWidth > 0 && el.offsetHeight > 0) {
+          // ABORT: Element is detached from DOM
+          if (!document.contains(el)) {
+            return;
+          }
           self._createMap(L, el);
+          self._completedGeneration = myGeneration;
         } else if (attempts < 20) {
-          // Wait for layout to settle (tab transition, etc.)
           setTimeout(tryInit, 50);
         } else {
           // Fallback: force minimum dimensions
           el.style.width = el.style.width || '100%';
           el.style.height = el.style.height || '280px';
-          self._createMap(L, el);
+          if (document.contains(el)) {
+            self._createMap(L, el);
+            self._completedGeneration = myGeneration;
+          }
         }
       }
       tryInit();
