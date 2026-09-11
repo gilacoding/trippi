@@ -77,6 +77,9 @@
       var isFresh = self._isFresh(p);
       var color = isFresh ? '#FA6900' : '#8B8682';
       var name = p.name || (p.user_id ? p.user_id.slice(0, 8) : '');
+      if (typeof p.dist_m === 'number') {
+        name += ' · ' + (p.dist_m < 1000 ? p.dist_m + ' m' : (p.dist_m / 1000).toFixed(1) + ' km');
+      }
       var icon = L.divIcon({
         className: 'crew-marker',
         html: '<div style="display:flex;align-items:center;gap:4px">' +

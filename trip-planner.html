@@ -2565,6 +2565,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
           }
           
           // Set markers and fit bounds
+          plottable.forEach(function(p){
+            p.dist_m = distanceMeters(
+              plottable.find(function(x){ return x.user_id === colState.uid; }), p);
+          });
           window._journeyMap.setMarkers(plottable);
           window._journeyMap.fitToMarkers();
         }
@@ -2624,6 +2628,22 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     return (Date.now() - new Date(ts).getTime()) < 120000; // fresh < 2 minutes
   }
 
+  // Haversine distance in meters; null-safe on missing coords.
+  function distanceMeters(a, b){
+    if(!a || !b) return null;
+    if(typeof a.latitude !== 'number' || typeof b.latitude !== 'number') return null;
+    const R = 6371000, rad = Math.PI/180;
+    const dLat = (b.latitude - a.latitude) * rad;
+    const dLng = (b.longitude - a.longitude) * rad;
+    const s = Math.sin(dLat/2)**2 +
+      Math.cos(a.latitude*rad) * Math.cos(b.latitude*rad) * Math.sin(dLng/2)**2;
+    return Math.round(2 * R * Math.asin(Math.sqrt(s)));
+  }
+  function fmtDistance(m){
+    if(m == null) return '';
+    return m < 1000 ? m + ' m' : (m/1000).toFixed(m < 10000 ? 1 : 0) + ' km';
+  }
+
   // Crew — the ONE member list. Name, role and status are three separate
   // columns: a role or status word is never rendered in place of a name.
   //   🟢 Online        consent granted + fix newer than 2 minutes
@@ -2646,11 +2666,11 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       if(loc && isFreshLocation(loc)){ icon = '🟢'; status = 'Online'; }
       else if(loc){                     icon = '🔴'; status = 'Offline'; }
       else {                            icon = '⚪'; status = 'Tidak berbagi'; }
-      rows.push({ uid: uid, name: nameOf(uid), role: roleLabelOf(uid), icon: icon, status: status });
+      rows.push({ uid: uid, name: nameOf(uid), role: roleLabelOf(uid), icon: icon, status: status,
+                  loc: loc || null });
     };
 
     (colState.members || []).forEach(function(m){ push(m.user_id); });
-    Object.keys(byUid).forEach(push);    // anyone reporting but not in the roster
     return rows;
   }
 
@@ -2666,11 +2686,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // status word is never rendered as the person's name.
     el.innerHTML = rows.length ? rows.map(function(r){
       const meta = esc(r.role) + ' · ' + esc(r.status);
+      const me = (colState.crewLocations || []).find(function(x){ return x.user_id === colState.uid; });
+      const dist = distanceMeters(me, r.loc);
+      const distTxt = dist != null ? ' · ' + fmtDistance(dist) + ' darimu' : '';
       const removable = canManage && r.uid !== colState.uid && r.role !== 'Trip Creator';
       return '<article class="to-go-item" data-uid="' + esc(r.uid) + '">' +
         '<div class="to-go-copy">' +
           '<div class="to-go-name">' + r.icon + ' ' + esc(r.name) + '</div>' +
-          '<div class="muted" style="font-size:11px">' + meta + '</div>' +
+          '<div class="muted" style="font-size:11px">' + meta + distTxt + '</div>' +
         '</div>' +
         (removable
           ? '<div class="to-go-actions"><button class="btn secondary small remove-member" data-rm="' + esc(r.uid) + '" aria-label="Keluarkan dari trip">×</button></div>'
@@ -2692,6 +2715,13 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(!confirm('Keluarkan ' + name + ' dari trip ini?')) return;
     const res = await API.removeMember(colState.group.id, uid);
     if(res && res.error){ alert('Gagal: ' + (res.error.message || res.error)); return; }
+    if(res && res.data === false){
+      // RPC says no membership row existed — refresh so the stale row disappears.
+      await loadMembers(colState.group.id);
+      renderCrewStatusList();
+      alert('Anggota itu tidak lagi ada di trip — daftar disegarkan.');
+      return;
+    }
     await loadMembers(colState.group.id);
     renderGroupMembersList();
     renderCrewStatusList();
