@@ -486,6 +486,10 @@
   /* Skip link for keyboard navigation */
   .skip-link{position:absolute;top:-40px;left:0;background:var(--accent);color:#fff;padding:8px 16px;z-index:100;border-radius:0 0 8px 0;font-weight:600}
   .skip-link:focus{top:0}
+  /* RETIRED bottom nav (critique 2026-09-12): Plan/Journey tabs were dead on home — goNav silently bounces to Trip unless a trip/group is open, and Journey duplicates the group's own Journey Mode tab. Markup+JS kept intact; escape paths: #globalBack, ← Semua trip. */
+  .bottom-nav{display:none!important}
+  body{padding-bottom:0!important}
+  .app{padding-bottom:24px}
 </style>
 </head>
 <body>
