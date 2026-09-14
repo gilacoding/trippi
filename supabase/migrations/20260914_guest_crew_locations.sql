@@ -2,8 +2,12 @@
 -- Root cause: get_crew_locations Gate 4 required the CALLER to have granted
 -- their own location consent. Guests (anonymous users) have never consented,
 -- so they get "location permission not granted" and see an empty map.
--- Fix: auto-detect guest status from auth.users.is_anonymous server-side
--- (not client-declared) and skip Gate 4 for anonymous guests.
+--
+-- Fix: auto-detect guest status server-side by checking for a profiles row.
+-- Members always have a profile row (created on first login via ensure_profile).
+-- Guests (anonymous / one-time participants) never have one.
+-- When the caller has no profile, skip Gate 4 (read-only access).
+--
 -- Guests remain read-only: upsert_member_location / grant_location_permission
 -- still enforce Gate 4 unconditionally.
 
@@ -19,12 +23,10 @@ SECURITY DEFINER
 SET search_path TO ''
 AS $function$
 declare
-  v_uid        uuid := auth.uid();
-  v_is_anon    boolean;
-  v_is_member  boolean;
-  v_active     boolean;
-  v_consent    text;
-  v_result     jsonb;
+  v_uid         uuid := auth.uid();
+  v_active      boolean;
+  v_has_profile boolean;
+  v_result      jsonb;
 begin
   -- Gate 1: caller authenticated
   if v_uid is null then
@@ -45,18 +47,21 @@ begin
     raise exception 'no active journey for this group' using errcode = 'P0001';
   end if;
 
-  -- Auto-detect guest status from auth.users (server-side, not client-declared)
-  select is_anonymous into v_is_anon from auth.users where id = v_uid;
-  if v_is_anon is null then v_is_anon = false; end if;
+  -- Auto-detect guest status from profiles row (server-side, not client-declared)
+  select exists(select 1 from public.profiles p where p.id = v_uid) into v_has_profile;
 
-  -- Gate 4: caller has granted their own consent (SKIPPED for anonymous guests)
-  if not v_is_anon then
-    select permission into v_consent
-    from public.location_permissions lp
-    where lp.group_id = p_group_id and lp.user_id = v_uid;
-    if v_consent is null or v_consent != 'granted' then
-      raise exception 'location permission not granted' using errcode = 'P0001';
-    end if;
+  if v_has_profile then
+    -- Member path: must have granted consent
+    declare
+      v_consent text;
+    begin
+      select permission into v_consent
+      from public.location_permissions lp
+      where lp.group_id = p_group_id and lp.user_id = v_uid;
+      if v_consent is null or v_consent != 'granted' then
+        raise exception 'location permission not granted' using errcode = 'P0001';
+      end if;
+    end;
   end if;
 
   -- Return member_locations of consent-granted CURRENT members on active journey.
