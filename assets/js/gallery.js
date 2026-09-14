@@ -52,7 +52,7 @@
 
     const { data, error } = await API.listMedia(id);
     if (error) {
-      grid.innerHTML = '<div class="gallery-empty">Gagal memuat gallery.</div>';
+      grid.innerHTML = '<div class="gallery-empty"><strong>Gallery gagal dimuat.</strong>Coba buka panel ini lagi sebentar.</div>';
       return;
     }
 
@@ -69,7 +69,7 @@
 
     const items = colState.gallery || [];
     if (!items.length) {
-      grid.innerHTML = '<div class="gallery-empty">Belum ada foto. Upload foto pertama!</div>';
+      grid.innerHTML = '<div class="gallery-empty"><strong>Belum ada foto atau video.</strong>Momen trip akan muncul di sini begitu ada yang upload.</div>';
       return;
     }
 
@@ -80,12 +80,12 @@
       });
       const isVideo = it.mime_type && it.mime_type.indexOf('video/') === 0;
       const mediaEl = isVideo
-        ? '<video src="' + it.signed_url + '" muted loop playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block"></video><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:28px;pointer-events:none;text-shadow:0 2px 8px rgba(0,0,0,.5)">▶</div>'
+        ? '<video src="' + it.signed_url + '" muted loop playsinline preload="metadata"></video><div class="video-badge" aria-hidden="true"></div>'
         : '<img src="' + it.signed_url + '" alt="' + safeCaption + '" loading="lazy" onerror="this.style.display=\'none\'">';
       return '<div class="gallery-card" data-idx="' + idx + '" data-id="' + it.id + '">' +
         mediaEl +
         (it.caption ? '<div class="caption">' + safeCaption + '</div>' : '') +
-        '<button class="delete-btn" data-delgallery="' + it.id + '" title="Hapus">×</button>' +
+        '<button class="delete-btn" data-delgallery="' + it.id + '" aria-label="Hapus media"></button>' +
         '</div>';
     }).join('');
 

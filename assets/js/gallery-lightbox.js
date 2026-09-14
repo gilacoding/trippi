@@ -18,10 +18,10 @@
   'use strict';
 
   const LB_ID = 'galleryLightbox';
-  const LB_HTML = '<button class="close-btn" id="galleryLbClose">×</button>' +
-    '<button class="nav-btn prev-btn" id="galleryLbPrev">‹</button>' +
+  const LB_HTML = '<button class="close-btn" id="galleryLbClose" aria-label="Tutup galeri">×</button>' +
+    '<button class="nav-btn prev-btn" id="galleryLbPrev" aria-label="Sebelumnya">‹</button>' +
     '<div id="galleryLbMedia"><img id="galleryLbImg" src="" alt=""></div>' +
-    '<button class="nav-btn next-btn" id="galleryLbNext">›</button>' +
+    '<button class="nav-btn next-btn" id="galleryLbNext" aria-label="Berikutnya">›</button>' +
     '<div class="caption" id="galleryLbCaption"></div>';
 
   let _onNavigate = null; // callback for external state sync (optional)
@@ -44,6 +44,9 @@
       lb = document.createElement('div');
       lb.id = LB_ID;
       lb.className = 'gallery-lightbox';
+      lb.setAttribute('role', 'dialog');
+      lb.setAttribute('aria-modal', 'true');
+      lb.setAttribute('aria-label', 'Foto & video trip');
       lb.innerHTML = LB_HTML;
       document.body.appendChild(lb);
 
@@ -51,9 +54,23 @@
       lb.querySelector('#galleryLbPrev').onclick = () => navigate(-1);
       lb.querySelector('#galleryLbNext').onclick = () => navigate(1);
       lb.onclick = (e) => { if (e.target === lb) close(); };
+      // a11y: Escape closes, Tab cycles inside the dialog while open
+      lb.onkeydown = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+        if (e.key !== 'Tab') return;
+        const f = Array.prototype.filter.call(
+          lb.querySelectorAll('button, [href], video[controls], [tabindex]:not([tabindex="-1"])'),
+          function (el) { return !el.disabled && el.offsetParent !== null; });
+        if (!f.length) return;
+        const first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      };
     }
     return lb;
   }
+
+  let _restoreFocus = null; // element focused before the lightbox opened
 
   /**
    * Open the lightbox at a given index.
@@ -63,9 +80,12 @@
   function open(idx, items) {
     if (!items || !items.length) return;
     const lb = getOrCreateLightbox();
+    _restoreFocus = document.activeElement;
     lb.dataset.idx = idx;
     lb.classList.add('active');
     updateContent(items);
+    const c = lb.querySelector('#galleryLbClose');
+    if (c) c.focus();
   }
 
   /**
@@ -78,6 +98,8 @@
       const vid = lb.querySelector('video');
       if (vid) { vid.pause(); vid.src = ''; }
     }
+    if (_restoreFocus && typeof _restoreFocus.focus === 'function') { _restoreFocus.focus(); }
+    _restoreFocus = null;
   }
 
   /**
