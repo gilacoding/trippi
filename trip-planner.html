@@ -2571,7 +2571,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
           mapEl.style.display = 'block';
           empty.style.display = 'none';
           
-          // Initialize Leaflet map if not yet initialized
+          // Initialize Leaflet map if not yet initialized.
+          // isFirstRender distinguishes the initial fit from subsequent updates.
+          const isFirstRender = !window._journeyMap;
           if (!window._journeyMap) {
             window._journeyMap = new MapRenderer('crewMap');
             await window._journeyMap.init();
@@ -2583,13 +2585,19 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
             }
           }
           
-          // Set markers and fit bounds
+          // Set markers and fit bounds.
+          // Resolve member ID -> display name before handing to the renderer,
+          // so markers show "Budi", never a UUID. nameOf() falls back to
+          // 'Tanpa nama' when no name exists (never null/undefined/UUID).
           plottable.forEach(function(p){
+            p.name = nameOf(p.user_id);
             p.dist_m = distanceMeters(
               plottable.find(function(x){ return x.user_id === colState.uid; }), p);
           });
           window._journeyMap.setMarkers(plottable);
-          window._journeyMap.fitToMarkers();
+          // Fit once on first render only. After the user drags/zooms,
+          // marker updates must NOT reset the viewport.
+          if (isFirstRender) window._journeyMap.fitToMarkers();
         }
       }
 
