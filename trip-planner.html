@@ -3178,37 +3178,27 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     var end = snap.end || '';
     var note = snap.note || '';
     if(!confirm('Membuat trip baru dari "' + (res.data.title||name) + '".')) return;
-    // For authenticated users: create via API
     var uid = await ensureAuth();
-    if(uid){
-      var gRes = await API.createGroup({ name: name, destination: destination, start_date: start, end_date: end, created_by: uid });
-      if(gRes.error){ alert('Gagal membuat trip: ' + gRes.error.message); return; }
-      var jRes = await API.joinGroup({ group_id: gRes.data.id, user_id: uid, display_name: ownerNameFromAccount() });
-      if(jRes.error){ alert('Gagal mendaftar ke trip: ' + jRes.error.message); return; }
-      // Copy items as shared_items
-      var items = snap.items || [];
-      if(items.length){
-        var rows = items.map(function(it){
-          return { group_id: gRes.data.id, date: it.date, title: it.title, time: it.time||'', link: (it.link||'').replace(/^https?:\/\//,'')||'', note: it.note||'', budget: it.budget||0, created_by: uid };
-        });
-        await API.addItemsBatch(rows);
-      }
-      await openGroup(gRes.data.id, true);
-    } else {
-      // Fallback: create localStorage-only trip
-      var newId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2,10);
-      var newTrip = {
-        id: newId, name: name, destination: destination, start: start, end: end, note: note,
-        items: (snap.items||[]).map(function(it){
-          return { id: (typeof crypto!=='undefined'&&crypto.randomUUID)?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(36).slice(2,10), date: it.date, title: it.title, time: it.time||'', link: it.link||'', note: it.note||'', budget: it.budget||0 };
-        }),
-        groupId: null, serverId: null, isGroup: false, expenses: [], wishlists: []
-      };
-      state.trips.push(newTrip);
-      save();
-      openTrip(newId);
+    if(!uid){
+      // Saved trips are DB-backed. User must be authenticated to use them.
+      alert('Masuk terlebih dahulu untuk membuat trip dari simpanan ini.');
+      pendingAction = 'useSavedTrip';
+      openAuth('login');
+      return;
     }
-    // Original Saved Trip remains intact (no action on it)
+    var gRes = await API.createGroup({ name: name, destination: destination, start_date: start, end_date: end, created_by: uid });
+    if(gRes.error){ alert('Gagal membuat trip: ' + gRes.error.message); return; }
+    var jRes = await API.joinGroup({ group_id: gRes.data.id, user_id: uid, display_name: ownerNameFromAccount() });
+    if(jRes.error){ alert('Gagal mendaftar ke trip: ' + jRes.error.message); return; }
+    var items = snap.items || [];
+    if(items.length){
+      var rows = items.map(function(it){
+        return { group_id: gRes.data.id, date: it.date, title: it.title, time: it.time||'', link: (it.link||'').replace(/^https?:\/\/[^/]+/, '')||'', note: it.note||'', budget: it.budget||0, created_by: uid };
+      });
+      await API.addItemsBatch(rows);
+    }
+    await openGroup(gRes.data.id, true);
+    // Original Saved Trip remains intact
   }
 
   async function deleteSavedTripConfirm(){
@@ -3217,6 +3207,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(!confirm('Hapus trip tersimpan ini? Tindakan ini tidak bisa dibatalkan.')) return;
     var res = await API.deleteSavedTrip(id);
     if(res.error){ alert('Gagal menghapus: ' + res.error.message); return; }
+    if(!res.data || !res.data.length){
+      alert('Trip tersimpan tidak ditemukan atau sudah dihapus.');
+    }
     // Remove from local cache and refresh list
     _savedTrips = _savedTrips.filter(function(t){ return t.id !== id; });
     await openSavedTrips();

@@ -812,7 +812,12 @@
         return client.from('saved_trips')
           .delete()
           .eq('id', id)
-          .eq('user_id', uid);
+          .eq('user_id', uid)
+          .select('id')
+          .then(function (result) {
+            if (result.error) return result;
+            return { data: (result.data || []).length > 0 ? [{ deleted: true }] : [], error: null };
+          });
       });
     },
 
