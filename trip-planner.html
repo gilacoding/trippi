@@ -1135,7 +1135,7 @@
 
     installLocationLifecycleHandlers();
     await loadCrewMap();
-    if(!isGuest() && colState.locationConsent === 'granted' && !colState.locationWatchId){
+    if(colState.locationConsent === 'granted' && !colState.locationWatchId){
       startLocationWatch();
     }
   }
