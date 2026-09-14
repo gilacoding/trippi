@@ -763,6 +763,59 @@
       });
     },
 
+    // ── Save Trip (V1) ─────────────────────────────────────────────
+    saveTrip: function (payload) {
+      var uid = colState.uid;
+      if (!uid) return Promise.resolve({ data: null, error: { message: 'Not authenticated' } });
+      payload = payload || {};
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.from('saved_trips').insert({
+          user_id: uid, // Always use authenticated user's ID, never from payload
+          title: payload.title || 'Untitled Trip',
+          destination: payload.destination || '',
+          snapshot: payload.snapshot || {}
+        }).select().single();
+      });
+    },
+
+    listSavedTrips: function () {
+      var uid = colState.uid;
+      if (!uid) return Promise.resolve({ data: null, error: { message: 'Not authenticated' } });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.from('saved_trips')
+          .select('id,title,destination,snapshot,created_at,updated_at')
+          .eq('user_id', uid)
+          .order('updated_at', { ascending: false });
+      });
+    },
+
+    getSavedTrip: function (id) {
+      var uid = colState.uid;
+      if (!uid) return Promise.resolve({ data: null, error: { message: 'Not authenticated' } });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.from('saved_trips')
+          .select('id,title,destination,snapshot,created_at,updated_at')
+          .eq('id', id)
+          .eq('user_id', uid)
+          .maybeSingle();
+      });
+    },
+
+    deleteSavedTrip: function (id) {
+      var uid = colState.uid;
+      if (!uid) return Promise.resolve({ data: null, error: { message: 'Not authenticated' } });
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        return client.from('saved_trips')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', uid);
+      });
+    },
+
     // ── M4.2 Route (wrappers over M4.1 SECURITY DEFINER RPCs) ───────
     getRoute: function (groupId) {
       return getClient().then(function (client) {
