@@ -686,13 +686,17 @@
   </div>
 
   <section class="view active" id="homeView">
-    <h1>Rencanakan trip-mu,<br><span style="color:var(--accent2-text)">tanpa lupa detailnya.</span></h1>
-    <p class="lead">Satu tempat untuk menyusun agenda, waktu, catatan, dan perkiraan biaya perjalananmu.</p>
-    <div class="section"><button class="btn wide" id="newTripBtn" style="background:var(--accent);color:#fff;border:0">+ Buat Trip</button></div>
-    <div class="section"><button class="btn wide" id="importTripBtn" style="background:var(--line);color:var(--text)">📥 Impor Trip</button></div>
+    <div class="hero">
+      <h1>Rencanakan.<br><span class="accent">Lalu cabut.</span></h1>
+      <p class="lead">Satu tempat untuk menyusun agenda, biaya, dan perjalanan bareng temanmu.</p>
+      <div class="hero-cta">
+        <button class="btn cta-primary" id="newTripBtn">Buat Trip</button>
+        <button class="btn cta-ghost" id="importTripBtn"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5v8.4m0 0l3.2-3.2M10 10.9L6.8 7.7M3.5 14.5v1.7a1.3 1.3 0 001.3 1.3h10.4a1.3 1.3 0 001.3-1.3v-1.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Impor Trip</button>
+      </div>
+    </div>
 
-    <div class="section"><div class="section-head"><h2>Trip mendatang</h2><span class="count" id="upcomingCount"></span></div><div class="trip-grid" id="upcomingTrips"></div></div>
-    <div class="section" id="historySection"><div class="section-head"><h2>Riwayat trip</h2><span class="count" id="historyCount"></span></div><div class="form-card" id="historyTrips"></div></div>
+    <div class="section home-section"><div class="section-head"><h2>Trip mendatang</h2><span class="count" id="upcomingCount"></span></div><div class="trip-grid" id="upcomingTrips"></div></div>
+    <div class="section home-section" id="historySection"><div class="section-head"><h2>Riwayat trip</h2><span class="count" id="historyCount"></span></div><div class="form-card" id="historyTrips"></div></div>
 
   </section>
 
@@ -1379,7 +1383,7 @@ function renderHome(){
   past.sort((a,b)=>b.end.localeCompare(a.end));
   $('upcomingCount').textContent=now.length?`${now.length} trip`:'';
   $('historyCount').textContent=past.length?`${past.length} trip`:'';
-  $('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class=\"empty\"><strong>Belum ada trip yang direncanakan.</strong>Buat planner pertamamu untuk mulai menyusun perjalanan.</div>';
+  $('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class="empty"><strong>Belum ada trip yang direncanakan.</strong>Mulai dari satu tujuan dan tanggal — detailnya bisa menyusul.<br><button class="btn cta-primary" data-empty-create style="margin-top:14px">Buat trip pertama</button></div>';
   $('historyTrips').innerHTML=past.length?past.map(t=>`<div class=\"history-card\"><div><h3>${esc(t.name)}</h3><div class=\"trip-meta\">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></div><button class=\"btn secondary small\" data-open=\"${t.id}\">Buka</button></div>`).join(''):'<div class=\"empty\"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';
   document.querySelectorAll('[data-open]').forEach(b=>{
     const tripId = b.dataset.open;
@@ -1390,10 +1394,12 @@ function renderHome(){
       b.onclick = ()=>openTrip(tripId);
     }
   });
+  const ec = document.querySelector('[data-empty-create]');
+  if(ec) ec.onclick = ()=> $('newTripBtn').click();
   renderToGo();
   updateHeaderAvatar(colState.name||loadName()||'');
 }
-  function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const meta=[];if(t.destination)meta.push(esc(t.destination));if(t.start)meta.push(dateText(t.start));if(t.end)meta.push(dateText(t.end));const metaStr=meta.length?' · '+meta.join(' — '):'';return '<button class="trip-card" data-open="'+t.id+'"><span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination)+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+'<span>Keluar '+money(spent)+'</span></div></button>';}
+  function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const dates=[];if(t.start)dates.push(dateText(t.start));if(t.end)dates.push(dateText(t.end));const metaStr=dates.length?' · '+dates.join(' — '):'';const spentSpan=spent>0?'<span>Keluar '+money(spent)+'</span>':'';return '<button class="trip-card" data-open="'+t.id+'"><span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination||'')+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+spentSpan+'</div></button>';}
   function openTrip(id){
     // PHASE 2 INVARIANT: Opening a private trip must tear down any active group session.
     // Prevents leaked realtime channels, polls, and stale group state.
