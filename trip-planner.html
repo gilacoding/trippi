@@ -643,6 +643,57 @@
     #savedTripDetailView .saved-actions .btn-del{margin-left:0;width:100%}
   }
   @media (prefers-reduced-motion:reduce){#savedTripsView *,#savedTripDetailView *{transition:none!important;animation:none!important}}
+
+  /* ===== GROUP VIEW POLISH (2026-09-15) — lift groupView to Home/Planner baseline; #groupView scoped; Journey/Gallery behavior untouched ===== */
+  /* head: flat like planner (kill legacy gradient slab + black border + glow shadow) */
+  #groupView .planner-head{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:none;padding:18px}
+  #groupView .planner-head h1{font-family:'Poppins';font-size:24px;font-weight:700;letter-spacing:-.4px;margin:0 0 4px}
+  #groupView .planner-head .trip-meta{font-variant-numeric:tabular-nums;color:var(--muted)}
+  /* primary nav tabs: same quiet language as day-tabs — no gradient, no glow */
+  #groupView .view-tab{font-family:'Poppins';font-weight:600;border-color:transparent;background:var(--surface2);color:var(--text-muted);border-radius:999px;padding:9px 14px;transition:background .14s ease,color .14s ease}
+  #groupView .view-tab:not(.active):hover{border-color:transparent;background:var(--line);color:var(--text)}
+  #groupView .view-tab.active{background:var(--ink);color:var(--white);box-shadow:none}
+  /* day tabs inside itinerary panel match */
+  #groupView .day-tab{font-family:'Poppins';font-weight:600;border-color:transparent;background:var(--surface2);color:var(--text-muted);border-radius:999px;transition:background .14s ease,color .14s ease}
+  #groupView .day-tab.active{background:var(--ink);color:var(--white);box-shadow:none}
+  #groupView .day-tab:hover{background:var(--line);color:var(--text)}
+  /* itinerary + wishlist rows: hairline editorial rows like planner */
+  #groupView .itinerary-list{display:grid;gap:0;border-top:1px solid var(--line)}
+  #groupView .itinerary-list .item{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;padding:14px 2px}
+  #groupView .itinerary-list .item-time{background:none;padding:0;color:var(--muted);font-variant-numeric:tabular-nums}
+  #groupView .itinerary-list .item:hover .item-time{color:var(--text)}
+  #groupView .itinerary-list .item-cost,#groupView .itinerary-list .item-cost.muted{color:var(--muted);font-variant-numeric:tabular-nums}
+  #groupView .itinerary-list .item-link{color:var(--muted);text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line)}
+  #groupView .itinerary-list .item-link:hover{color:var(--accent-text);text-decoration-color:var(--accent)}
+  #groupView .itinerary-list .delete-item,#groupView .expense-list .expense-delete,#groupView .wishlist-list .delete-item{width:44px;height:44px;margin-right:-12px;display:grid;place-items:center}
+  #groupView .by,#groupView .exp-badge{color:var(--muted)}
+  /* add-panel summaries: accent text + CSS plus, like planner */
+  #groupView .add-panel summary .btn{border:0;background:none;padding:0;font-family:'Poppins';font-size:15px;font-weight:600;color:var(--accent-text);display:inline-flex;align-items:center;gap:7px}
+  #groupView .add-panel summary .btn::before{content:'+';font-weight:700;color:var(--accent)}
+  #groupView #expensesPanel .add-panel summary .btn,#groupView #wishlistPanel .add-panel summary .btn{color:var(--muted)}
+  #groupView #expensesPanel .add-panel summary .btn::before,#groupView #wishlistPanel .add-panel summary .btn::before{color:var(--muted)}
+  /* expenses: flat totals and rows (override the shared green-gradient legacy pair) */
+  #groupView .expense-total{background:none;border:1px solid var(--line);border-radius:14px}
+  #groupView .expense-total b{color:var(--text);font-variant-numeric:tabular-nums}
+  #groupView .expense-list{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:0 14px}
+  #groupView .expense-item{border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;padding:12px 0}
+  #groupView .expense-item:last-child{border-bottom:0}
+  #groupView .expense-amount{color:var(--text);font-variant-numeric:tabular-nums}
+  #groupView .expense-icon{font-family:'Poppins';font-weight:600;font-size:13px;color:var(--text-muted)}
+  /* stats strip: flat chips, ink tabular numbers, no green last-child */
+  #groupView .trip-stats span{background:none;border:0;border-top:2px solid var(--line);border-radius:0;padding:8px 0 0;font-family:'Poppins';font-size:12px;font-weight:500;color:var(--muted);text-align:left}
+  #groupView .trip-stats span b{color:var(--text);font-variant-numeric:tabular-nums}
+  #groupView .trip-stats span:last-child{color:var(--muted);background:none;border-color:var(--line)}
+  /* badges: kill neon glows (journey dot, crew dot) */
+  #groupView .journey-badge .dot.on,#groupView .status-dot{box-shadow:none}
+  #groupView .journey-badge.active{background:none;color:var(--text)}
+  #groupView .crew-dot{box-shadow:none}
+  #groupView .crew-dot.me{border-width:0;box-shadow:inset 0 0 0 2px var(--surface),0 0 0 2px var(--green)}
+  /* consent banner: solid tint, no gradient */
+  #groupView .consent-banner{background:rgba(250,105,0,.06);border:1px solid rgba(250,105,0,.22)}
+  /* actions: Keluar = quiet danger ghost, others stay secondary */
+  #groupView #leaveGroupBtn{color:var(--danger);border-color:rgba(198,40,40,.35)}
+  #groupView #leaveGroupBtn:hover{border-color:var(--danger);background:rgba(198,40,40,.06)}
   @media (max-width:480px){
     #homeView .hero-cta{flex-direction:column;align-items:stretch}
     #homeView .hero-cta .btn{width:100%;justify-content:center;text-align:center}
