@@ -1077,7 +1077,7 @@
       return;
     }
 
-    const locRes = await API.getCrewLocations();
+    const locRes = await API.getCrewLocations(isGuest());
     const msg = (locRes && locRes.error && (locRes.error.message || '')) || '';
 
     if(msg.indexOf('no active journey') !== -1){
@@ -1108,24 +1108,33 @@
       ? '<div class="consent-banner consent-denied" id="consentBanner"><p>📍 Sedang membagikan lokasi ke grup.</p><div class="consent-actions"><button class="btn secondary small" id="stopSharingBtn">Stop berbagi</button></div></div>'
       : '<div class="consent-banner" id="consentBanner"><p><b>Bagikan lokasi kamu ke grup?</b></p><div class="muted" style="font-size:12px;margin:4px 0 10px">Anggota trip dapat melihat posisi kamu selama Journey Mode aktif dan halaman tetap terbuka.</div><div class="consent-actions"><button class="btn small" id="shareLocationBtn">Izinkan</button><button class="btn secondary small" id="denyLocationBtn">Nanti</button></div></div>';
 
-    el.innerHTML =
-      '<div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Journey Mode</h2><span class="count" id="crewStatus"></span></div>' +
-      consentHtml +
+    var innerHtml =
+      '<div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Journey Mode</h2><span class="count" id="crewStatus"></span></div>';
+    if(isGuest()){
+      innerHtml += '<div class="consent-banner consent-denied" id="consentBanner"><p>📍 Melihat lokasi crew (read-only).</p></div>';
+    } else {
+      innerHtml += consentHtml;
+    }
+    innerHtml +=
       '<div id="consentMapPreview" style="display:none;width:100%;height:240px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden;margin-top:12px"></div>' +
       '<div class="empty" id="crewEmpty" style="margin-top:12px">Belum ada lokasi yang dibagikan.</div>' +
       '<div class="section-head" style="margin-top:14px"><h3 style="font-size:13px">Crew</h3></div>' +
       '<div class="to-go-list" id="crewStatusList"></div>';
 
-    var sh = document.getElementById('shareLocationBtn');
-    if(sh) sh.onclick = shareLocationHandler;
-    var dn = document.getElementById('denyLocationBtn');
-    if(dn) dn.onclick = denyLocationHandler;
-    var ss = document.getElementById('stopSharingBtn');
-    if(ss) ss.onclick = stopSharingHandler;
+    el.innerHTML = innerHtml;
+
+    if(!isGuest()){
+      var sh = document.getElementById('shareLocationBtn');
+      if(sh) sh.onclick = shareLocationHandler;
+      var dn = document.getElementById('denyLocationBtn');
+      if(dn) dn.onclick = denyLocationHandler;
+      var ss = document.getElementById('stopSharingBtn');
+      if(ss) ss.onclick = stopSharingHandler;
+    }
 
     installLocationLifecycleHandlers();
     await loadCrewMap();
-    if(colState.locationConsent === 'granted' && !colState.locationWatchId){
+    if(!isGuest() && colState.locationConsent === 'granted' && !colState.locationWatchId){
       startLocationWatch();
     }
   }
@@ -2002,7 +2011,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // admission check (auth.uid, is_group_member, active journey, consent).
     // If the journey is NOT active, it returns [] or an error.
     // We also check consent state via local cache + server probe.
-    const locRes = await API.getCrewLocations();
+    const locRes = await API.getCrewLocations(isGuest());
 
     // Determine journey active state:
     // - If get_crew_locations returns data (even []) with no error,
@@ -2554,7 +2563,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       const mapEl = document.getElementById('crewMap');
       const empty = document.getElementById('crewEmpty');
     
-      const res = await API.getCrewLocations();
+      const res = await API.getCrewLocations(isGuest());
       colState.crewLocations = (res && res.data) || [];
 
       // Fase D: only positions with real coordinates can be plotted.
