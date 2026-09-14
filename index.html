@@ -1,13 +1,227 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <script>location.replace('trip-planner.html'+(location.hash||''));</script>
-  <meta http-equiv="refresh" content="0; url=trip-planner.html">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MarkiCab — Personal Travel Planner</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>marki.cab — Mari kita cabut!</title>
+<meta name="description" content="Rencana trip bareng teman di satu tempat: agenda, patungan, lokasi live, dan foto perjalanan. Tanpa drama grup chat.">
+<meta name="theme-color" content="#F5F5DC">
+<link rel="icon" href="marki-mark.svg" type="image/svg+xml">
+<link rel="canonical" href="https://marki.cab/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="marki.cab — Mari kita cabut!">
+<meta property="og:description" content="Satu tempat buat rencana, patungan, dan jalan bareng teman.">
+<meta property="og:image" content="https://marki.cab/marki-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* marki.cab landing — brand: MARKICAB SOCIAL BRAND GUIDE.md (palette locked, Poppins display + Outfit body, no travel cliches, no fake metrics) */
+:root{--cream:#F5F5DC;--surface:#FFFFFF;--soft:#E0E4CC;--line:#E0DBD5;--ink:#1A1A1A;--muted:#5C5856;--orange:#FA6900;--yellow:#FBC02D;--red:#C62828}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Outfit',system-ui,sans-serif;background:var(--cream);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+a{color:inherit}
+h1,h2,h3,.brand,.btn{font-family:'Poppins',sans-serif}
+
+.top{display:flex;align-items:center;gap:12px;padding:26px 0}
+.brand{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:700;letter-spacing:-.02em;text-decoration:none}
+.brand .mark{width:34px;height:34px}
+.brand .dot{color:var(--orange)}
+.top .btn{margin-left:auto}
+
+.hero{padding:56px 0 72px}
+.hero-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:56px;align-items:center}
+.hero h1{font-size:clamp(38px,6vw,64px);font-weight:800;line-height:1.05;letter-spacing:-.03em}
+.hero h1 .pop{color:var(--orange)}
+.hero .lead{font-size:19px;color:var(--muted);max-width:34em;margin:18px 0 30px}
+.cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:16px;border:none;cursor:pointer;text-decoration:none;transition:transform .15s ease,filter .15s ease,border-color .15s ease}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--orange);color:#fff;padding:15px 28px;border-radius:24px}
+.btn-primary:hover{filter:brightness(1.06)}
+.btn-ghost{background:transparent;color:var(--ink);padding:14px 24px;border-radius:24px;border:1.5px solid var(--line)}
+.btn-ghost:hover{border-color:var(--orange);color:var(--orange)}
+.hero-note{margin-top:16px;font-size:13px;color:var(--muted)}
+
+.hero-art{position:relative}
+.hero-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 14px 34px rgba(26,26,26,.08)}
+.hero-card h3{font-size:17px;font-weight:700;letter-spacing:-.2px}
+.hero-card .hc-meta{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:2px}
+.hc-crew{display:flex;align-items:center;gap:8px;margin-top:16px}
+.av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-family:'Poppins';font-weight:600;font-size:14px;color:var(--ink)}
+.hc-crew .more{margin-left:auto;font-size:12px;color:var(--muted)}
+.hc-crew .live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink)}
+.hc-crew .live::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--red)}
+.hc-list{margin-top:16px;border-top:1px solid var(--line)}
+.hc-row{display:flex;align-items:baseline;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.hc-row .t{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:44px}
+.hc-row .amt{margin-left:auto;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hc-sum{display:flex;justify-content:space-between;align-items:baseline;padding:12px 2px 0;font-size:13px;color:var(--muted)}
+.hc-sum b{font-family:'Poppins';font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font-family:'Poppins';font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);background:var(--soft);border-radius:999px;padding:3px 9px}
+
+.features{padding:8px 0 72px}
+.sec-head{margin-bottom:34px}
+.sec-head .kicker{display:inline-flex;align-items:center;gap:7px;font-family:'Poppins';font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+.sec-head .kicker::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.sec-head h2{font-size:clamp(26px,4vw,36px);font-weight:700;letter-spacing:-.02em;margin-top:10px}
+.sec-head p{color:var(--muted);margin-top:6px;max-width:44em}
+.rows{border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:52px 1fr 1.2fr;gap:18px;align-items:baseline;padding:22px 4px;border-bottom:1px solid var(--line)}
+.row .n{font-family:'Poppins';font-weight:800;font-size:17px;color:var(--orange);font-variant-numeric:tabular-nums}
+.row h3{font-size:18px;font-weight:600;letter-spacing:-.2px}
+.row p{color:var(--muted);font-size:15px}
+.row:nth-child(2) .n{color:var(--ink)}
+.row:nth-child(2) .n b{border-bottom:3px solid var(--yellow);font-weight:inherit}
+.row:nth-child(4) .n{color:var(--red)}
+
+.steps{padding:0 0 80px}
+.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px}
+.step .num{width:36px;height:36px;border-radius:50%;background:var(--soft);font-family:'Poppins';font-weight:700;font-size:15px;display:grid;place-items:center;margin-bottom:14px}
+.step:nth-child(1) .num{background:var(--orange);color:#fff}
+.step:nth-child(2) .num{background:var(--yellow)}
+.step:nth-child(3) .num{background:var(--red);color:#fff}
+.step h3{font-size:17px;font-weight:600;margin-bottom:6px}
+.step p{font-size:14px;color:var(--muted)}
+
+.statement{background:var(--ink);color:#fff;text-align:center;padding:84px 24px}
+.statement h2{font-size:clamp(26px,4.5vw,44px);font-weight:700;letter-spacing:-.02em;line-height:1.15;max-width:21ch;margin:0 auto}
+.statement h2 .pop{color:var(--yellow)}
+.statement p{margin:16px auto 28px;color:#b9b5ae;max-width:42em;font-size:16px}
+.statement .btn-primary{background:var(--orange)}
+
+.faq{padding:72px 0}
+.faq h2{font-size:clamp(24px,3.5vw,32px);font-weight:700;letter-spacing:-.02em;margin-bottom:26px}
+.qa{border-top:1px solid var(--line);padding:20px 4px;border-bottom:1px solid var(--line)}
+.qa dt{font-family:'Poppins';font-weight:600;font-size:16px}
+.qa dd{margin:8px 0 0;color:var(--muted);font-size:15px;max-width:60em}
+
+footer{padding:36px 0 48px;border-top:1px solid var(--line)}
+.foot{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.foot .brand{font-size:17px}
+.foot nav{margin-left:auto;display:flex;gap:20px;font-size:14px}
+.foot nav a{color:var(--muted);text-decoration:none;font-weight:500}
+.foot nav a:hover{color:var(--orange)}
+.foot small{width:100%;color:var(--muted);font-size:13px;margin-top:14px}
+
+:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+@media (max-width:860px){
+  .hero{padding:36px 0 56px}
+  .hero-grid{grid-template-columns:1fr;gap:40px}
+  .steps-grid{grid-template-columns:1fr}
+  .row{grid-template-columns:34px 1fr;gap:12px}
+  .row p{grid-column:2;margin-top:4px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto}}
+</style>
 </head>
 <body>
-  <p>Mengalihkan ke <a href="trip-planner.html">MarkiCab Personal Travel Planner</a>…</p>
+<a class="skip-link" href="#main" style="position:absolute;left:-9999px;top:0;background:var(--orange);color:#fff;padding:10px 16px;z-index:99" onfocus="this.style.left='8px';this.style.top='8px'" onblur="this.style.left='-9999px'">Lewati ke konten</a>
+
+<header class="wrap top">
+  <a class="brand" href="/"><img class="mark" src="marki-mark.svg" alt=""><span>marki<span class="dot">.</span>cab</span></a>
+  <a class="btn btn-primary" href="trip-planner.html?mode=signup">Mulai trip</a>
+</header>
+
+<main id="main">
+<section class="hero wrap">
+  <div class="hero-grid">
+    <div>
+      <h1>Rencana bareng.<br><span class="pop">Cabut bareng.</span></h1>
+      <p class="lead">Satu tempat buat merencanakan trip bersama temanmu — dari ide, jadwal, patungan, sampai hari-H. Grup chat nggak dirancang buat ini.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="trip-planner.html?mode=signup">Buat trip gratis</a>
+        <a class="btn btn-ghost" href="trip-planner.html">Masuk</a>
+      </div>
+      <p class="hero-note">Gratis · Tanpa kartu kredit · Cukup nama panggilan buat ikut trip</p>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <div class="hero-card">
+        <span class="tag">Jadwal trip</span>
+        <h3>Long Weekend Jogja</h3>
+        <div class="hc-meta">Yogyakarta · 12—14 Okt · 6 hari</div>
+        <div class="hc-crew">
+          <span class="av" style="background:var(--yellow)">S</span>
+          <span class="av" style="background:var(--cream)">B</span>
+          <span class="av" style="background:#E0E4CC">R</span>
+          <span class="more">+3 teman</span>
+        </div>
+        <div class="hc-list">
+          <div class="hc-row"><span class="t">08:00</span><span>Sarapan Gudeg Yu Djum</span><span class="amt">Rp 35.000</span></div>
+          <div class="hc-row"><span class="t">10:30</span><span>Keraton &amp; Tamansari</span><span class="amt">Rp 50.000</span></div>
+        </div>
+        <div class="hc-sum"><span>Estimasi patungan</span><b>Rp 480.000 / orang</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features wrap">
+  <div class="sec-head">
+    <span class="kicker">Kenapa marki.cab</span>
+    <h2>Bukan planner biasa — dia menemanimu sampai jalan</h2>
+    <p>Rencana trip biasanya mati di grup chat. Ini yang membedakan:</p>
+  </div>
+  <div class="rows">
+    <div class="row">
+      <span class="n">01</span>
+      <h3>Rencana hidup di hari-H</h3>
+      <p><b>Journey Mode</b> mengaktifkan itinerary-mu jadi mode jalan: rute, dan posisi semua orang di peta yang sama. Nggak ada lagi “kita di mana?”.</p>
+    </div>
+    <div class="row">
+      <span class="n">02</span>
+      <h3>Semua edit, satu papan</h3>
+      <p><b>Trip grup</b> yang benar-benar kolaboratif — teman menambah agenda &amp; wishlist langsung, perubahan terlihat real-time buat semua.</p>
+    </div>
+    <div class="row">
+      <span class="n">03</span>
+      <h3>Uang keluar tercatat, bukan diitung manual</h3>
+      <p><b>Patungan</b> dicatat per hari, per pengeluaran, per orang — kategori makan/transport/hotel, total trip dan siapa bayar, tanpa spreadsheet.</p>
+    </div>
+    <div class="row">
+      <span class="n">04</span>
+      <h3>Selesai jalan, jadi kenangan</h3>
+      <p><b>Galeri trip</b> mengumpulkan foto &amp; video dari semua anggota di satu tempat, menempel di itinerary-nya. Trip berubah jadi cerita, bukan arsip chat.</p>
+    </div>
+  </div>
+</section>
+
+<section class="steps wrap">
+  <div class="sec-head">
+    <span class="kicker">Cara kerja</span>
+    <h2>Tiga langkah, langsung jalan</h2>
+  </div>
+  <div class="steps-grid">
+    <div class="step"><div class="num">1</div><h3>Buat trip</h3><p>Tujuan dan tanggal dulu — detail agenda bisa menyusul. Impor itinerary-mu yang lama juga bisa.</p></div>
+    <div class="step"><div class="num">2</div><h3>Kumpulin kru</h3><p>Kirim link. Teman ikut cukup dengan nama panggilan — nggak wajib punya akun.</p></div>
+    <div class="step"><div class="num">3</div><h3>Rencana, lalu cabut</h3><p>Susun bareng, simpan sebagai template, dan aktifkan Journey Mode pas hari-H.</p></div>
+  </div>
+</section>
+
+<section class="statement">
+  <h2>Trip bukan soal <span class="pop">kemana</span>, tapi sama <span class="pop">siapa</span>.</h2>
+  <p>marki.cab ada buat momen “tiba-tiba pengen pergi” — sama orang-orang yang bikin perjalanannya seru.</p>
+  <a class="btn btn-primary" href="trip-planner.html?mode=signup">Gas, buat trip</a>
+</section>
+
+<section class="faq wrap">
+  <h2>Pertanyaan singkat</h2>
+  <dl>
+    <div class="qa"><dt>Berapa biayanya?</dt><dd>Gratis. Tanpa kartu kredit, tanpa trial.</dd></div>
+    <div class="qa"><dt>Teman saya harus bikin akun?</dt><dd>Nggak. Mereka ikut lewat link trip cukup dengan nama panggilan — dan tetap bisa melihat rencana, patungan, dan lokasi.</dd></div>
+    <div class="qa"><dt>Bedanya sama Google Docs / catatan HP?</dt><dd>Dokumen mati di hari-H. marki.cab menyatukan rencana, pengeluaran, posisi semua orang, dan foto trip di satu tempat yang sama.</dd></div>
+    <div class="qa"><dt>Data trip saya aman?</dt><dd>Trip grup tersimpan di server kami dengan akses per anggota. Trip pribadi bisa jalan sepenuhnya di perangkatmu dan tetap bisa diekspor kapan saja.</dd></div>
+  </dl>
+</section>
+</main>
+
+<footer><div class="wrap foot">
+  <a class="brand" href="/"><img class="mark" src="marki-mark.svg" alt="" style="width:26px;height:26px"><span>marki<span class="dot">.</span>cab</span></a>
+  <nav><a href="trip-planner.html">Masuk</a><a href="trip-planner.html?mode=signup">Daftar</a></nav>
+  <small>“Mari kita cabut!” — teman kabur spontan bareng kawan. Bukan agensi, bukan travel planner.</small>
+</div></footer>
 </body>
 </html>
