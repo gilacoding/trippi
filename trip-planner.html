@@ -534,6 +534,8 @@
   #homeView .hero-cta .cta-ghost{border-color:rgba(26,26,26,.3)}
   #homeView .trip-card .open-hint{display:inline-flex;align-items:center;gap:4px;margin-top:10px;font-family:'Poppins';font-size:12px;font-weight:600;color:var(--muted);transition:color .14s ease}
   #homeView .trip-card:hover .open-hint{color:var(--accent-text)}
+  /* keyboard focus: visible ring on all home interactive elements (was missing app-wide) */
+  #homeView :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   @media (max-width:480px){
     #homeView .hero-cta{flex-direction:column;align-items:stretch}
     #homeView .hero-cta .btn{width:100%;justify-content:center;text-align:center}
