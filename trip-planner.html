@@ -578,6 +578,7 @@
   /* notices + empty: neutral, matching home */
   #plannerView .notice{background:var(--surface2);border-color:var(--line);color:var(--text-muted)}
   #plannerView #readOnlyBanner{background:rgba(250,105,0,.06);border-color:rgba(250,105,0,.22);color:var(--text)}
+  #plannerView #readOnlyBanner .btn{margin-top:8px}
   #plannerView .empty{background:none;border:1px dashed var(--line);border-radius:14px;padding:26px 18px}
   /* export + delete: exports small and quiet; delete is a ghost danger, not a red slab */
   #plannerView .export-row .btn{height:42px;font-size:13px;border-radius:12px;flex:0 1 auto;padding:0 16px}
@@ -773,11 +774,11 @@
 
   <section class="view" id="plannerView">
     <button class="back" data-home>← Semua trip</button>
-    <div class="planner-head"><h1 id="plannerName"></h1><div class="trip-meta" id="plannerMeta"></div><div class="stats"><div class="stat"><b id="placeTotal">0</b><span>agenda</span></div><div class="stat"><b id="budgetTotal">Rp0</b><span>estimasi biaya</span></div><div class="stat"><b id="dayTotal">0</b><span>hari</span></div></div><div class="planner-actions"><button class="btn secondary small" id="editTripBtn">Edit trip</button><button class="btn secondary small" id="shareTrip">Bagikan</button><button class="btn small" id="saveTripBtn" style="background:var(--accent);color:#fff;border:0">💾 Save Trip</button></div></div>
-    <div class="notice" id="readOnlyBanner" style="display:none">Mode lihat saja — trip ini dibuka dari link bagikan. <button class="btn secondary small" id="makeGroupBtn" style="margin-top:8px">Buat jadi grup</button></div>
+    <div class="planner-head"><h1 id="plannerName"></h1><div class="trip-meta" id="plannerMeta"></div><div class="stats"><div class="stat"><b id="placeTotal">0</b><span>agenda</span></div><div class="stat"><b id="budgetTotal">Rp0</b><span>estimasi biaya</span></div><div class="stat"><b id="dayTotal">0</b><span>hari</span></div></div><div class="planner-actions"><button class="btn secondary small" id="editTripBtn">Edit trip</button><button class="btn secondary small" id="shareTrip">Bagikan</button><button class="btn small" id="saveTripBtn">Save Trip</button></div></div>
+    <div class="notice" id="readOnlyBanner" style="display:none">Mode lihat saja — trip ini dibuka dari link bagikan. <button class="btn secondary small" id="makeGroupBtn">Buat jadi grup</button></div>
     <div class="day-tabs" id="dayTabs"></div>
     <div class="itinerary" id="itineraryList"></div>
-    <details class="add-panel" id="addPanel"><summary><span class="btn wide">+ Tambah agenda</span></summary><form class="form-card form-grid" id="agendaForm">
+    <details class="add-panel" id="addPanel"><summary><span class="btn wide">Tambah agenda</span></summary><form class="form-card form-grid" id="agendaForm">
       <div class="field"><label for="agendaTitle">Tempat atau kegiatan</label><input id="agendaTitle" required maxlength="100" placeholder="Contoh: Sarapan di Pasar Beringharjo"></div>
       <div class="twocol"><div class="field"><label for="agendaTime">Waktu</label><input id="agendaTime" type="time"></div><div class="field"><label for="agendaBudget">Estimasi biaya (Rp)</label><input id="agendaBudget" type="number" min="0" step="1000" placeholder="0"></div></div>
       <div class="field"><label for="agendaLink">Link referensi <span style="font-weight:400">(Google Maps, Instagram, TikTok, situs lain)</span></label><input id="agendaLink" type="url" maxlength="500" placeholder="Paste link tempat di sini"></div>
@@ -785,7 +786,7 @@
       <div class="form-actions"><button type="button" class="btn secondary" id="cancelAgenda">Batal</button><button class="btn" type="submit">Simpan agenda</button></div>
     </form></details>
     <section class="expense"><div class="section-head"><div><h2>Pengeluaran</h2><div class="muted" style="font-size:13px;margin-top:4px">Catat uang yang benar-benar keluar selama trip.</div></div></div><div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="dailyExpenseTotal">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="tripExpenseTotal">Rp0</b></div></div><div class="expense-list" id="expenseList"></div>
-      <details class="add-panel" id="expensePanel"><summary><span class="btn secondary wide">+ Catat pengeluaran</span></summary><form class="form-card form-grid" id="expenseForm">
+      <details class="add-panel" id="expensePanel"><summary><span class="btn secondary wide">Catat pengeluaran</span></summary><form class="form-card form-grid" id="expenseForm">
         <div class="field"><label for="expenseName">Pengeluaran</label><input id="expenseName" required maxlength="100" placeholder="Contoh: Makan malam di Gudeg Yu Djum"></div>
         <div class="twocol"><div class="field"><label for="expenseAmount">Nominal (Rp)</label><input id="expenseAmount" required type="number" min="1000" step="1000" placeholder="0"></div><div class="field"><label for="expenseCategory">Kategori</label><select id="expenseCategory"><option value="Makan">Makan</option><option value="Transport">Transport</option><option value="Hotel">Hotel</option><option value="Tiket">Tiket</option><option value="Belanja">Belanja</option><option value="Lainnya">Lainnya</option></select></div></div>
         <div class="field"><label for="expenseNote">Catatan <span style="font-weight:400">(opsional)</span></label><input id="expenseNote" maxlength="160" placeholder="Contoh: dibayar tunai"></div>
@@ -794,13 +795,13 @@
     </section>
     <div class="notice">Planner ini bekerja tanpa akun dan tersimpan di browser perangkat ini. Jangan hapus data browser sebelum mengekspor itinerary.</div>
     <div class="export-row" id="exportRow"><button class="btn secondary" id="copyTrip">Salin itinerary</button><button class="btn secondary" id="printTrip">Cetak / simpan PDF</button></div>
-    <button class="btn danger wide" style="margin-top:14px" id="deleteTrip">Hapus trip ini</button>
+    <button class="btn danger" id="deleteTrip">Hapus trip ini</button>
   </section>
 
   <!-- Save Trip Modal -->
   <div class="modal-overlay" id="saveTripModal" style="display:none">
     <div class="modal-card">
-      <h2>💾 Save Trip</h2>
+      <h2>Save Trip</h2>
       <p class="muted">Simpan trip ini untuk digunakan kembali nanti.</p>
       <div class="field"><label for="saveTripTitle">Nama</label><input id="saveTripTitle" required maxlength="70" placeholder="Contoh: Liburan Jogja"></div>
       <div class="field"><label for="saveTripDest">Destinasi</label><input id="saveTripDest" maxlength="80" placeholder="Contoh: Yogyakarta"></div>
