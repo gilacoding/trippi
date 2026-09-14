@@ -158,6 +158,10 @@
   .gallery-card .video-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:0;height:0;border-style:solid;border-width:11px 0 11px 18px;border-color:transparent transparent transparent rgba(255,255,255,.92);filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));pointer-events:none}
   .batch-item .retry-btn,.batch-item .remove-btn{width:44px;height:44px;display:grid;place-items:center;padding:0}
   #galleryCaption{margin-top:12px;max-width:220px;flex:1 1 160px}
+  /* ===== MODAL SURFACES (2026-09-15) — one card language across auth/import/settings/save; ID-scoped to outrank injected class rules ===== */
+  #authModal .auth-card,#profileModal .auth-card,#importModal .import-card,#groupSettingsModal .auth-card,#editTripModal .auth-card,#saveTripModal .modal-card{border-radius:20px;box-shadow:0 18px 44px rgba(26,26,26,.16)}
+  #importModal .import-tip{font-size:12px;margin-top:4px;color:var(--muted);font-family:'Outfit'}
+  #importModal .import-example{display:block;margin-top:8px;font-family:'Outfit';font-size:12px;color:var(--muted)}
   /* Camera overlay */
   .camera-overlay{position:fixed;inset:0;background:#000;z-index:9998;display:none;flex-direction:column;align-items:center;justify-content:center}
   .camera-overlay.active{display:flex}
@@ -704,7 +708,7 @@
   </div></nav>
 
   <!-- Auth modal: login / signup (email + password) -->
-  <div class="auth-modal" id="authModal" style="display:none">
+  <div class="auth-modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle" style="display:none">
     <div class="auth-card">
       <h2 id="authTitle">Masuk</h2>
       <p class="muted" id="authLead">Masuk untuk membuat dan bergabung dengan grup perjalanan.</p>
@@ -728,7 +732,7 @@
   </div>
 
   <!-- Profile modal: edit display name -->
-  <div class="auth-modal" id="profileModal" style="display:none">
+  <div class="auth-modal" id="profileModal" role="dialog" aria-modal="true" aria-label="Profil" style="display:none">
     <div class="auth-card">
       <div class="profile-header">
         <div class="avatar-wrapper">
@@ -762,11 +766,11 @@
   </div>
 
   <!-- Import Trip modal: paste JSON to import a trip -->
-  <div class="import-modal" id="importModal" style="display:none">
+  <div class="import-modal" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importModalTitle" style="display:none">
     <div class="import-card">
-      <h2>Impor Trip</h2>
+      <h2 id="importModalTitle">Impor Trip</h2>
       <p class="muted">Tempelkan JSON travel plan di bawah. Markicab akan mengekstrak apa saja yang tersedia.</p>
-      <p class="muted" style="font-size:12px;margin-top:4px">Tip: Use YYYY-MM-DD date format for best results.</p>
+      <p class="muted import-tip">Tip: pakai format tanggal YYYY-MM-DD supaya jadwal langsung terbaca.</p>
       <textarea id="importTextarea" placeholder='{"name":"Bandung Trip","days":[{"day":1,"items":[{"place_name":"Kawah Putih","time":"09:00"}]}]}' spellcheck="false"></textarea>
       <div class="import-feedback" id="importFeedback" aria-live="polite"></div>
       <div class="form-actions">
@@ -777,9 +781,9 @@
   </div>
 
   <!-- Group Settings modal -->
-  <div class="auth-modal" id="groupSettingsModal" style="display:none">
+  <div class="auth-modal" id="groupSettingsModal" role="dialog" aria-modal="true" aria-labelledby="groupSettingsTitle" style="display:none">
     <div class="auth-card" style="max-width:420px">
-      <h2>Pengaturan Grup</h2>
+      <h2 id="groupSettingsTitle">Pengaturan Grup</h2>
       <p class="muted">Kontrol siapa yang bisa menambahkan agenda.</p>
       <div class="toggle-row">
         <div class="toggle-label">
@@ -798,9 +802,9 @@
   </div>
 
   <!-- Edit Trip Modal (replaces browser prompt()) -->
-  <div class="auth-modal" id="editTripModal" style="display:none">
+  <div class="auth-modal" id="editTripModal" role="dialog" aria-modal="true" aria-labelledby="editTripTitle" style="display:none">
     <div class="auth-card" style="max-width:420px">
-      <h2>Edit Trip</h2>
+      <h2 id="editTripTitle">Edit Trip</h2>
       <p class="muted">Perbarui detail trip ini.</p>
       <form class="form-grid" id="editTripForm" onsubmit="saveEditTrip(event)">
         <div class="field">
@@ -889,9 +893,9 @@
   </section>
 
   <!-- Save Trip Modal -->
-  <div class="modal-overlay" id="saveTripModal" style="display:none">
+  <div class="modal-overlay" id="saveTripModal" role="dialog" aria-modal="true" aria-labelledby="saveTripHeading" style="display:none">
     <div class="modal-card">
-      <h2>Save Trip</h2>
+      <h2 id="saveTripHeading">Save Trip</h2>
       <p class="muted">Simpan trip ini untuk digunakan kembali nanti.</p>
       <div class="field"><label for="saveTripTitle">Nama</label><input id="saveTripTitle" required maxlength="70" placeholder="Contoh: Liburan Jogja"></div>
       <div class="field"><label for="saveTripDest">Destinasi</label><input id="saveTripDest" maxlength="80" placeholder="Contoh: Yogyakarta"></div>
@@ -3584,25 +3588,31 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
       setTimeout(function(){ window.location.reload(); }, 150);
     });
   }
-// Landing page: if no session, show auth modal instead of home
+// Gate: signed-out visitors belong on the landing page, not the app.
+// Exceptions: guest links (?gt / ?group / #hash), onboarding links from landing (?mode=signup|login),
+// and API-unreachable fallback (keep the app — offline PWA users shouldn't be bounced).
 (function(){
-  // Check if there's an active session or guest token
   var params = new URLSearchParams(location.search);
   var gt = params.get('gt');
   var gid = params.get('group');
+  var mode = params.get('mode');
   var hash = location.hash;
   if(!gt && !gid && !hash){
-    // No direct trip link — check if guest or signed in
     API.getSession().then(function(r){
       var session = r && r.data && r.data.session;
       if(session && session.user && !session.user.is_anonymous){
         // Signed in — load their trips
+        if(mode) history.replaceState({}, '', 'trip-planner.html');
         load(); renderHome(); applyUserAvatar();
+      } else if(mode === 'signup' || mode === 'login'){
+        // Arrived from landing CTA — open the requested auth mode once the auth
+        // module (a later script block) defines openAuth; store the intent now.
+        history.replaceState({}, '', 'trip-planner.html');
+        window.__initialAuthMode = mode;
+        renderHome();
       } else {
-        // Not signed in — show landing page with login prompt
-        // (guest with gt= or group= are handled by openFromHash anyway)
-        renderHome(); // Keep home list empty-ish but show login CTA
-        openAuth('login');
+        // No session and no explicit intent — send to the public landing page
+        location.replace('index.html');
       }
     }).catch(function(){
       // API not ready — render home anyway
@@ -3701,6 +3711,8 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
     submitBtn.disabled=false;
   };
   if(document.getElementById('authCancel')) document.getElementById('authCancel').onclick=closeAuth;
+  // landing CTA handoff: ?mode=signup|login was requested before this module loaded
+  if(window.__initialAuthMode){ var _iam=window.__initialAuthMode; window.__initialAuthMode=null; openAuth(_iam); }
 
   // ── Profile modal ──────────────────────────────────────────────────────
   var profileModal=document.getElementById('profileModal');
@@ -4036,13 +4048,16 @@ function openProfile(){
       onSessionReady(uid); // M2: backfill local trips to Supabase (idempotent, non-blocking)
       if(pendingAction){ var a=pendingAction; pendingAction=null; if(typeof a==='function') a(); else if(a==='makeGroup') makeGroupFromTrip(); }
     } else if(event==='SIGNED_OUT'||(!session)){
+      // INITIAL_SESSION / INITIALIZE_* fire with a null-ish payload while the SDK
+      // restores from storage — the startup gate owns that case; redirecting here
+      // would beat it (race).
+      if(!event || event.indexOf('INITIAL')===0) return;
       colState.uid=null;
       document.getElementById('headerAvatar').textContent='?';
-      // signed-out: update UI in place (no navigation — avoids reload loop)
-      // Guests (?gt=) must NOT be forced into the login modal — they view read-only.
-      // Also check pendingGuestToken: guestSession may not be set yet (async openGuestTrip)
+      // signed-out: guests (?gt= / pending token) stay put — they view read-only.
+      // Everyone else returns to the public landing page (no app data behind it).
       if(isGuest() || pendingGuestToken){ return; }
-      navigateHome("home"); openAuth('login');
+      location.replace('index.html');
     }
   });
 
