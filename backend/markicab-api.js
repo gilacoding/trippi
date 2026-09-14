@@ -894,12 +894,12 @@
       });
     },
 
-    getCrewLocations: function (isGuest) {
+    getCrewLocations: function () {
       var gid = colState.group && colState.group.id;
       if (!gid) return Promise.resolve({ data: null, error: { message: 'No group context' } });
       return getClient().then(function (client) {
         if (!client) return { data: null, error: { message: 'Backend unavailable' } };
-        return client.rpc('get_crew_locations', { p_group_id: gid, p_is_guest: !!isGuest });
+        return client.rpc('get_crew_locations', { p_group_id: gid });
       }).catch(function (e) {
         console.warn('[API] getCrewLocations failed:', e && e.message);
         return { data: null, error: { message: e && e.message || 'RPC failed' } };

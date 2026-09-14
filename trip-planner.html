@@ -1077,7 +1077,7 @@
       return;
     }
 
-    const locRes = await API.getCrewLocations(isGuest());
+    const locRes = await API.getCrewLocations();
     const msg = (locRes && locRes.error && (locRes.error.message || '')) || '';
 
     if(msg.indexOf('no active journey') !== -1){
@@ -2012,7 +2012,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // admission check (auth.uid, is_group_member, active journey, consent).
     // If the journey is NOT active, it returns [] or an error.
     // We also check consent state via local cache + server probe.
-    const locRes = await API.getCrewLocations(isGuest());
+    const locRes = await API.getCrewLocations();
 
     // Determine journey active state:
     // - If get_crew_locations returns data (even []) with no error,
@@ -2564,7 +2564,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       const mapEl = document.getElementById('crewMap');
       const empty = document.getElementById('crewEmpty');
     
-      const res = await API.getCrewLocations(isGuest());
+      const res = await API.getCrewLocations();
       colState.crewLocations = (res && res.data) || [];
 
       // Fase D: only positions with real coordinates can be plotted.

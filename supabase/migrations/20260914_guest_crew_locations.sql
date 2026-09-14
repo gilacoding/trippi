@@ -1,27 +1,30 @@
 -- Fix: allow guests to see crew locations (read-only)
--- Root cause: get_crew_locations Gate 4 requires the CALLER to have granted
+-- Root cause: get_crew_locations Gate 4 required the CALLER to have granted
 -- their own location consent. Guests (anonymous users) have never consented,
 -- so they get "location permission not granted" and see an empty map.
--- Fix: add p_is_guest parameter; when true, skip the caller-consent gate.
+-- Fix: auto-detect guest status from auth.users.is_anonymous server-side
+-- (not client-declared) and skip Gate 4 for anonymous guests.
 -- Guests remain read-only: upsert_member_location / grant_location_permission
 -- still enforce Gate 4 unconditionally.
 
--- Drop old 1-arg overload first (CREATE OR REPLACE with a new signature leaves
--- the old one live, causing PGRST203).
+-- Drop all existing overloads first (CREATE OR REPLACE with a new signature
+-- leaves the old one live, causing PGRST203).
+DROP FUNCTION IF EXISTS public.get_crew_locations(p_group_id uuid, p_is_guest boolean);
 DROP FUNCTION IF EXISTS public.get_crew_locations(p_group_id uuid);
 
-CREATE OR REPLACE FUNCTION public.get_crew_locations(p_group_id uuid, p_is_guest boolean DEFAULT false)
+CREATE OR REPLACE FUNCTION public.get_crew_locations(p_group_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO ''
 AS $function$
 declare
-  v_uid       uuid := auth.uid();
-  v_is_member boolean;
-  v_active    boolean;
-  v_consent   text;
-  v_result    jsonb;
+  v_uid        uuid := auth.uid();
+  v_is_anon    boolean;
+  v_is_member  boolean;
+  v_active     boolean;
+  v_consent    text;
+  v_result     jsonb;
 begin
   -- Gate 1: caller authenticated
   if v_uid is null then
@@ -42,9 +45,12 @@ begin
     raise exception 'no active journey for this group' using errcode = 'P0001';
   end if;
 
-  -- Gate 4: caller has granted their own consent (SKIPPED for guests — they
-  -- are read-only and never publish their own location)
-  if not p_is_guest then
+  -- Auto-detect guest status from auth.users (server-side, not client-declared)
+  select is_anonymous into v_is_anon from auth.users where id = v_uid;
+  if v_is_anon is null then v_is_anon = false; end if;
+
+  -- Gate 4: caller has granted their own consent (SKIPPED for anonymous guests)
+  if not v_is_anon then
     select permission into v_consent
     from public.location_permissions lp
     where lp.group_id = p_group_id and lp.user_id = v_uid;
@@ -76,4 +82,4 @@ begin
 
   return v_result;
 end;
-$$;
+$function$;
