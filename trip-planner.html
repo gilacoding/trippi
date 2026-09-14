@@ -158,6 +158,48 @@
   .gallery-card .video-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:0;height:0;border-style:solid;border-width:11px 0 11px 18px;border-color:transparent transparent transparent rgba(255,255,255,.92);filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));pointer-events:none}
   .batch-item .retry-btn,.batch-item .remove-btn{width:44px;height:44px;display:grid;place-items:center;padding:0}
   #galleryCaption{margin-top:12px;max-width:220px;flex:1 1 160px}
+
+  /* ===== GUEST VIEW POLISH (2026-09-15) — lift to Home/Planner/Group language; preview stays marketing-card, joined goes editorial ===== */
+  #guestView .guest-card{max-width:480px}
+  #guestView.joined .guest-card{max-width:640px;padding:24px 20px 28px;text-align:left;border-radius:18px}
+  #guestView .guest-card .trip-meta{font-variant-numeric:tabular-nums}
+  #guestView .guest-flag{display:inline-flex;align-items:center;gap:6px;font-family:'Poppins';font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin:2px 0 8px}
+  #guestView .guest-flag::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  #guestView .participant-summary{display:flex;align-items:center;gap:7px;font-family:'Outfit';font-size:13px;color:var(--muted);margin:12px 0 0}
+  #guestView .participant-summary .count{background:none;border:0;padding:0;border-radius:0;font-family:'Outfit';font-size:13px;font-weight:500;color:var(--muted)}
+  #guestView .participant-summary::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--surface2);border:1px solid var(--line)}
+  #guestView .guest-join-note{font-size:12px;color:var(--muted);margin-top:10px;text-align:center}
+  #guestView .guest-preview-text.empty{border:0;padding:14px 0 10px}
+  #guestView .guest-upgrade{margin-top:18px;padding:14px 16px;background:var(--surface2);border:1px solid var(--line);border-radius:14px;font-size:13px}
+  #guestView .guest-upgrade strong{font-family:'Poppins';font-weight:600;font-size:14px}
+  #guestView .guest-upgrade .muted{color:var(--muted)}
+  #guestView .guest-upgrade .btn{margin-top:10px}
+  #guestView .guest-actions{margin-top:18px}
+  #guestView .section-head{margin:26px 0 10px;display:flex;align-items:end;justify-content:space-between;gap:12px}
+  #guestView .section-head h2{font-family:'Poppins';font-size:15px;font-weight:600;letter-spacing:0;color:var(--text)}
+  #guestView .wl-hint{font-size:12px;color:var(--muted);margin:-2px 0 10px}
+  /* day tabs: same quiet ink pill language as planner/group */
+  #guestView .day-tabs{display:flex;gap:8px;overflow-x:auto;margin:14px 0 6px;padding-bottom:4px}
+  #guestView .day-tab{font-family:'Poppins';font-weight:600;border-color:transparent;background:var(--surface2);color:var(--text-muted);border-radius:999px;padding:8px 14px;white-space:nowrap;transition:background .14s ease,color .14s ease}
+  #guestView .day-tab:hover{background:var(--line);color:var(--text)}
+  #guestView .day-tab.active{background:var(--ink);color:var(--white);box-shadow:none}
+  /* itinerary + wishlist rows: editorial hairline, not nested cards */
+  #guestView .itinerary-list{border-top:1px solid var(--line)}
+  #guestView .itinerary-list .item{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;padding:13px 2px}
+  #guestView .itinerary-list .item-time{color:var(--muted);font-variant-numeric:tabular-nums;background:none;padding:0}
+  #guestView .itinerary-list .item-title{font-family:'Poppins';font-weight:600}
+  #guestView .itinerary-list .item-cost{color:var(--muted);font-variant-numeric:tabular-nums}
+  #guestView .itinerary-list .item-link{color:var(--muted);text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line)}
+  #guestView .itinerary-list .item-link:hover{color:var(--accent-text);text-decoration-color:var(--accent)}
+  #guestView .to-go-item{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:12px 2px}
+  #guestView .to-go-item:last-child{border-bottom:0}
+  #guestView .guest-expenses-line{font-size:13px;color:var(--muted);margin-top:14px;font-variant-numeric:tabular-nums}
+  #guestView details.add-panel summary .btn{border:0;background:none;padding:0;font-family:'Poppins';font-size:15px;font-weight:600;color:var(--accent-text);display:inline-flex;align-items:center;gap:7px}
+  #guestView details.add-panel summary .btn::before{content:'+';font-weight:700;color:var(--accent)}
+  #guestView details.add-panel{border:1px solid var(--line);border-radius:14px;background:transparent;margin-top:0}
+  #guestView #guestLeaveBtn{display:block;background:transparent;border:1px solid rgba(198,40,40,.35);color:var(--danger);font-size:13px;height:40px;min-height:40px;width:auto;margin:26px 0 0;padding:0 16px;border-radius:12px}
+  #guestView #guestLeaveBtn:hover{background:rgba(198,40,40,.06);border-color:var(--danger)}
+  #guestView .guest-leave-wrap{text-align:left}
   /* ===== MODAL SURFACES (2026-09-15) — one card language across auth/import/settings/save; ID-scoped to outrank injected class rules ===== */
   #authModal .auth-card,#profileModal .auth-card,#importModal .import-card,#groupSettingsModal .auth-card,#editTripModal .auth-card,#saveTripModal .modal-card{border-radius:20px;box-shadow:0 18px 44px rgba(26,26,26,.16)}
   #importModal .import-tip{font-size:12px;margin-top:4px;color:var(--muted);font-family:'Outfit'}
