@@ -694,6 +694,7 @@
   /* actions: Keluar = quiet danger ghost, others stay secondary */
   #groupView #leaveGroupBtn{color:var(--danger);border-color:rgba(198,40,40,.35)}
   #groupView #leaveGroupBtn:hover{border-color:var(--danger);background:rgba(198,40,40,.06)}
+  #groupView .camera-btn{margin-top:12px}
   @media (max-width:480px){
     #homeView .hero-cta{flex-direction:column;align-items:stretch}
     #homeView .hero-cta .btn{width:100%;justify-content:center;text-align:center}
@@ -1015,7 +1016,7 @@
       <div class="day-tabs" id="groupDayTabs"></div>
       <div class="section-head"><div><h2 id="groupDayTitle">Itinerary</h2></div></div>
       <div class="itinerary-list" id="groupItineraryList"></div>
-      <details class="add-panel"><summary><span class="btn secondary wide">+ Tambah agenda grup</span></summary><form class="form-card form-grid" id="groupAgendaForm">
+      <details class="add-panel"><summary><span class="btn secondary wide">Tambah agenda grup</span></summary><form class="form-card form-grid" id="groupAgendaForm">
         <div class="field"><label for="groupAgendaTitle">Kegiatan</label><input id="groupAgendaTitle" required maxlength="100" placeholder="Contoh: Malioboro"></div>
         <div class="field"><label for="groupAgendaTime">Jam</label><input id="groupAgendaTime" type="time"></div>
         <div class="field"><label for="groupAgendaBudget">Estimasi biaya</label><input id="groupAgendaBudget" type="number" min="0" placeholder="0"></div>
@@ -1028,7 +1029,7 @@
           <div class="section-head"><div><h2>Pengeluaran</h2></div></div>
           <div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="groupDailyExpense">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="groupTripExpense">Rp0</b></div><div class="expense-row" id="myExpenseRow"><span>Milikku (pribadi)</span><b id="groupMyExpense">Rp0</b></div></div>
           <div class="expense-list" id="groupExpenseList"></div>
-          <details class="add-panel"><summary><span class="btn secondary wide">+ Catat pengeluaran</span></summary><form class="form-card form-grid" id="groupExpenseForm">
+          <details class="add-panel"><summary><span class="btn secondary wide">Catat pengeluaran</span></summary><form class="form-card form-grid" id="groupExpenseForm">
             <div class="field"><label>Jenis</label><div class="exp-type-seg" role="radiogroup" aria-label="Jenis pengeluaran"><label><input type="radio" name="groupExpenseType" value="trip" checked>Pengeluaran trip</label><label><input type="radio" name="groupExpenseType" value="personal">Milikku (pribadi)</label></div><div class="muted" style="font-size:12px;margin-top:4px" id="expTypeHint">Dilihat semua anggota trip.</div></div>
             <div class="field"><label for="groupExpenseName">Nama</label><input id="groupExpenseName" required maxlength="60" placeholder="Makan siang"></div>
             <div class="field"><label for="groupExpenseAmount">Jumlah</label><input id="groupExpenseAmount" type="number" min="0" required placeholder="0"></div>
@@ -1042,7 +1043,7 @@
       <!-- Fase C: Group Wishlist view panel -->
       <div class="view-panel" id="wishlistPanel">
         <div id="groupWishList" style="margin-top:12px"></div>
-        <details class="add-panel" id="wishlistAddPanel" style="margin-top:14px"><summary><span class="btn secondary wide">+ Tambah ke Wishlist</span></summary>
+        <details class="add-panel" id="wishlistAddPanel" style="margin-top:14px"><summary><span class="btn secondary wide">Tambah ke Wishlist</span></summary>
           <form class="form-card form-grid" id="groupWishlistForm">
             <div class="field"><label for="wishlistTitle">Nama tempat</label><input id="wishlistTitle" name="wishlistTitle" required maxlength="100" placeholder="Contoh: Kopi Kalyan"></div>
             <div class="field"><label for="wishlistLink">Link referensi <span style="font-weight:400">(opsional)</span></label><input id="wishlistLink" name="wishlistLink" type="url" maxlength="500" placeholder="Paste Google Maps, Instagram, dll"></div>
@@ -1081,7 +1082,7 @@
               </div>
             </div>
             <input type="text" id="galleryCaption" placeholder="Caption (opsional)" maxlength="200" style="margin-top:12px;max-width:200px">
-            <button class="btn small" id="cameraBtn" style="background:var(--accent2);border:0;margin-top:12px">📷 Take Photo</button>
+            <button class="btn small camera-btn" id="cameraBtn">Take Photo</button>
             <span id="galleryUploadStatus" class="muted" style="font-size:12px;margin-left:8px"></span>
           </div>
           <div id="galleryGrid" class="gallery-grid"></div>
