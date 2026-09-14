@@ -534,8 +534,57 @@
   #homeView .hero-cta .cta-ghost{border-color:rgba(26,26,26,.3)}
   #homeView .trip-card .open-hint{display:inline-flex;align-items:center;gap:4px;margin-top:10px;font-family:'Poppins';font-size:12px;font-weight:600;color:var(--muted);transition:color .14s ease}
   #homeView .trip-card:hover .open-hint{color:var(--accent-text)}
-  /* keyboard focus: visible ring on all home interactive elements (was missing app-wide) */
+  /* keyboard focus: gap exists app-wide; fixed for home scope only per brief §20 (global pass comes after visual direction is consistent) */
   #homeView :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ===== PLANNER POLISH (2026-09-15) — scoped to #plannerView; editorial language from Home, existing tokens only ===== */
+  #plannerView .btn:hover{transform:none;box-shadow:none;filter:none}
+  #plannerView .btn:not(.secondary):not(.danger):hover{filter:brightness(.94)}
+  /* head: flat surface, hairline, tabular stats */
+  #plannerView .planner-head{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:none;padding:18px}
+  #plannerView .planner-head h1{font-size:24px;letter-spacing:-.4px}
+  #plannerView .planner-head .trip-meta{font-variant-numeric:tabular-nums}
+  #plannerView .stats{border-top:1px solid var(--line)}
+  #plannerView .stat b{font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+  #plannerView .stat+.stat{border-left:1px solid var(--line)}
+  /* day tabs: quiet ink pill, no gradient, no glow */
+  #plannerView .day-tab{font-family:'Poppins';font-weight:600;border-color:transparent;background:var(--surface2);color:var(--text-muted);border-radius:999px;padding:8px 14px;transition:background .14s ease,color .14s ease}
+  #plannerView .day-tab:hover{background:var(--line);color:var(--text)}
+  #plannerView .day-tab.active{background:var(--ink);color:var(--white);box-shadow:none}
+  /* itinerary: editorial rows on the page, not floating cards */
+  #plannerView .itinerary{gap:0;border-top:1px solid var(--line)}
+  #plannerView .item{background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;padding:14px 2px;transition:none}
+  #plannerView .item:hover{background:rgba(26,26,26,.025)}
+  #plannerView .item-time{background:none;padding:0;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  #plannerView .item:hover .item-time{color:var(--text)}
+  #plannerView .item-cost,#plannerView .item-cost.muted{color:var(--muted);font-variant-numeric:tabular-nums}
+  #plannerView .item-cost:hover,#plannerView .item-time:hover{color:var(--accent-text)}
+  #plannerView .item-link{color:var(--muted);text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line)}
+  #plannerView .item-link:hover{color:var(--accent-text);text-decoration-color:var(--accent)}
+  /* add panel: primary action reads as primary (solid accent), not a dashed toy box */
+  #plannerView .add-panel{border-radius:14px;box-shadow:none}
+  #plannerView .add-panel summary .btn{border:0;background:none;padding:0;font-family:'Poppins';font-size:15px;font-weight:600;color:var(--accent-text);display:inline-flex;align-items:center;gap:7px}
+  #plannerView .add-panel summary .btn::before{content:'+';font-weight:700;color:var(--accent)}
+  #plannerView #expensePanel summary .btn{color:var(--muted)}
+  #plannerView #expensePanel summary .btn::before{color:var(--muted)}
+  /* expenses: flat container, hairline rows; money = ink tabular, no green gradient box */
+  #plannerView .expense-total{background:none;border:1px solid var(--line);border-radius:14px}
+  #plannerView .expense-total b{color:var(--text);font-variant-numeric:tabular-nums}
+  #plannerView .expense-list{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:0 14px;margin-top:10px}
+  #plannerView .expense-item{border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;padding:12px 0}
+  #plannerView .expense-item:last-child{border-bottom:0}
+  #plannerView .expense-amount{font-variant-numeric:tabular-nums;color:var(--text);font-weight:700}
+  #plannerView .expense-icon{font-family:'Poppins';font-weight:600;font-size:13px;color:var(--text-muted)}
+  /* notices + empty: neutral, matching home */
+  #plannerView .notice{background:var(--surface2);border-color:var(--line);color:var(--text-muted)}
+  #plannerView #readOnlyBanner{background:rgba(250,105,0,.06);border-color:rgba(250,105,0,.22);color:var(--text)}
+  #plannerView .empty{background:none;border:1px dashed var(--line);border-radius:14px;padding:26px 18px}
+  /* export + delete: exports small and quiet; delete is a ghost danger, not a red slab */
+  #plannerView .export-row .btn{height:42px;font-size:13px;border-radius:12px;flex:0 1 auto;padding:0 16px}
+  #plannerView .btn.danger{background:transparent;border:1px solid rgba(198,40,40,.4);color:var(--danger);font-size:13px;height:40px;width:auto;margin-top:18px;padding:0 16px;border-radius:12px}
+  #plannerView .btn.danger:hover{background:rgba(198,40,40,.06);border-color:var(--danger)}
+  #plannerView :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){#plannerView *{transition:none!important;animation:none!important}}
   @media (max-width:480px){
     #homeView .hero-cta{flex-direction:column;align-items:stretch}
     #homeView .hero-cta .btn{width:100%;justify-content:center;text-align:center}
