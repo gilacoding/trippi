@@ -913,15 +913,15 @@
     <div class="planner-head"><h1 id="plannerName"></h1><div class="trip-meta" id="plannerMeta"></div><div class="stats"><div class="stat"><b id="placeTotal">0</b><span>agenda</span></div><div class="stat"><b id="budgetTotal">Rp0</b><span>estimasi biaya</span></div><div class="stat"><b id="dayTotal">0</b><span>hari</span></div></div><div class="planner-actions"><button class="btn secondary small" id="editTripBtn">Edit trip</button><button class="btn secondary small" id="shareTrip">Bagikan</button><button class="btn small" id="saveTripBtn">Save Trip</button></div></div>
     <div class="notice" id="readOnlyBanner" style="display:none">Mode lihat saja — trip ini dibuka dari link bagikan. <button class="btn secondary small" id="makeGroupBtn">Buat jadi grup</button></div>
     <div class="day-tabs" id="dayTabs"></div>
-    <div class="itinerary" id="itineraryList"></div>
-    <details class="add-panel" id="addPanel"><summary><span class="btn wide">Tambah agenda</span></summary><form class="form-card form-grid" id="agendaForm">
+<details class="add-panel" id="addPanel"><summary><span class="btn wide">Tambah agenda</span></summary><form class="form-card form-grid" id="agendaForm">
       <div class="field"><label for="agendaTitle">Tempat atau kegiatan</label><input id="agendaTitle" required maxlength="100" placeholder="Contoh: Sarapan di Pasar Beringharjo"></div>
       <div class="twocol"><div class="field"><label for="agendaTime">Waktu</label><input id="agendaTime" type="time"></div><div class="field"><label for="agendaBudget">Estimasi biaya (Rp)</label><input id="agendaBudget" type="number" min="0" step="1000" placeholder="0"></div></div>
       <div class="field"><label for="agendaLink">Link referensi <span style="font-weight:400">(Google Maps, Instagram, TikTok, situs lain)</span></label><input id="agendaLink" type="url" maxlength="500" placeholder="Paste link tempat di sini"></div>
       <div class="field"><label for="agendaNote">Catatan</label><textarea id="agendaNote" maxlength="240" placeholder="Reservasi, alamat, daftar yang dibawa, atau detail penting."></textarea></div>
       <div class="form-actions"><button type="button" class="btn secondary" id="cancelAgenda">Batal</button><button class="btn" type="submit">Simpan agenda</button></div>
     </form></details>
-    <section class="expense"><div class="section-head"><div><h2>Pengeluaran</h2><div class="muted" style="font-size:13px;margin-top:4px">Catat uang yang benar-benar keluar selama trip.</div></div></div><div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="dailyExpenseTotal">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="tripExpenseTotal">Rp0</b></div></div><div class="expense-list" id="expenseList"></div>
+    <div class="itinerary" id="itineraryList"></div>
+        <section class="expense"><div class="section-head"><div><h2>Pengeluaran</h2><div class="muted" style="font-size:13px;margin-top:4px">Catat uang yang benar-benar keluar selama trip.</div></div></div><div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="dailyExpenseTotal">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="tripExpenseTotal">Rp0</b></div></div><div class="expense-list" id="expenseList"></div>
       <details class="add-panel" id="expensePanel"><summary><span class="btn secondary wide">Catat pengeluaran</span></summary><form class="form-card form-grid" id="expenseForm">
         <div class="field"><label for="expenseName">Pengeluaran</label><input id="expenseName" required maxlength="100" placeholder="Contoh: Makan malam di Gudeg Yu Djum"></div>
         <div class="twocol"><div class="field"><label for="expenseAmount">Nominal (Rp)</label><input id="expenseAmount" required type="number" min="1000" step="1000" placeholder="0"></div><div class="field"><label for="expenseCategory">Kategori</label><select id="expenseCategory"><option value="Makan">Makan</option><option value="Transport">Transport</option><option value="Hotel">Hotel</option><option value="Tiket">Tiket</option><option value="Belanja">Belanja</option><option value="Lainnya">Lainnya</option></select></div></div>
@@ -970,20 +970,21 @@
 
   <section class="view" id="guestView">
     <div class="guest-card">
+      <span class="guest-flag" id="guestFlag">Tautan bagikan</span>
       <h1 id="guestTripName">Bagikan trip</h1>
       <div class="trip-meta muted" id="guestTripMeta"></div>
       <div class="participant-summary" id="guestParticipantSummary"></div>
       <!-- PRE-JOIN: preview only -->
       <div id="guestPreview" style="margin-top:16px">
-        <div class="empty" id="guestPreviewText" style="margin-bottom:12px"></div>
+        <div class="empty guest-preview-text" id="guestPreviewText" style="margin-bottom:12px"></div>
         <button class="btn wide" id="guestJoinBtn">Gabung Trip</button>
-        <div style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center">Tidak perlu akun MarkiCab. Masukkan nama untuk ikut.</div>
+        <div class="guest-join-note">Tidak perlu akun MarkiCab. Masukkan nama untuk ikut.</div>
       </div>
       <!-- MarkiCab CTA for unregistered users -->
-      <div style="margin-top:16px;padding:14px;background:rgba(54,211,153,.06);border:1px solid rgba(54,211,153,.18);border-radius:14px;font-size:13px">
+      <div class="guest-upgrade">
         <strong>Mau menyimpan perjalanan ini ke akun MarkiCab?</strong><br>
-        <span style="color:var(--muted)">Daftar gratis untuk menyimpan trip, mengikuti creator, dan mendapatkan Trip History.</span>
-        <button class="btn secondary" style="margin-top:10px" id="guestUpgradeBtn">Daftar MarkiCab</button>
+        <span class="muted">Daftar gratis untuk menyimpan trip, mengikuti creator, dan mendapatkan Trip History.</span>
+        <button class="btn secondary" id="guestUpgradeBtn">Daftar MarkiCab</button>
       </div>
       <!-- 
       <!-- NAME FORM (hidden until Gabung Trip clicked) -->
@@ -998,15 +999,15 @@
            "Peserta" list is gone — Crew inside Journey Mode is the single
            member list) -->
       <div id="guestJoinedView" style="display:none;text-align:left">
-        <div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Itinerary</h2></div>
+        <div class="section-head"><div><h2 id="guestDayTitle">Itinerary</h2></div></div>
+        <div class="day-tabs" id="guestDayTabs"></div>
         <div class="itinerary-list" id="guestItineraryList"></div>
-        <div class="expenses-summary" id="guestExpenses" style="margin-top:16px"></div>
+        <div class="guest-expenses-line" id="guestExpenses" style="margin-top:16px"></div>
 
         <!-- Group Wishlist (P0): guests may view + add, never convert -->
-        <div class="section-head" style="margin:22px 0 6px"><h2 style="font-size:18px">Wishlist Grup</h2></div>
-        <div class="muted" style="font-size:12px;margin-bottom:10px">Punya ide tempat atau aktivitas? Tambahkan ke wishlist grup.</div>
-        <div id="guestWishList"></div>
-        <details class="add-panel" id="guestWishlistPanel" style="margin-top:12px"><summary><span class="btn secondary wide">+ Tambah Wishlist</span></summary>
+        <div class="section-head"><div><h2>Wishlist Grup</h2></div></div>
+        <div class="muted wl-hint">Punya ide tempat atau aktivitas? Tambahkan ke wishlist grup.</div>
+        <details class="add-panel" id="guestWishlistPanel"><summary><span class="btn">Tambah Wishlist</span></summary>
           <form class="form-card form-grid" id="guestWishlistForm">
             <div class="field"><label for="guestWishlistTitle">Judul / nama tempat</label><input id="guestWishlistTitle" name="wishlistTitle" required maxlength="100" placeholder="Contoh: Museum Nasional"></div>
             <div class="field"><label for="guestWishlistLink">Link <span style="font-weight:400">(opsional)</span></label><input id="guestWishlistLink" name="wishlistLink" type="url" maxlength="500" placeholder="Paste Google Maps, Instagram, dll"></div>
@@ -1014,11 +1015,12 @@
             <div class="form-actions"><button type="button" class="btn secondary" id="guestWishlistCancel">Batal</button><button class="btn" type="submit">Simpan ke Wishlist</button></div>
           </form>
         </details>
+        <div id="guestWishList"></div>
 
         <!-- Journey Mode: status + consent + map + Crew -->
         <div id="guestLocationActions" style="margin-top:22px"></div>
 
-        <button class="btn secondary wide" style="margin-top:14px" id="guestLeaveBtn">Keluar dari Trip</button>
+        <div class="guest-leave-wrap"><button class="btn" id="guestLeaveBtn">Keluar dari Trip</button></div>
       </div>
     </div>
   </section>
@@ -1039,8 +1041,7 @@
     <div class="view-panel active" id="itineraryPanel">
       <div class="day-tabs" id="groupDayTabs"></div>
       <div class="section-head"><div><h2 id="groupDayTitle">Itinerary</h2></div></div>
-      <div class="itinerary-list" id="groupItineraryList"></div>
-      <details class="add-panel"><summary><span class="btn secondary wide">Tambah agenda grup</span></summary><form class="form-card form-grid" id="groupAgendaForm">
+<details class="add-panel"><summary><span class="btn">Tambah agenda grup</span></summary><form class="form-card form-grid" id="groupAgendaForm">
         <div class="field"><label for="groupAgendaTitle">Kegiatan</label><input id="groupAgendaTitle" required maxlength="100" placeholder="Contoh: Malioboro"></div>
         <div class="field"><label for="groupAgendaTime">Jam</label><input id="groupAgendaTime" type="time"></div>
         <div class="field"><label for="groupAgendaBudget">Estimasi biaya</label><input id="groupAgendaBudget" type="number" min="0" placeholder="0"></div>
@@ -1048,7 +1049,8 @@
         <div class="field" style="grid-column:1/-1"><label for="groupAgendaNote">Catatan</label><textarea id="groupAgendaNote" maxlength="240" placeholder="Reservasi, alamat, detail"></textarea></div>
         <div class="form-actions"><button type="button" class="btn secondary" id="cancelGroupAgenda">Batal</button><button class="btn" type="submit">Tambah</button></div>
       </form></details>
-    </div>
+      <div class="itinerary-list" id="groupItineraryList"></div>
+          </div>
     <div class="view-panel" id="expensesPanel">
           <div class="section-head"><div><h2>Pengeluaran</h2></div></div>
           <div class="expense-total"><div class="expense-row"><span>Hari ini</span><b id="groupDailyExpense">Rp0</b></div><div class="expense-row"><span>Total trip</span><b id="groupTripExpense">Rp0</b></div><div class="expense-row" id="myExpenseRow"><span>Milikku (pribadi)</span><b id="groupMyExpense">Rp0</b></div></div>
@@ -1066,8 +1068,7 @@
 
       <!-- Fase C: Group Wishlist view panel -->
       <div class="view-panel" id="wishlistPanel">
-        <div id="groupWishList" style="margin-top:12px"></div>
-        <details class="add-panel" id="wishlistAddPanel" style="margin-top:14px"><summary><span class="btn secondary wide">Tambah ke Wishlist</span></summary>
+<details class="add-panel" id="wishlistAddPanel"><summary><span class="btn">Tambah ke Wishlist</span></summary>
           <form class="form-card form-grid" id="groupWishlistForm">
             <div class="field"><label for="wishlistTitle">Nama tempat</label><input id="wishlistTitle" name="wishlistTitle" required maxlength="100" placeholder="Contoh: Kopi Kalyan"></div>
             <div class="field"><label for="wishlistLink">Link referensi <span style="font-weight:400">(opsional)</span></label><input id="wishlistLink" name="wishlistLink" type="url" maxlength="500" placeholder="Paste Google Maps, Instagram, dll"></div>
@@ -1075,7 +1076,8 @@
             <div class="form-actions"><button type="button" class="btn secondary" id="cancelWishlist">Batal</button><button class="btn" type="submit">Simpan ke Wishlist</button></div>
           </form>
         </details>
-      </div>
+        <div id="groupWishList" style="margin-top:12px"></div>
+              </div>
 
       <!-- M4.5: Journey Mode view panel -->
       <div class="view-panel" id="journeyPanel">
@@ -1214,6 +1216,11 @@
 
   async function renderGuestView(t, isMember){
     $('guestTripName').textContent = t.name || 'Trip';
+    // joined state drives the wider, left-aligned editorial card; pre-join keeps the
+    // compact centered marketing card. Flag text mirrors the state.
+    document.getElementById('guestView').classList.toggle('joined', !!isMember);
+    var flagEl = document.getElementById('guestFlag');
+    if(flagEl) flagEl.textContent = isMember ? 'Trip grup' : 'Tautan bagikan';
     // destination · date range · duration
     var _s = t.start_date ? String(t.start_date) : '';
     var _e = t.end_date ? String(t.end_date) : '';
@@ -1432,9 +1439,20 @@
   }
 
   // Render shared-trip itinerary (READ-ONLY — public-safe fields only via esc()).
-  // Uses the same day-grouped card structure as the creator planner: day heading,
-  // then one row per agenda with time prominent, title prominent, cost secondary.
-  // No edit/delete controls are emitted for guests.
+  // Same per-day tab structure as the group view (member experience): day tabs +
+  // one-day list, instead of one long stacked list. No edit/delete controls for guests.
+  function _guestDaysInRange(t){
+    var s = t && t.start_date ? String(t.start_date) : '';
+    var e = t && t.end_date ? String(t.end_date) : '';
+    return (s && e) ? daysBetween(s, e) : (s ? [s] : []);
+  }
+  function guestActiveDate(t){
+    var days = _guestDaysInRange(t);
+    if(!days.length) return '';
+    var want = colState._guestActiveDate;
+    if(want && days.indexOf(want) >= 0) return want;
+    return days[0];
+  }
   function renderGuestItinerary(t){
     const el = $('guestItineraryList');
     if(!el) return;
@@ -1444,43 +1462,65 @@
         .localeCompare(String(b.date||'') + (b.time || '99:99'));
     });
 
+    // Tabs = every trip day (like the group/member view) plus any out-of-range days
+    // found on items, so an agenda is never hidden.
+    const days = _guestDaysInRange(t);
+    const known = {}; days.forEach(function(d){ known[d] = 1; });
+    const extraDays = [];
+    items.forEach(function(it){ const d = String(it.date||''); if(d && !known[d] && extraDays.indexOf(d)<0) extraDays.push(d); });
+    const allDays = days.concat(extraDays.sort());
+    const hasUnscheduled = items.some(function(it){ return !it.date; });
+
+    const tabsEl = $('guestDayTabs');
+    const titleEl = $('guestDayTitle');
+
+    let showDay;
+    if(colState._guestActiveDate === '__none__') showDay = '';
+    else if(allDays.length) showDay = guestActiveDate(t);
+    else showDay = '';
+
+    if(tabsEl){
+      const tabs = allDays.map(function(d, idx){
+        return {d: d, label: 'Hari ' + (idx + 1), sub: dateText(d).replace(/ \d{4}/,'')};
+      });
+      if(hasUnscheduled) tabs.push({d: '', label: 'Lainnya', sub: 'tanpa tanggal'});
+      const showTabs = tabs.length > 1 || (tabs.length === 1 && hasUnscheduled);
+      tabsEl.innerHTML = showTabs ? tabs.map(function(tb){
+        return '<button class="day-tab ' + (tb.d === showDay ? 'active' : '') + '" data-guestday="' + tb.d + '">' +
+          tb.label + '<br><span style="font-weight:500;opacity:.8">' + tb.sub + '</span></button>';
+      }).join('') : '';
+      tabsEl.style.display = showTabs ? '' : 'none';
+      tabsEl.querySelectorAll('[data-guestday]').forEach(function(b){
+        b.onclick = function(){ colState._guestActiveDate = b.dataset.guestday || '__none__'; renderGuestItinerary(t); };
+      });
+    }
+
+    function rowHtml(item){
+      return '<article class="item">' +
+        '<div class="item-time">' + esc(item.time || '—') + '</div>' +
+        '<div><div class="item-title">' + esc(item.title) + '</div>' +
+        (item.note ? '<div class="item-detail">' + esc(item.note) + '</div>' : '') +
+        (item.link ? '<a class="item-link" href="' + esc(item.link) + '" target="_blank" rel="noopener">Buka referensi ↗</a>' : '') +
+        (Number(item.budget) ? '<div class="item-cost">' + money(item.budget) + '</div>' : '') +
+        '</div></article>';
+    }
+
     if(!items.length){
+      if(titleEl) titleEl.textContent = 'Itinerary';
       el.innerHTML = '<div class="empty"><strong>Belum ada agenda.</strong>Pembuat trip belum menambahkan kegiatan.</div>';
     } else {
-      // group by date, keeping chronological order
-      const order = [];
-      const byDate = {};
-      items.forEach(function(it){
-        const d = String(it.date || '');
-        if(!byDate[d]){ byDate[d] = []; order.push(d); }
-        byDate[d].push(it);
-      });
-
-      el.innerHTML = order.map(function(d, idx){
-        const head = '<div class="section-head" style="margin:' + (idx ? '18px' : '4px') + ' 0 8px">' +
-          '<div><h3 style="font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)">Hari ' + (idx + 1) + '</h3>' +
-          '<div style="font-weight:700">' + esc(d ? dateText(d) : 'Tanpa tanggal') + '</div></div></div>';
-
-        const rows = byDate[d].map(function(item){
-          return '<article class="item">' +
-            '<div class="item-time">' + esc(item.time || '—') + '</div>' +
-            '<div><div class="item-title">' + esc(item.title) + '</div>' +
-            (item.note ? '<div class="item-detail">' + esc(item.note) + '</div>' : '') +
-            (item.link ? '<a class="item-link" href="' + esc(item.link) + '" target="_blank" rel="noopener">Buka referensi ↗</a>' : '') +
-            (Number(item.budget) ? '<div class="item-cost">' + money(item.budget) + '</div>' : '') +
-            '</div></article>';
-        }).join('');
-
-        return head + rows;
-      }).join('');
+      const wantDay = (colState._guestActiveDate === '__none__') ? '' : showDay;
+      const dayItems = items.filter(function(it){ return String(it.date||'') === wantDay; });
+      if(titleEl) titleEl.textContent = 'Itinerary · ' + (wantDay ? dateText(wantDay) : 'Lainnya') + ' · ' + dayItems.length + ' titik';
+      el.innerHTML = dayItems.length ? dayItems.map(rowHtml).join('')
+        : '<div class="empty"><strong>Hari ini masih longgar.</strong>Belum ada agenda untuk hari ini.</div>';
     }
 
     const exp = t.expenses || [];
     const exEl = $('guestExpenses');
-    if(exEl) exEl.innerHTML = exp.length
-      ? '<div style="font-size:13px;color:var(--muted)">' + esc(String(exp.length)) +
-        ' catatan pengeluaran · total ' + money(exp.reduce(function(s, x){ return s + (Number(x.amount) || 0); }, 0)) + '</div>'
-      : '<div style="font-size:13px;color:var(--muted)">Tidak ada pengeluaran tercatat.</div>';
+    if(exEl) exEl.textContent = exp.length
+      ? exp.length + ' catatan pengeluaran · total ' + money(exp.reduce(function(s, x){ return s + (Number(x.amount) || 0); }, 0))
+      : 'Tidak ada pengeluaran tercatat.';
   }
 
   // ── M2 Sync layer (delegated to sync.js) ───────────────────────
