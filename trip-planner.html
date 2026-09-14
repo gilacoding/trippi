@@ -2056,7 +2056,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
 
   function renderJourneyContent(){
-      const isOwner = colState.perms && colState.perms.is_owner;
+      const isOwner = !!(colState.perms && colState.perms.is_owner);
       const active = colState.journey && colState.journey.status === 'active';
       const hasConsent = colState.locationConsent === 'granted';
       const html=[];
@@ -2257,7 +2257,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     try{
       const res = await API.startJourney();
       if(res.error){ alert('Gagal memulai Journey: ' + (res.error.message || res.error)); return; }
-      colState.journey = {status:'active'};
+      if(res.data){ colState.journey = {status:'active'}; }
       setTimeout(renderJourneyView, 500);
     } finally { freeBtn(btn); }
   }
