@@ -534,8 +534,17 @@
   #homeView .hero-cta .cta-ghost{border-color:rgba(26,26,26,.3)}
   #homeView .trip-card .open-hint{display:inline-flex;align-items:center;gap:4px;margin-top:10px;font-family:'Poppins';font-size:12px;font-weight:600;color:var(--muted);transition:color .14s ease}
   #homeView .trip-card:hover .open-hint{color:var(--accent-text)}
-  /* keyboard focus: gap exists app-wide; fixed for home scope only per brief §20 (global pass comes after visual direction is consistent) */
-  #homeView :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  /* SHARED CHROME + A11Y (2026-09-15): global keyboard focus ring — replaces the three
+     scoped copies that existed during Home/Planner/Saved rounds. Fields keep their own
+     focus box-shadow in addition. */
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  /* persistent Saved entry in shared header (library is otherwise unreachable after bottom-nav retire) */
+  .saved-entry{width:44px;height:44px;flex:0 0 auto;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:transparent;color:var(--muted);cursor:pointer;transition:color .14s ease,border-color .14s ease}
+  .saved-entry:hover{color:var(--accent-text);border-color:var(--accent)}
+  .saved-entry svg{width:19px;height:19px}
+  .saved-entry.at-saved{color:var(--accent);border-color:var(--accent)}
+  /* shared a11y: text .back links get a >=44px tall hit area (was 37px with padding:8px 0) */
+  .back{min-height:44px;display:inline-flex;align-items:center;padding:8px 2px}
 
   /* ===== PLANNER POLISH (2026-09-15) — scoped to #plannerView; editorial language from Home, existing tokens only ===== */
   #plannerView .btn:hover{transform:none;box-shadow:none;filter:none}
@@ -585,7 +594,6 @@
   #plannerView .export-row .btn{height:42px;min-height:42px;font-size:13px;border-radius:12px;flex:0 1 auto;padding:0 16px}
   #plannerView .btn.danger{background:transparent;border:1px solid rgba(198,40,40,.4);color:var(--danger);font-size:13px;height:40px;min-height:40px;width:auto;margin-top:18px;padding:0 16px;border-radius:12px}
   #plannerView .btn.danger:hover{background:rgba(198,40,40,.06);border-color:var(--danger)}
-  #plannerView :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   @media (prefers-reduced-motion:reduce){#plannerView *{transition:none!important;animation:none!important}}
 
   /* ===== SAVED TRIPS POLISH (2026-09-15) — library/collection, not a workspace; #savedTripsView + #savedTripDetailView scoped ===== */
@@ -629,7 +637,6 @@
   #savedTripDetailView .saved-actions .btn-use:hover{filter:brightness(.94);transform:none;box-shadow:none}
   #savedTripDetailView .saved-actions .btn-del{margin-left:auto;background:transparent;border:1px solid rgba(198,40,40,.35);color:var(--danger);height:40px;font-size:13px;padding:0 14px;border-radius:12px;min-height:40px}
   #savedTripDetailView .saved-actions .btn-del:hover{background:rgba(198,40,40,.06);border-color:var(--danger);transform:none;box-shadow:none}
-  #savedTripsView :focus-visible,#savedTripDetailView :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   @media (max-width:480px){
     #savedTripDetailView .saved-actions{flex-direction:column;align-items:stretch}
     #savedTripDetailView .saved-actions .btn-use{width:100%}
@@ -653,7 +660,10 @@
     <button class="back-btn" id="globalBack" aria-label="Kembali" style="display:none"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
     <h1 class="h-title" id="globalTitle">MarkiCab</h1>
     <div class="h-spacer"></div>
-    <div class="h-actions"><div class="header-avatar" id="headerAvatar" title="Profil"></div></div>
+    <div class="h-actions">
+      <button class="saved-entry" id="savedEntryBtn" data-nav="saved" aria-label="Pustaka trip" title="Pustaka perjalanan"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 2.8h12a.8.8 0 01.8.8v13.2l-6.8-3.6-6.8 3.6V3.6a.8.8 0 01.8-.8z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
+      <div class="header-avatar" id="headerAvatar" title="Profil"></div>
+    </div>
   </header>
 
   <nav class="bottom-nav"><div class="nav-inner">
@@ -4022,6 +4032,7 @@ function openProfile(){
   // Trip = home list · Plan = planner/group detail · Journey = journey panel
   function setActiveNav(name){
     document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.nav===name); });
+    var se=document.getElementById('savedEntryBtn'); if(se) se.classList.toggle('at-saved', name==='saved');
   }
   function goNav(name){
     if(name==='trip'){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; }
@@ -4029,7 +4040,7 @@ function openProfile(){
     else if(name==='journey'){ setActiveNav('journey'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); document.getElementById('globalTitle').textContent='Journey Mode'; document.getElementById('globalBack').style.display=''; } else { setActiveNav('trip'); navigateHome("home"); } }
     else if(name==='saved'){ openSavedTrips(); }
   }
-  document.querySelectorAll('.nav-tab').forEach(function(t){ t.onclick=function(){ goNav(t.dataset.nav); }; });
+  document.querySelectorAll('.nav-tab, #savedEntryBtn').forEach(function(t){ t.onclick=function(){ goNav(t.dataset.nav); }; });
   // Fix (2026-09-15 audit): .back buttons in saved views use data-nav but were never wired
   // (only .nav-tab was) — bottom nav's display:none didn't remove them from the DOM, so
   // clicking "← Semua trip" / "← Trip tersimpan" did nothing. Route them through goNav too.
