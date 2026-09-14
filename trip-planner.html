@@ -528,6 +528,12 @@
   #homeView .empty .btn{margin-top:14px}
   #homeView .history-card h3{font-family:'Poppins';font-weight:600;font-size:15px;color:var(--text)}
   #homeView .history-card .trip-meta{font-variant-numeric:tabular-nums}
+  /* fixes from visual verification pass: flatten stray card-in-card wrapper, drop pill badges, strengthen ghost border, add card affordance */
+  #homeView #historyTrips.form-card{border:0;background:none;box-shadow:none;padding:0;border-radius:0}
+  #homeView .count{background:none;border:0;padding:0;border-radius:0;font-family:'Outfit';font-size:13px;font-weight:500;color:var(--muted)}
+  #homeView .hero-cta .cta-ghost{border-color:rgba(26,26,26,.3)}
+  #homeView .trip-card .open-hint{display:inline-flex;align-items:center;gap:4px;margin-top:10px;font-family:'Poppins';font-size:12px;font-weight:600;color:var(--muted);transition:color .14s ease}
+  #homeView .trip-card:hover .open-hint{color:var(--accent-text)}
   @media (max-width:480px){
     #homeView .hero-cta{flex-direction:column;align-items:stretch}
     #homeView .hero-cta .btn{width:100%;justify-content:center;text-align:center}
@@ -1399,7 +1405,7 @@ function renderHome(){
   renderToGo();
   updateHeaderAvatar(colState.name||loadName()||'');
 }
-  function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const dates=[];if(t.start)dates.push(dateText(t.start));if(t.end)dates.push(dateText(t.end));const metaStr=dates.length?' · '+dates.join(' — '):'';const spentSpan=spent>0?'<span>Keluar '+money(spent)+'</span>':'';return '<button class="trip-card" data-open="'+t.id+'"><span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination||'')+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+spentSpan+'</div></button>';}
+  function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const dates=[];if(t.start)dates.push(dateText(t.start));if(t.end)dates.push(dateText(t.end));const metaStr=dates.length?' · '+dates.join(' — '):'';const spentSpan=spent>0?'<span>Keluar '+money(spent)+'</span>':'';return '<button class="trip-card" data-open="'+t.id+'"><span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination||'')+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+spentSpan+'</div><span class="open-hint">Buka trip →</span></button>';}
   function openTrip(id){
     // PHASE 2 INVARIANT: Opening a private trip must tear down any active group session.
     // Prevents leaked realtime channels, polls, and stale group state.
