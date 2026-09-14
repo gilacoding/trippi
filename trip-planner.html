@@ -1091,6 +1091,22 @@
     colState.journey = {status:'active'};
     const needsConsent = msg.indexOf('location permission not granted') !== -1;
     colState.crewLocations = needsConsent ? [] : ((locRes && locRes.data) || []);
+    // Guests pass the RPC consent gate without consent (they read crew either
+    // way), so "no error" proves nothing about THEIR state. Probe the caller's
+    // own location_permissions row instead — RLS (locperm_select_members) allows
+    // any group member to read it. Server is the source of truth; never a cache.
+    colState.locationConsent = needsConsent ? 'unknown' : 'granted';
+    if(!needsConsent && isGuest()){
+      try{
+        var sbG = await API._getSb();
+        if(sbG && colState.uid){
+          const { data: lpRow } = await sbG.from('location_permissions')
+            .select('permission').eq('group_id', colState.group.id)
+            .eq('user_id', colState.uid).maybeSingle();
+          colState.locationConsent = (lpRow && lpRow.permission === 'granted') ? 'granted' : 'unknown';
+        }
+      }catch(e){ /* probe failed → conservative: unknown */ }
+    }
     // Do NOT overwrite colState.members here: seedGuestContext already loaded the
     // canonical roster (user_id + display_name + role) from group_members, while
     // the get_guest_trip payload carries display_name only. Overwriting it made
@@ -1098,10 +1114,8 @@
     if(!colState.members || !colState.members.length){
       colState.members = (t.members || []).filter(function(m){ return m.display_name; });
     }
-    // get_crew_locations is the source of truth for consent here: if it refused
-    // with 'location permission not granted', this participant has NOT consented,
-    // whatever any local cache says.
-    colState.locationConsent = needsConsent ? 'unknown' : 'granted';
+    // get_crew_locations + the guest consent probe above are the source of
+    // truth for consent here — whatever any local cache says.
     _setConsent(colState.locationConsent);
 
     const consentHtml = (colState.locationConsent === 'granted')
@@ -1110,11 +1124,11 @@
 
     var innerHtml =
       '<div class="section-head" style="margin:18px 0 10px"><h2 style="font-size:18px">Journey Mode</h2><span class="count" id="crewStatus"></span></div>';
-    if(isGuest()){
-      innerHtml += '<div class="consent-banner consent-denied" id="consentBanner"><p>📍 Melihat lokasi crew (read-only).</p></div>';
-    } else {
-      innerHtml += consentHtml;
-    }
+    // Guests get the SAME consent UI as members: a joined guest is a real
+    // group_members row, and grant_location_permission + upsert_member_location
+    // gate on membership (not on profiles), so the guest's own location is
+    // publishable and visible to the whole crew.
+    innerHtml += consentHtml;
     innerHtml +=
       '<div id="crewMap" style="display:none;width:100%;height:280px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden;margin-top:12px"></div>' +
       '<div id="consentMapPreview" style="display:none;width:100%;height:240px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);position:relative;overflow:hidden;margin-top:12px"></div>' +
@@ -1124,14 +1138,12 @@
 
     el.innerHTML = innerHtml;
 
-    if(!isGuest()){
-      var sh = document.getElementById('shareLocationBtn');
-      if(sh) sh.onclick = shareLocationHandler;
-      var dn = document.getElementById('denyLocationBtn');
-      if(dn) dn.onclick = denyLocationHandler;
-      var ss = document.getElementById('stopSharingBtn');
-      if(ss) ss.onclick = stopSharingHandler;
-    }
+    var sh = document.getElementById('shareLocationBtn');
+    if(sh) sh.onclick = shareLocationHandler;
+    var dn = document.getElementById('denyLocationBtn');
+    if(dn) dn.onclick = denyLocationHandler;
+    var ss = document.getElementById('stopSharingBtn');
+    if(ss) ss.onclick = stopSharingHandler;
 
     installLocationLifecycleHandlers();
     await loadCrewMap();
