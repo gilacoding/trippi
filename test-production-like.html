@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Production-Like Test</title>
+  <style>
+    #container { width: 400px; height: 300px; border: 2px solid red; }
+    #journeyContent { min-height: 400px; }
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body>
+  <div id="journeyContent">
+    <div id="container"></div>
+  </div>
+  
+  <pre id="log"></pre>
+  
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+  <script>
+    var log = document.getElementById('log');
+    var map = null;
+    var container = document.getElementById('container');
+    
+    function addLog(msg) {
+      log.textContent += msg + '\\n';
+      console.log('[TEST]', msg);
+    }
+    
+    // Patch Leaflet to track Draggable creation
+    var draggablesCreated = 0;
+    var origDraggableInit = L.Draggable.prototype.initialize;
+    L.Draggable.prototype.initialize = function(el) {
+      draggablesCreated++;
+      addLog('DRAGGABLE_CREATED #' + draggablesCreated + ' on ' + (el ? el.tagName + '#' + el.id : 'null'));
+      return origDraggableInit.apply(this, arguments);
+    };
+    
+    // Patch _onDown to trace
+    var origOnDown = L.Draggable.prototype._onDown;
+    L.Draggable.prototype._onDown = function(e) {
+      var el = this._element;
+      addLog('DRAGGABLE._onDown on ' + (el ? el.tagName + '#' + el.id : 'null') + ' attached=' + (el ? document.contains(el) : 'null'));
+      return origOnDown.apply(this, arguments);
+    };
+    
+    // Simulate MapRenderer.init
+    function createMap() {
+      addLog('\\n=== CREATE MAP ===');
+      container = document.getElementById('container');
+      addLog('Container: ' + (container ? container.tagName + '#' + container.id : 'null'));
+      
+      map = L.map(container);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+      map.setView([-6.247, 106.939], 13);
+      
+      addLog('Map created. Draggables: ' + draggablesCreated);
+    }
+    
+    // Simulate MapRenderer.destroy
+    function destroyMap() {
+      addLog('\\n=== DESTROY MAP ===');
+      addLog('Map exists: ' + !!map);
+      
+      if (map) {
+        addLog('Calling map.remove()...');
+        map.remove();
+        map = null;
+        addLog('Map removed. Draggables: ' + draggablesCreated);
+      }
+    }
+    
+    // Simulate renderJourneyContent
+    function renderJourneyContent() {
+      addLog('\\n=== RENDER JOURNEY CONTENT ===');
+      addLog('Step 1: Destroy old map');
+      destroyMap();
+      
+      addLog('Step 2: Replace DOM');
+      var jc = document.getElementById('journeyContent');
+      jc.innerHTML = '<div id="container"></div>';
+      container = document.getElementById('container');
+      addLog('DOM replaced. New container: ' + (container ? container.id : 'null'));
+    }
+    
+    // Test the full sequence
+    addLog('=== PRODUCTION-LIKE SEQUENCE ===');
+    
+    // Step 1: Create map (first time)
+    addLog('\\n--- Step 1: First map creation ---');
+    createMap();
+    
+    // Step 2: User clicks something that triggers re-render
+    addLog('\\n--- Step 2: Re-render (like tab switch) ---');
+    renderJourneyContent();
+    
+    // Step 3: Create new map
+    addLog('\\n--- Step 3: Create new map ---');
+    createMap();
+    
+    // Step 4: Test drag
+    addLog('\\n--- Step 4: Test drag ---');
+    var rect = container.getBoundingClientRect();
+    addLog('Container rect: ' + JSON.stringify({x: rect.x, y: rect.y, w: rect.width, h: rect.height}));
+    
+    var down = new MouseEvent('mousedown', {
+      clientX: rect.x + rect.width/2,
+      clientY: rect.y + rect.height/2,
+      bubbles: true
+    });
+    container.dispatchEvent(down);
+    
+    setTimeout(function() {
+      for (var i = 0; i < 5; i++) {
+        var move = new MouseEvent('mousemove', {
+          clientX: rect.x + rect.width/2 + (i+1)*10,
+          clientY: rect.y + rect.height/2 + (i+1)*10,
+          bubbles: true
+        });
+        document.dispatchEvent(move);
+      }
+      
+      setTimeout(function() {
+        var up = new MouseEvent('mouseup', { bubbles: true });
+        document.dispatchEvent(up);
+        addLog('\\nDrag complete');
+      }, 100);
+    }, 100);
+    
+    addLog('Script loaded');
+  <\/script>
+</body>
+</html>

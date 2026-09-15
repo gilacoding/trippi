@@ -19,6 +19,22 @@
     anonKey: 'sb_publishable_ZfuXkk79bvWGZPcG4JL79w_8ppMuPR7'
   };
 </script>
+<script src="assets/js/toast.js"></script>
+<script>
+/* Toast adoption: route alerts through mcToast. toast.js ships its own CSS
+   (self-contained); the copy in the main stylesheet is a harmless duplicate.
+   confirm() and destructive flows are untouched. FALLBACK: if toast.js failed
+   to load (window.mcToast missing), this guard no-ops and native alert() keeps
+   working everywhere. To disable entirely, delete these two script tags. */
+(function(){
+  if (typeof window.mcToast!=='function') return; // silent fallback -> native alert preserved
+  var _alert = window.alert;
+  window.alert = function(msg){
+    var m = String(msg==null?'':msg);
+    mcToast(m, /^(Gagal|Error|Undangan tidak|Trip tidak|Grup tidak|Isi |Nama terlalu|Tanggal selesai|Hanya pembuat|Layanan grup|Email valid|Pendaftaran berhasil|Silakan cek)/i.test(m) ? (/^(Pendaftaran berhasil|Silakan cek)/i.test(m)?'info':'err') : 'ok');
+  };
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -200,6 +216,35 @@
   #guestView #guestLeaveBtn{display:block;background:transparent;border:1px solid rgba(198,40,40,.35);color:var(--danger);font-size:13px;height:40px;min-height:40px;width:auto;margin:26px 0 0;padding:0 16px;border-radius:12px}
   #guestView #guestLeaveBtn:hover{background:rgba(198,40,40,.06);border-color:var(--danger)}
   #guestView .guest-leave-wrap{text-align:left}
+
+  /* ===== TOAST (Sonner-inspired, vanilla) — ink pill, bottom, auto-dismiss ===== */
+  #mcToastHost{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:9998;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+  .mc-toast{display:inline-flex;align-items:center;gap:9px;background:var(--ink);color:var(--white);font-family:'Outfit';font-size:13.5px;font-weight:500;line-height:1.4;padding:11px 16px;border-radius:12px;box-shadow:0 10px 26px rgba(26,26,26,.28);max-width:min(92vw,420px);animation:mc-toast-in .22s ease;pointer-events:auto}
+  .mc-toast.out{animation:mc-toast-out .18s ease forwards}
+  .mc-toast::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--green);flex:0 0 auto}
+  .mc-toast.err::before{background:var(--danger)}
+  @keyframes mc-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes mc-toast-out{to{opacity:0;transform:translateY(6px)}}
+  @media (prefers-reduced-motion:reduce){.mc-toast,.mc-toast.out{animation:none}}
+
+  /* ===== CREW AVATAR STACK — overlapping initials, palette hues only ===== */
+  .crew-stack{display:flex;align-items:center}
+  .crew-stack .cs-av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:'Poppins';font-weight:600;font-size:12px;color:var(--ink);border:2px solid var(--surface);margin-left:-8px;box-shadow:0 1px 3px rgba(26,26,26,.12)}
+  .crew-stack .cs-av:first-child{margin-left:0}
+  .crew-stack .cs-av:nth-child(1){background:var(--accent2)}
+  .crew-stack .cs-av:nth-child(2){background:var(--surface2)}
+  .crew-stack .cs-av:nth-child(3){background:#F3D9A4}
+  .crew-stack .cs-av:nth-child(4){background:var(--sage)}
+  .crew-stack .cs-more{margin-left:8px;font-family:'Outfit';font-size:12px;color:var(--muted)}
+  #groupView .planner-head .crew-stack{margin-top:10px}
+  /* ReUI-inspired empty states: dim icon above title. data-ic → Lucide mask (stroke art, tinted via background). */
+  .empty[data-ic]::before{content:"";width:26px;height:26px;display:block;margin:0 auto 10px;background:var(--text-muted);opacity:.4;-webkit-mask:center/contain no-repeat;mask:center/contain no-repeat;}
+  .empty[data-ic="heart"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M2%209.5a5.5%205.5%200%200%201%209.591-3.676.56.56%200%200%200%20.818%200A5.49%205.49%200%200%201%2022%209.5c0%202.29-1.5%204-3%205.5l-5.492%205.313a2%202%200%200%201-3%20.019L5%2015c-1.5-1.5-3-3.2-3-5.5%22%20/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M2%209.5a5.5%205.5%200%200%201%209.591-3.676.56.56%200%200%200%20.818%200A5.49%205.49%200%200%201%2022%209.5c0%202.29-1.5%204-3%205.5l-5.492%205.313a2%202%200%200%201-3%20.019L5%2015c-1.5-1.5-3-3.2-3-5.5%22%20/%3E%3C/svg%3E")}
+  .empty[data-ic="mappin"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2010c0%204.993-5.539%2010.193-7.399%2011.799a1%201%200%200%201-1.202%200C9.539%2020.193%204%2014.993%204%2010a8%208%200%200%201%2016%200%22%20/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2210%22%20r%3D%223%22%20/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M20%2010c0%204.993-5.539%2010.193-7.399%2011.799a1%201%200%200%201-1.202%200C9.539%2020.193%204%2014.993%204%2010a8%208%200%200%201%2016%200%22%20/%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2210%22%20r%3D%223%22%20/%3E%3C/svg%3E")}
+  .empty[data-ic="cal"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%202v3%22%20/%3E%3Cpath%20d%3D%22M16%202v3%22%20/%3E%3Cpath%20d%3D%22M3%209h18%22%20/%3E%3Cpath%20d%3D%22M8%2013h.01%22%20/%3E%3Cpath%20d%3D%22M12%2013h.01%22%20/%3E%3Cpath%20d%3D%22M16%2013h.01%22%20/%3E%3Cpath%20d%3D%22M8%2017h.01%22%20/%3E%3Cpath%20d%3D%22M12%2017h.01%22%20/%3E%3Cpath%20d%3D%22M16%2017h.01%22%20/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%202v3%22%20/%3E%3Cpath%20d%3D%22M16%202v3%22%20/%3E%3Cpath%20d%3D%22M3%209h18%22%20/%3E%3Cpath%20d%3D%22M8%2013h.01%22%20/%3E%3Cpath%20d%3D%22M12%2013h.01%22%20/%3E%3Cpath%20d%3D%22M16%2013h.01%22%20/%3E%3Cpath%20d%3D%22M8%2017h.01%22%20/%3E%3Cpath%20d%3D%22M12%2017h.01%22%20/%3E%3Cpath%20d%3D%22M16%2017h.01%22%20/%3E%3C/svg%3E")}
+  .empty[data-ic="coins"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M11%2015h2a2%202%200%201%200%200-4h-3c-.6%200-1.1.2-1.4.6L3%2017%22%20/%3E%3Cpath%20d%3D%22m7%2021%201.6-1.4c.3-.4.8-.6%201.4-.6h4c1.1%200%202.1-.4%202.8-1.2l4.6-4.4a2%202%200%200%200-2.75-2.91l-4.2%203.9%22%20/%3E%3Cpath%20d%3D%22m2%2016%206%206%22%20/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%229%22%20r%3D%222.9%22%20/%3E%3Ccircle%20cx%3D%226%22%20cy%3D%225%22%20r%3D%223%22%20/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M11%2015h2a2%202%200%201%200%200-4h-3c-.6%200-1.1.2-1.4.6L3%2017%22%20/%3E%3Cpath%20d%3D%22m7%2021%201.6-1.4c.3-.4.8-.6%201.4-.6h4c1.1%200%202.1-.4%202.8-1.2l4.6-4.4a2%202%200%200%200-2.75-2.91l-4.2%203.9%22%20/%3E%3Cpath%20d%3D%22m2%2016%206%206%22%20/%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%229%22%20r%3D%222.9%22%20/%3E%3Ccircle%20cx%3D%226%22%20cy%3D%225%22%20r%3D%223%22%20/%3E%3C/svg%3E")}
+  .empty[data-ic="users"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M16%2021v-2a4%204%200%200%200-4-4H6a4%204%200%200%200-4%204v2%22%20/%3E%3Cpath%20d%3D%22M16%203.128a4%204%200%200%201%200%207.744%22%20/%3E%3Cpath%20d%3D%22M22%2021v-2a4%204%200%200%200-3-3.87%22%20/%3E%3Ccircle%20cx%3D%229%22%20cy%3D%227%22%20r%3D%224%22%20/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M16%2021v-2a4%204%200%200%200-4-4H6a4%204%200%200%200-4%204v2%22%20/%3E%3Cpath%20d%3D%22M16%203.128a4%204%200%200%201%200%207.744%22%20/%3E%3Cpath%20d%3D%22M22%2021v-2a4%204%200%200%200-3-3.87%22%20/%3E%3Ccircle%20cx%3D%229%22%20cy%3D%227%22%20r%3D%224%22%20/%3E%3C/svg%3E")}
+
   /* ===== MODAL SURFACES (2026-09-15) — one card language across auth/import/settings/save; ID-scoped to outrank injected class rules ===== */
   #authModal .auth-card,#profileModal .auth-card,#importModal .import-card,#groupSettingsModal .auth-card,#editTripModal .auth-card,#saveTripModal .modal-card{border-radius:20px;box-shadow:0 18px 44px rgba(26,26,26,.16)}
   #importModal .import-tip{font-size:12px;margin-top:4px;color:var(--muted);font-family:'Outfit'}
@@ -703,7 +748,8 @@
   #groupView .expense-item{border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;padding:12px 0}
   #groupView .expense-item:last-child{border-bottom:0}
   #groupView .expense-amount{color:var(--text);font-variant-numeric:tabular-nums}
-  #groupView .expense-icon{font-family:'Poppins';font-weight:600;font-size:13px;color:var(--text-muted)}
+  #groupView .expense-icon{color:var(--text-muted)}
+  #groupView .expense-icon svg,#plannerView .expense-icon svg{width:18px;height:18px;display:block}
   /* stats strip: flat chips, ink tabular numbers, no green last-child */
   #groupView .trip-stats span{background:none;border:0;border-top:2px solid var(--line);border-radius:0;padding:8px 0 0;font-family:'Poppins';font-size:12px;font-weight:500;color:var(--muted);text-align:left}
   #groupView .trip-stats span b{color:var(--text);font-variant-numeric:tabular-nums}
@@ -1027,7 +1073,7 @@
 
   <section class="view" id="groupView">
     <button class="back" data-home>← Semua trip</button>
-    <div class="planner-head"><h1 id="groupName"></h1><div class="trip-meta" id="groupMeta"></div>
+    <div class="planner-head"><h1 id="groupName"></h1><div class="trip-meta" id="groupMeta"></div><div class="crew-stack" id="groupCrewStack" aria-hidden="true"></div>
       <div class="planner-actions"><button class="btn secondary small" id="groupSettingsBtn" style="display:none">Pengaturan</button><button class="btn secondary small" id="editGroupBtn" style="display:none">Edit trip</button><button class="btn secondary small" id="inviteGroupBtn">Bagikan grup</button><button class="btn secondary small" id="leaveGroupBtn">Keluar</button></div>
     </div>
     <div class="trip-stats" id="groupStats"></div>
@@ -1662,7 +1708,7 @@ function renderHome(){
   const actions=document.querySelector('.planner-actions');if(actions)actions.style.display=ro?'none':'flex';$('readOnlyBanner').style.display=ro?'block':'none';$('addPanel').style.display=ro?'none':'';$('expensePanel').style.display=ro?'none':'';$('deleteTrip').style.display=ro?'none':'';const dates=daysBetween(trip.start,trip.end),items=trip.items||[];
   $('plannerName').textContent=trip.name;$('plannerMeta').textContent=`${trip.destination}${trip.start||trip.end?` · ${dateText(trip.start||'')} ${trip.end?`— ${dateText(trip.end)}`:''}`:''}`.trim();$('placeTotal').textContent=items.length;$('budgetTotal').textContent=money(items.reduce((sum,item)=>sum+(Number(item.budget)||0),0));$('dayTotal').textContent=dates.length;$('dayTabs').innerHTML=dates.map((date,index)=>`<button class="day-tab ${date===state.activeDate?'active':''}" data-day="${date}">Hari ${index+1}<br><span style="font-weight:500;opacity:.8">${dateText(date).replace(/ \d{4}/,'')}</span></button>`).join('');document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{state.activeDate=b.dataset.day;renderPlanner()});
   const todayItems=items.filter(i=>i.date===state.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
-  $('itineraryList').innerHTML=todayItems.length?todayItems.map(item=>`<article class="item"><div class="item-time" data-edit-time="${item.id}" title="Klik untuk ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'}</div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">biaya?</div>`}</div><button class="delete-item" data-delete="${item.id}" aria-label="Hapus agenda">×</button></article>`).join(''):`<div class="empty"><strong>Hari ini masih longgar.</strong>Tambahkan tempat, transport, atau agenda yang ingin kamu ingat.</div>`;document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteItem(b.dataset.delete));document.querySelectorAll('[data-edit-time]').forEach(el=>el.onclick=()=>editInline(el,'time','time'));document.querySelectorAll('[data-edit-cost]').forEach(el=>el.onclick=()=>editInline(el,'budget','number'));renderExpenses()}
+  $('itineraryList').innerHTML=todayItems.length?todayItems.map(item=>`<article class="item"><div class="item-time" data-edit-time="${item.id}" title="Klik untuk ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'}</div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">biaya?</div>`}</div><button class="delete-item" data-delete="${item.id}" aria-label="Hapus agenda">×</button></article>`).join(''):`<div class="empty" data-ic="cal"><strong>Hari ini masih longgar.</strong>Tambahkan tempat, transport, atau agenda yang ingin kamu ingat.</div>`;document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteItem(b.dataset.delete));document.querySelectorAll('[data-edit-time]').forEach(el=>el.onclick=()=>editInline(el,'time','time'));document.querySelectorAll('[data-edit-cost]').forEach(el=>el.onclick=()=>editInline(el,'budget','number'));renderExpenses()}
   function deleteItem(id){
   const trip=getTrip();
   if(!trip)return;
@@ -1755,7 +1801,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   const normalizeLink=window.utils.normalizeLink;
   function addAgenda(event){event.preventDefault();const trip=getTrip();trip.items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,title:$('agendaTitle').value.trim(),time:$('agendaTime').value,budget:$('agendaBudget').value,link:normalizeLink($('agendaLink').value),note:$('agendaNote').value.trim()});save();syncTrip(trip);event.target.reset();$('addPanel').open=false;renderPlanner()}
   const categoryIcon=window.utils.categoryIcon;
-  function renderExpenses(){const trip=getTrip();const expenses=trip.expenses||[],dayExpenses=expenses.filter(item=>item.date===state.activeDate);const sum=list=>list.reduce((total,item)=>total+(Number(item.amount)||0),0);$('dailyExpenseTotal').textContent=money(sum(dayExpenses));$('tripExpenseTotal').textContent=money(sum(expenses));$('expenseList').innerHTML=dayExpenses.length?dayExpenses.map(item=>`<article class="expense-item"><span class="expense-icon" aria-hidden="true">${esc((item.category||'•').charAt(0))}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)}</div><div class="expense-meta">${esc(item.category)}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div><button class="expense-delete" data-delete-expense="${item.id}" aria-label="Hapus pengeluaran">×</button></article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang benar-benar keluar.</div>';document.querySelectorAll('[data-delete-expense]').forEach(button=>button.onclick=()=>deleteExpense(button.dataset.deleteExpense))}
+  function renderExpenses(){const trip=getTrip();const expenses=trip.expenses||[],dayExpenses=expenses.filter(item=>item.date===state.activeDate);const sum=list=>list.reduce((total,item)=>total+(Number(item.amount)||0),0);$('dailyExpenseTotal').textContent=money(sum(dayExpenses));$('tripExpenseTotal').textContent=money(sum(expenses));$('expenseList').innerHTML=dayExpenses.length?dayExpenses.map(item=>`<article class="expense-item"><span class="expense-icon" aria-hidden="true">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)}</div><div class="expense-meta">${esc(item.category)}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div><button class="expense-delete" data-delete-expense="${item.id}" aria-label="Hapus pengeluaran">×</button></article>`).join(''):'<div class="empty" data-ic="coins"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang benar-benar keluar.</div>';document.querySelectorAll('[data-delete-expense]').forEach(button=>button.onclick=()=>deleteExpense(button.dataset.deleteExpense))}
   function addExpense(event){event.preventDefault();const trip=getTrip();if(!trip.expenses)trip.expenses=[];trip.expenses.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,name:$('expenseName').value.trim(),amount:$('expenseAmount').value,category:$('expenseCategory').value,note:$('expenseNote').value.trim()});save();syncTrip(trip);event.target.reset();$('expensePanel').open=false;renderExpenses()}
   function deleteExpense(id){
   const trip=getTrip();
@@ -1773,7 +1819,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   }
   renderExpenses()
 }
-  function renderToGo(){if(!$('toGoList'))return;const q=(($('toGoSearch')||{}).value||'').trim().toLowerCase();const list=q?state.toGo.filter(i=>(i.name||'').toLowerCase().includes(q)||(i.link||'').toLowerCase().includes(q)||(i.note||'').toLowerCase().includes(q)):state.toGo;if($('toGoCount'))$('toGoCount').textContent=state.toGo.length?`${state.toGo.length} tempat`:'';if($('toGoSearch'))$('toGoSearch').style.display=state.toGo.length?'block':'none';$('toGoList').innerHTML=list.length?list.map(item=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(item.name)}</div>${item.link?`<a class="to-go-source" href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.link)}</a>`:''}${item.note?`<div class="link-field">${esc(item.note)}</div>`:''}</div><div class="to-go-actions"><button class="btn small" data-schedule="${item.id}">Jadwalkan</button><button class="btn secondary small" data-remove-togo="${item.id}" aria-label="Hapus dari To Go List">×</button></div></article>`).join(''):'<div class="empty"><strong>Belum ada tempat tersimpan.</strong>Paste link atau simpan tempat yang ingin kamu datangi.</div>';document.querySelectorAll('[data-schedule]').forEach(b=>b.onclick=()=>scheduleToGo(b.dataset.schedule));document.querySelectorAll('[data-remove-togo]').forEach(b=>b.onclick=()=>{state.toGo=state.toGo.filter(item=>item.id!==b.dataset.removeTogo);save();renderToGo()})}
+  function renderToGo(){if(!$('toGoList'))return;const q=(($('toGoSearch')||{}).value||'').trim().toLowerCase();const list=q?state.toGo.filter(i=>(i.name||'').toLowerCase().includes(q)||(i.link||'').toLowerCase().includes(q)||(i.note||'').toLowerCase().includes(q)):state.toGo;if($('toGoCount'))$('toGoCount').textContent=state.toGo.length?`${state.toGo.length} tempat`:'';if($('toGoSearch'))$('toGoSearch').style.display=state.toGo.length?'block':'none';$('toGoList').innerHTML=list.length?list.map(item=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(item.name)}</div>${item.link?`<a class="to-go-source" href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.link)}</a>`:''}${item.note?`<div class="link-field">${esc(item.note)}</div>`:''}</div><div class="to-go-actions"><button class="btn small" data-schedule="${item.id}">Jadwalkan</button><button class="btn secondary small" data-remove-togo="${item.id}" aria-label="Hapus dari To Go List">×</button></div></article>`).join(''):'<div class="empty" data-ic="mappin"><strong>Belum ada tempat tersimpan.</strong>Paste link atau simpan tempat yang ingin kamu datangi.</div>';document.querySelectorAll('[data-schedule]').forEach(b=>b.onclick=()=>scheduleToGo(b.dataset.schedule));document.querySelectorAll('[data-remove-togo]').forEach(b=>b.onclick=()=>{state.toGo=state.toGo.filter(item=>item.id!==b.dataset.removeTogo);save();renderToGo()})}
   function addToGo(event){event.preventDefault();state.toGo.unshift({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:$('toGoName').value.trim(),link:normalizeLink($('toGoLink').value),note:$('toGoNote').value.trim()});save();event.target.reset();if($('toGoPanel'))$('toGoPanel').open=false;renderToGo()}
   function scheduleToGo(id){const item=state.toGo.find(x=>x.id===id);if(!item)return;state.editTripId=null;state.pendingToGoId=id;$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';$('selectedToGo').innerHTML=`<strong>${esc(item.name)}</strong> akan ditambahkan ke agenda hari pertama setelah trip dibuat.`;$('selectedToGo').style.display='block';show('newTripView');$('tripName').focus()}
   function editTrip(){
@@ -2061,7 +2107,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       html += '</div>';
     } else {
       html += '<div class="section-head"><div><h3>Group Wishlist</h3></div></div>';
-      html += '<div class="empty">Belum ada wishlist. Ajukan tempat yang ingin kamu kunjungi.</div>';
+      html += '<div class="empty" data-ic="heart"><strong>Belum ada wishlist.</strong>Ajukan tempat yang ingin kamu kunjungi.</div>';
     }
     if (history.length){
       html += '<div class="section-head" style="margin-top:14px"><div><h4 style="font-size:13px;color:var(--muted)">Sudah diproses</h4></div></div>';
@@ -2227,7 +2273,17 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(!colState.activeDate&&dates.length)colState.activeDate=dates[0];
     $('groupName').textContent=g.name;
     $('groupMeta').textContent=`${(g.destination||'')?g.destination+' · ':''}${g.start_date?dateText(String(g.start_date)):'?'}${g.end_date?' — '+dateText(String(g.end_date)):''} · Pembuat ${creatorName()}`;
-    $('groupStats').innerHTML=`<span>${colState.items.length} agenda</span><span>${dates.length} hari</span><span>${colState.members.length} anggota</span><span>Est. ${money(colState.items.reduce((s,i)=>s+(Number(i.budget)||0),0))}</span>`;
+    $('groupStats').innerHTML=`<span>${colState.items.length} agenda</span><span>${dates.length} hari</span><span>${colState.members.length} anggota</span><span>Est. ${money(colState.items.reduce((a,i)=>a+(Number(i.budget)||0),0))}</span>`;
+    // Crew initials stack (overlapping avatars) — palette hues only, first letter
+    (function(){
+      var cs=$('groupCrewStack'); if(!cs) return;
+      var ms=(colState.members||[]).slice(0,4);
+      cs.innerHTML = ms.map(function(m){
+        var ident=resolveIdentity(m.user_id); var nm=ident.name||m.display_name||'?';
+        return '<span class="cs-av" aria-hidden="true">'+esc((nm.trim().charAt(0)||'?').toUpperCase())+'</span>';
+      }).join('') + ((colState.members||[]).length>4 ? '<span class="cs-more">+'+((colState.members.length-4))+' lainnya</span>' : '');
+      cs.setAttribute('aria-label', (colState.members||[]).length+' anggota');
+    })();
     // #groupMemberCount belonged to the removed "Anggota" section; Crew now owns
     // the roster, so only update it if some layout still provides the element.
     const _gmc=document.getElementById('groupMemberCount');
@@ -2236,7 +2292,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     document.querySelectorAll('[data-gday]').forEach(b=>b.onclick=()=>{colState.activeDate=b.dataset.gday;renderGroupPlanner();});
     const dayItems=colState.items.filter(i=>i.date===colState.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
     $('groupDayTitle').textContent=`Itinerary · ${colState.activeDate?dateText(colState.activeDate):'pilih hari'} · ${dayItems.length} titik`;
-    $('groupItineraryList').innerHTML=dayItems.length?dayItems.map(item=>`<article class="item"><div class="item-time" data-gtime="${item.id}" title="Klik ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'} · <span class="by">oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-gcost="${item.id}" title="Klik ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-gcost="${item.id}" title="Klik ubah biaya">biaya?</div>`}</div>${canEditTrip()?`<button class="delete-item" data-gdel="${item.id}" aria-label="Hapus">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada agenda hari ini.</strong>Tambah kegiatan bareng-bareng.</div>';
+    $('groupItineraryList').innerHTML=dayItems.length?dayItems.map(item=>`<article class="item"><div class="item-time" data-gtime="${item.id}" title="Klik ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'} · <span class="by">oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-gcost="${item.id}" title="Klik ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-gcost="${item.id}" title="Klik ubah biaya">biaya?</div>`}</div>${canEditTrip()?`<button class="delete-item" data-gdel="${item.id}" aria-label="Hapus">×</button>`:''}</article>`).join(''):'<div class="empty" data-ic="cal"><strong>Belum ada agenda hari ini.</strong>Tambah kegiatan bareng-bareng.</div>';
     if(canEditTrip()){
       document.querySelectorAll('[data-gtime]').forEach(el=>el.onclick=()=>editGroupTime(el));
       document.querySelectorAll('[data-gcost]').forEach(el=>el.onclick=()=>editGroupCost(el));
@@ -2267,7 +2323,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const myRow=document.getElementById('myExpenseRow');
     if(myRow){ myRow.style.display = mine.length ? '' : 'none'; }
     $('groupMyExpense').textContent=money(sum(mine));
-    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} ${isMine(item)?'<span class="exp-badge pribadi">Pribadi</span>':''} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by&&!isMine(item)?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div>${(item.type!=='personal'&&canEditTrip())||isMine(item)?`<button class="expense-delete" data-gdelexp="${item.id}">×</button>`:''}</article>`).join(''):'<div class="empty"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
+    $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} ${isMine(item)?'<span class="exp-badge pribadi">Pribadi</span>':''} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by&&!isMine(item)?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div>${(item.type!=='personal'&&canEditTrip())||isMine(item)?`<button class="expense-delete" data-gdelexp="${item.id}">×</button>`:''}</article>`).join(''):'<div class="empty" data-ic="coins"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
     if(canEditTrip()){
       document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
     }
@@ -2295,7 +2351,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
           ? '<div class="to-go-actions"><button class="btn secondary small remove-member" data-rm="' + esc(m.user_id) + '" aria-label="Keluarkan dari trip">×</button></div>'
           : '') +
         '</article>';
-    }).join('') : '<div class="empty">Belum ada anggota.</div>';
+    }).join('') : '<div class="empty" data-ic="users"><strong>Belum ada anggota.</strong>Bagikan trip supaya crew bisa ikut ngatur.</div>';
 
     if(canManage){
       el.querySelectorAll('[data-rm]').forEach(function(b){
@@ -2779,7 +2835,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // Full replace keeps this idempotent under re-render.
     let html = '';
     if(!pending.length && !done.length){
-      html = '<div class="empty">Belum ada wishlist. Ajukan tempat yang ingin kamu kunjungi.</div>';
+      html = '<div class="empty" data-ic="heart"><strong>Belum ada wishlist.</strong>Ajukan tempat yang ingin kamu kunjungi.</div>';
     } else {
       html += pending.map(function(w){
         // NOTE: no '+ Add to Itin' here — converting is the creator's action.
@@ -3067,7 +3123,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
           ? '<div class="to-go-actions"><button class="btn secondary small remove-member" data-rm="' + esc(r.uid) + '" aria-label="Keluarkan dari trip">×</button></div>'
           : '') +
         '</article>';
-    }).join('') : '<div class="empty">Belum ada anggota.</div>';
+    }).join('') : '<div class="empty" data-ic="users"><strong>Belum ada anggota.</strong>Bagikan trip supaya crew bisa ikut ngatur.</div>';
 
     // Creator-only management lives inside Crew now (no second roster).
     if(canManage){
@@ -3203,7 +3259,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     renderCrewStatusList();
     const legacy = document.getElementById('memberList');
     if(!legacy) return;
-    legacy.innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Trip Creator</span>':''}</div><div class="link-field"></div></div>${m.user_id!==colState.uid&&canManageMembers()?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty">Belum ada anggota.</div>';
+    legacy.innerHTML=colState.members.length?colState.members.map(m=>`<article class="to-go-item"><div class="to-go-copy"><div class="to-go-name">${esc(m.display_name)}${m.role==='owner'?' <span class="role-badge">Trip Creator</span>':''}</div><div class="link-field"></div></div>${m.user_id!==colState.uid&&canManageMembers()?`<button class="btn secondary small remove-member" data-rm="${m.user_id}">×</button>`:''}</article>`).join(''):'<div class="empty" data-ic="users"><strong>Belum ada anggota.</strong>Bagikan trip supaya crew bisa ikut ngatur.</div>';
     document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>removeMemberFromTrip(b.dataset.rm));
   }
   async function addGroupAgenda(event){event.preventDefault();const g=colState.group;if(!g)return;const {error}=await API.addItem({group_id:g.id,title:$('groupAgendaTitle').value.trim(),time:$('groupAgendaTime').value,link:normalizeLink($('groupAgendaLink').value),note:$('groupAgendaNote').value.trim(),date:colState.activeDate||(colState.group&&daysBetween(String(colState.group.start_date||''),String(colState.group.end_date||''))[0])||'',budget:Number($('groupAgendaBudget').value)||0,created_by:colState.uid});if(error)alert('Gagal: '+error.message);else{$('groupAgendaForm').reset();$('groupAgendaForm').parentElement.open=false;await loadShared(g.id);}}

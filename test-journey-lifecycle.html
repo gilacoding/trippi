@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Journey Map Lifecycle Test</title>
+  <style>
+    #journeyPanel { display: none; }
+    #crewMap { width: 100%; height: 280px; border: 1px solid #ccc; }
+    .view-panel { display: none; }
+    body { margin: 20px; font-family: sans-serif; }
+    button { margin: 10px; padding: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Journey Map Lifecycle Test</h1>
+  <button id="showJourney">Show Journey Panel</button>
+  <button id="hideJourney">Hide Journey Panel</button>
+  <button id="reinit">Reinitialize Map</button>
+  <button id="drag">Simulate Drag</button>
+  
+  <div id="journeyPanel" class="view-panel">
+    <div id="journeyContent"></div>
+  </div>
+  
+  <div id="status">Ready</div>
+  
+  <script src="assets/js/map-renderer.js"></script>
+  <script>
+    var status = document.getElementById('status');
+    var content = document.getElementById('journeyContent');
+    var panel = document.getElementById('journeyPanel');
+    
+    function log(msg) {
+      console.log('[TEST]', msg);
+      status.textContent = msg;
+    }
+    
+    function renderJourneyContent() {
+      log('renderJourneyContent() called');
+      
+      // Simulate what production does - replace innerHTML
+      content.innerHTML = 
+        '<div class="section-head"><h2>Journey Mode</h2></div>' +
+        '<div id="crewMap" style="display:none;width:100%;height:280px;border:1px solid #ccc;position:relative;overflow:hidden"></div>' +
+        '<div class="empty" id="crewEmpty">Belum ada lokasi yang dibagikan.</div>';
+      
+      log('innerHTML replaced, crewMap recreated');
+    }
+    
+    function loadCrewMap() {
+      log('loadCrewMap() called');
+      
+      var mapEl = document.getElementById('crewMap');
+      if (!mapEl) { log('ERROR: crewMap not found'); return; }
+      
+      // Show the map
+      mapEl.style.display = 'block';
+      mapEl.innerHTML = '';
+      
+      // Check if we need to create new renderer
+      if (!window._journeyMap) {
+        log('Creating new MapRenderer...');
+        window._journeyMap = new MapRenderer('crewMap');
+        window._journeyMap.init().then(function(r) {
+          log('MapRenderer initialized');
+          
+          // Add test markers
+          var testPoints = [
+            { user_id: 'user1', latitude: -6.247, longitude: 106.939, updated_at: new Date().toISOString() },
+            { user_id: 'user2', latitude: -6.250, longitude: 106.940, updated_at: new Date().toISOString() }
+          ];
+          
+          window._journeyMap.setMarkers(testPoints);
+          window._journeyMap.fitToMarkers();
+          log('Markers added');
+        });
+      } else {
+        log('Reusing existing MapRenderer');
+      }
+    }
+    
+    // Button handlers
+    document.getElementById('showJourney').onclick = function() {
+      log('Showing journey panel...');
+      panel.style.display = 'block';
+      renderJourneyContent();
+      loadCrewMap();
+    };
+    
+    document.getElementById('hideJourney').onclick = function() {
+      log('Hiding journey panel...');
+      panel.style.display = 'none';
+    };
+    
+    document.getElementById('reinit').onclick = function() {
+      log('Reinitializing...');
+      if (window._journeyMap) {
+        window._journeyMap.destroy();
+        window._journeyMap = null;
+      }
+      renderJourneyContent();
+      loadCrewMap();
+    };
+    
+    document.getElementById('drag').onclick = function() {
+      log('Simulating drag...');
+      var mapEl = document.getElementById('crewMap');
+      if (mapEl) {
+        var rect = mapEl.getBoundingClientRect();
+        var evt = new MouseEvent('mousedown', {
+          clientX: rect.left + rect.width/2,
+          clientY: rect.top + rect.height/2,
+          bubbles: true
+        });
+        mapEl.dispatchEvent(evt);
+        
+        setTimeout(function() {
+          var evt2 = new MouseEvent('mousemove', {
+            clientX: rect.left + rect.width/2 + 50,
+            clientY: rect.top + rect.height/2 + 50,
+            bubbles: true
+          });
+          document.dispatchEvent(evt2);
+          
+          setTimeout(function() {
+            var evt3 = new MouseEvent('mouseup', { bubbles: true });
+            document.dispatchEvent(evt3);
+            log('Drag complete');
+          }, 100);
+        }, 100);
+      }
+    };
+    
+    // Capture errors
+    window.addEventListener('error', function(e) {
+      log('ERROR: ' + e.message);
+    });
+  </script>
+</body>
+</html>

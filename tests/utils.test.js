@@ -107,16 +107,18 @@ test('daysBetween: handles empty input', () => {
 });
 
 // ── categoryIcon ──
-test('categoryIcon: returns emoji for known categories', () => {
-  assert.strictEqual(utils.categoryIcon('Makan'), '🍜');
-  assert.strictEqual(utils.categoryIcon('Transport'), '🚗');
-  assert.strictEqual(utils.categoryIcon('Hotel'), '🛏️');
-  assert.strictEqual(utils.categoryIcon('Tiket'), '🎟️');
-  assert.strictEqual(utils.categoryIcon('Belanja'), '🛍️');
-  assert.strictEqual(utils.categoryIcon('Lainnya'), '•');
+// Contract (2026-09-15): Lucide inline SVG, stroke=currentColor. Emojis retired.
+const KNOWN_CATS = ['Makan','Transport','Hotel','Tiket','Belanja','Lainnya'];
+test('categoryIcon: returns SVG icon for known categories', () => {
+  for (const c of KNOWN_CATS) {
+    const out = utils.categoryIcon(c);
+    assert.ok(out.startsWith('<svg') && out.includes('currentColor'), c + ' -> ' + out.slice(0, 40));
+  }
 });
-test('categoryIcon: returns bullet for unknown', () => {
-  assert.strictEqual(utils.categoryIcon('Unknown'), '•');
+test('categoryIcon: unknown category falls back to ellipsis svg', () => {
+  const out = utils.categoryIcon('Unknown');
+  assert.ok(out.startsWith('<svg') && out.includes('<circle'));
+  assert.strictEqual(out, utils.categoryIcon('Lainnya'));
 });
 
 // ── isPlaceholderName ──

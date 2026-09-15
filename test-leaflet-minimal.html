@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Minimal Leaflet Test</title>
+  <style>
+    #map { width: 400px; height: 300px; border: 1px solid red; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Minimal Leaflet Test</h1>
+  <button id="show">Show Map</button>
+  <button id="hide">Hide Map</button>
+  <button id="init">Init Map</button>
+  <button id="drag">Drag</button>
+  
+  <div id="map"></div>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    var map = null;
+    
+    function log(msg) { console.log('[TEST]', msg); }
+    
+    document.getElementById('show').onclick = function() {
+      log('Showing map');
+      document.getElementById('map').classList.remove('hidden');
+    };
+    
+    document.getElementById('hide').onclick = function() {
+      log('Hiding map');
+      document.getElementById('map').classList.add('hidden');
+    };
+    
+    document.getElementById('init').onclick = function() {
+      log('Initializing map...');
+      var el = document.getElementById('map');
+      log('Map visible:', !el.classList.contains('hidden'));
+      log('Map dimensions:', el.offsetWidth, 'x', el.offsetHeight);
+      
+      if (map) {
+        log('Map already exists, removing...');
+        map.remove();
+        map = null;
+      }
+      
+      map = L.map(el);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+      map.setView([-6.247, 106.939], 13);
+      log('Map initialized');
+    };
+    
+    document.getElementById('drag').onclick = function() {
+      log('Simulating drag...');
+      var el = document.getElementById('map');
+      var rect = el.getBoundingClientRect();
+      
+      var down = new MouseEvent('mousedown', {
+        clientX: rect.left + 100,
+        clientY: rect.top + 100,
+        bubbles: true
+      });
+      el.dispatchEvent(down);
+      
+      setTimeout(function() {
+        var move = new MouseEvent('mousemove', {
+          clientX: rect.left + 150,
+          clientY: rect.top + 150,
+          bubbles: true
+        });
+        document.dispatchEvent(move);
+        
+        setTimeout(function() {
+          var up = new MouseEvent('mouseup', { bubbles: true });
+          document.dispatchEvent(up);
+          log('Drag complete');
+        }, 100);
+      }, 100);
+    };
+    
+    window.addEventListener('error', function(e) {
+      log('ERROR: ' + e.message);
+    });
+  </script>
+</body>
+</html>

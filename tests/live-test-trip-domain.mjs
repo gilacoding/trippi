@@ -44,7 +44,7 @@ async function main() {
     results.push({ name: 'utils.dateText', pass: window.utils.dateText('2026-09-09').length > 0 });
     results.push({ name: 'utils.daysBetween', pass: window.utils.daysBetween('2026-09-01','2026-09-03').length === 3 });
     results.push({ name: 'utils.normalizeLink', pass: window.utils.normalizeLink('google.com') === 'https://google.com' });
-    results.push({ name: 'utils.categoryIcon', pass: window.utils.categoryIcon('Makan') === '🍜' });
+    results.push({ name: 'utils.categoryIcon', pass: window.utils.categoryIcon('Makan').indexOf('<svg')===0 && window.utils.categoryIcon('Makan').indexOf('currentColor')>-1 });
     results.push({ name: 'utils.isPlaceholderName', pass: window.utils.isPlaceholderName('Guest') === true });
     results.push({ name: 'utils.isPlaceholderName real', pass: window.utils.isPlaceholderName('Gilang') === false });
     results.push({ name: 'utils.humanErr', pass: window.utils.humanErr({message: 'invalid login'}).length > 0 });

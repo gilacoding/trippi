@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Map Test</title>
+  <style>
+    #crewMap { width: 100%; height: 280px; border: 1px solid #ccc; }
+    body { margin: 20px; }
+  </style>
+</head>
+<body>
+  <h1>MapRenderer Test</h1>
+  <div id="crewMap"></div>
+  <div id="status"></div>
+  
+  <script src="assets/js/map-renderer.js"></script>
+  <script>
+    document.getElementById('status').textContent = 'Script loaded, initializing map...';
+    
+    var renderer = new MapRenderer('crewMap');
+    renderer.init().then(function(r) {
+      document.getElementById('status').textContent = 'Map initialized!';
+      
+      // Add some test markers
+      var testPoints = [
+        { user_id: 'user1', latitude: -6.247, longitude: 106.939, updated_at: new Date().toISOString() },
+        { user_id: 'user2', latitude: -6.250, longitude: 106.940, updated_at: new Date().toISOString() }
+      ];
+      
+      renderer.setMarkers(testPoints);
+      renderer.fitToMarkers();
+      
+      document.getElementById('status').textContent = 'Markers added! Try dragging the map.';
+    }).catch(function(e) {
+      document.getElementById('status').textContent = 'Error: ' + e.message;
+      console.error('Init error:', e);
+    });
+    
+    // Capture errors
+    window.addEventListener('error', function(e) {
+      console.error('Window error:', e.message);
+      document.getElementById('status').textContent += ' | ERROR: ' + e.message;
+    });
+  </script>
+</body>
+</html>
