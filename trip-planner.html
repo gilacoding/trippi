@@ -3518,7 +3518,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     show('savedTripsView');
     setActiveNav('saved');
     document.getElementById('globalTitle').textContent = 'Trip Tersimpan';
-    document.getElementById('globalBack').style.display = '';
+    document.getElementById('globalBack').style.display = 'none';
     await loadSavedTrips();
   }
 
@@ -3601,7 +3601,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     show('savedTripDetailView');
     setActiveNav('saved');
     document.getElementById('globalTitle').textContent = t.title || 'Trip Tersimpan';
-    document.getElementById('globalBack').style.display = '';
+    document.getElementById('globalBack').style.display = 'none';
   }
 
   async function useSavedTrip(){
@@ -4316,8 +4316,8 @@ function openProfile(){
   }
   function goNav(name){
     if(name==='trip'){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; }
-    else if(name==='plan'){ setActiveNav('plan'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); } else if(state.activeTripId || state.readOnlyTrip){ show('plannerView'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display=''; } else { setActiveNav('trip'); navigateHome("home"); } }
-    else if(name==='journey'){ setActiveNav('journey'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); document.getElementById('globalTitle').textContent='Journey Mode'; document.getElementById('globalBack').style.display=''; } else { setActiveNav('trip'); navigateHome("home"); } }
+    else if(name==='plan'){ setActiveNav('plan'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); } else if(state.activeTripId || state.readOnlyTrip){ show('plannerView'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display='none'; } else { setActiveNav('trip'); navigateHome("home"); } }
+    else if(name==='journey'){ setActiveNav('journey'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); document.getElementById('globalTitle').textContent='Journey Mode'; document.getElementById('globalBack').style.display='none'; } else { setActiveNav('trip'); navigateHome("home"); } }
     else if(name==='saved'){ openSavedTrips(); }
   }
   document.querySelectorAll('.nav-tab, #savedEntryBtn').forEach(function(t){ t.onclick=function(){ goNav(t.dataset.nav); }; });
@@ -4330,7 +4330,7 @@ function openProfile(){
   if(gb) gb.onclick=function(){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; gb.style.display='none'; };
   // keep nav synced when views change via in-app links
   var _show=show;
-  show=function(v){ _show(v); if(v==='homeView'){ setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; } else if(v==='plannerView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display=''; } else if(v==='groupView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent=colState.group?colState.group.name:'Grup'; document.getElementById('globalBack').style.display=''; } else if(v==='savedTripsView'||v==='savedTripDetailView'){ setActiveNav('saved'); } };
+  show=function(v){ _show(v); if(v==='homeView'){ setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; } else if(v==='plannerView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display='none'; } else if(v==='groupView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent=colState.group?colState.group.name:'Grup'; document.getElementById('globalBack').style.display='none'; } else if(v==='savedTripsView'||v==='savedTripDetailView'){ setActiveNav('saved'); document.getElementById('globalBack').style.display='none'; } else if(v==='guestView'){ document.getElementById('globalBack').style.display=''; } };
   setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu';
   window.resolveIdentity=resolveIdentity;
 
