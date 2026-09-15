@@ -22,9 +22,10 @@
     '<button class="nav-btn prev-btn" id="galleryLbPrev" aria-label="Sebelumnya">‹</button>' +
     '<div id="galleryLbMedia"><img id="galleryLbImg" src="" alt=""></div>' +
     '<button class="nav-btn next-btn" id="galleryLbNext" aria-label="Berikutnya">›</button>' +
-    '<div class="lb-meta"><div class="caption" id="galleryLbCaption"></div><div class="lb-by" id="galleryLbBy"></div></div>';
+    '<div class="lb-meta"><div class="caption" id="galleryLbCaption"></div><div class="lb-by"><span id="galleryLbPos"></span><span id="galleryLbByWrap"><span id="galleryLbBy"></span></span></div></div>';
 
   let _onNavigate = null; // callback for external state sync (optional)
+  let _items = null;     // last opened array — lets swipe/keys navigate without a caller
 
   /**
    * Set a callback fired when lightbox navigates (for external state sync).
@@ -54,9 +55,27 @@
       lb.querySelector('#galleryLbPrev').onclick = () => navigate(-1);
       lb.querySelector('#galleryLbNext').onclick = () => navigate(1);
       lb.onclick = (e) => { if (e.target === lb) close(); };
-      // a11y: Escape closes, Tab cycles inside the dialog while open
+      // Swipe left/right — the way people actually move through photos on mobile.
+      // Horizontal-dominant gesture only, so vertical scroll/video taps stay untouched.
+      let _tx = null, _ty = null;
+      lb.addEventListener('touchstart', function (e) {
+        if (e.touches.length !== 1) { _tx = _ty = null; return; }
+        _tx = e.touches[0].clientX; _ty = e.touches[0].clientY;
+      }, { passive: true });
+      lb.addEventListener('touchend', function (e) {
+        if (_tx === null) return;
+        const t = (e.changedTouches && e.changedTouches[0]) || null;
+        const dx = t ? t.clientX - _tx : 0, dy = t ? t.clientY - _ty : 0;
+        _tx = _ty = null;
+        if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+          if (_items) navigate(dx < 0 ? 1 : -1, _items);
+        }
+      }, { passive: true });
+      // a11y: Escape closes, arrows page, Tab cycles inside the dialog while open
       lb.onkeydown = (e) => {
         if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); if (_items) navigate(-1, _items); return; }
+        if (e.key === 'ArrowRight') { e.preventDefault(); if (_items) navigate(1, _items); return; }
         if (e.key !== 'Tab') return;
         const f = Array.prototype.filter.call(
           lb.querySelectorAll('button, [href], video[controls], [tabindex]:not([tabindex="-1"])'),
@@ -81,6 +100,7 @@
     if (!items || !items.length) return;
     const lb = getOrCreateLightbox();
     _restoreFocus = document.activeElement;
+    _items = items;
     lb.dataset.idx = idx;
     lb.classList.add('active');
     updateContent(items);
@@ -127,6 +147,7 @@
     const lb = document.getElementById(LB_ID);
     if (!lb) return;
     if (!items || !items.length) return;
+    _items = items;
     const idx = parseInt(lb.dataset.idx);
     const it = items[idx];
     if (!it) return;
@@ -147,12 +168,15 @@
     }
     lb.querySelector('#galleryLbCaption').textContent = it.caption || '';
     var byEl = lb.querySelector('#galleryLbBy');
+    var posEl = lb.querySelector('#galleryLbPos');
+    if (posEl) posEl.textContent = (idx + 1) + ' / ' + items.length;
     if (byEl){
       var nm = null;
       try { if (typeof window.uploaderName === 'function') nm = window.uploaderName(it.uploader_id); } catch(e){}
       if (!nm){ try { var ms=(window.colState&&colState.members)||[]; var mm=ms.find(function(x){return x.user_id===it.uploader_id}); if(mm&&!/^(guest|user|anon)/i.test(mm.display_name||'')) nm=mm.display_name; } catch(e){} }
       byEl.textContent = nm ? 'oleh ' + nm : '';
-      byEl.style.display = nm ? '' : 'none';
+      var wrap = lb.querySelector('#galleryLbByWrap');
+      (wrap || byEl).style.display = nm ? '' : 'none';
     }
   }
 

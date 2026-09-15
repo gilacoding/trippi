@@ -185,13 +185,18 @@
   .gallery-lightbox .caption{color:#fff;margin-top:12px;font-size:14px;max-width:80vw;text-align:center}
   .gallery-lightbox .lb-meta{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:12px}
   .gallery-lightbox .lb-meta .caption{margin-top:0}
-  .gallery-lightbox .lb-by{color:rgba(255,255,255,.62);font-size:12px;font-family:'Outfit'}
+  .gallery-lightbox .lb-by{color:rgba(255,255,255,.62);font-size:12px;font-family:'Outfit';display:flex;gap:0}
+  .gallery-lightbox .lb-by span+span::before{content:'·';margin:0 6px}
+  .gallery-lightbox .lb-by span:empty + span::before{content:'';margin:0}
   .gallery-card.media-failed{background:var(--surface2)}
   .gallery-card.media-failed::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent 0 8px,rgba(0,0,0,.04) 8px 16px)}
   .gallery-lightbox .close-btn{position:absolute;top:8px;right:8px;width:44px;height:44px;display:grid;place-items:center;color:#fff;font-size:28px;cursor:pointer;background:none;border:none}
-  .gallery-lightbox .nav-btn{position:absolute;top:50%;transform:translateY(-50%);color:#fff;font-size:36px;cursor:pointer;background:rgba(0,0,0,.4);border:none;border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center}
-  .gallery-lightbox .prev-btn{left:16px}
-  .gallery-lightbox .next-btn{right:16px}
+  .gallery-lightbox .nav-btn{position:absolute;top:50%;transform:translateY(-50%);color:#fff;font-size:34px;cursor:pointer;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.28);border-radius:50%;width:52px;height:52px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+  .gallery-lightbox .nav-btn:hover{background:rgba(0,0,0,.75)}
+  .gallery-lightbox .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  .gallery-lightbox .prev-btn{left:10px}
+  .gallery-lightbox .next-btn{right:10px}
+  @media (pointer:coarse){.gallery-lightbox .nav-btn{width:44px;height:44px;opacity:.85}}
   .batch-dropzone .batch-icon{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;opacity:.6;color:var(--muted)}
   .batch-dropzone .batch-icon svg{width:26px;height:26px}
   .gallery-card .video-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:0;height:0;border-style:solid;border-width:11px 0 11px 18px;border-color:transparent transparent transparent rgba(255,255,255,.92);filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));pointer-events:none}
