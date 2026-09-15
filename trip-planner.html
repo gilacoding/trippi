@@ -163,15 +163,17 @@
   .gallery-card .delete-btn:hover{color:#fff;transform:none;box-shadow:none}
   .gallery-card .delete-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}
   /* Google Photos-style quiet toolbar: actions live ABOVE the grid, compact row. */
-  .gallery-upload{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 10px}
-  .gallery-upload .batch-upload{flex:1 1 100%;margin-top:0}
-  .gallery-upload .batch-dropzone{display:flex;align-items:center;gap:12px;text-align:left;padding:12px 14px;border-width:1.5px;border-radius:12px}
+  .gallery-upload{display:grid;gap:8px;margin:2px 0 10px}
+  .gallery-upload .batch-upload{margin-top:0}
+  .gallery-upload .batch-dropzone{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border-width:1.5px;border-radius:12px}
   .gallery-upload .batch-dropzone .batch-icon{margin:0;flex:0 0 auto}
-  .gallery-upload .batch-dropzone .batch-icon svg{width:22px;height:22px}
+  .gallery-upload .batch-dropzone .batch-icon svg{width:20px;height:20px}
   .gallery-upload .batch-text{flex:1 1 auto;min-width:0}
-  .gallery-upload .batch-text strong{font-size:13px}
+  .gallery-upload .batch-text strong{font-size:13px;margin-bottom:0}
+  .gallery-upload .batch-text br,.gallery-upload .batch-text span{display:none}
   .gallery-upload .batch-dropzone .btn{margin-top:0;flex:0 0 auto}
-  .gallery-caption-field{flex:1 1 180px;min-width:140px}
+  .gallery-upload-row{display:flex;gap:8px;align-items:center}
+  .gallery-caption-field{flex:1 1 auto;min-width:0}
   .gallery-caption-field input{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);padding:11px 12px;font-family:'Outfit';font-size:13px;outline:none}
   .gallery-caption-field input:focus{border-color:var(--accent-text)}
   .gallery-upload .camera-btn{flex:0 0 auto;padding:11px 16px;font-size:13px}
@@ -1174,9 +1176,11 @@
                 <span class="summary-text" id="batchSummaryText">0/0 selesai</span>
               </div>
             </div>
+            <div class="gallery-upload-row">
               <div class="gallery-caption-field"><input type="text" id="galleryCaption" placeholder="Caption (opsional)" maxlength="200"></div>
               <button class="btn small camera-btn" id="cameraBtn">Ambil Foto</button>
-            <span id="galleryUploadStatus" class="muted" style="font-size:12px;margin-left:8px"></span>
+            </div>
+            <span id="galleryUploadStatus" class="muted" style="font-size:12px"></span>
           </div>
           <div id="galleryGrid" class="gallery-grid"></div>
         </div>
