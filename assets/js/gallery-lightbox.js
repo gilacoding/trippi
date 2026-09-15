@@ -52,8 +52,8 @@
       document.body.appendChild(lb);
 
       lb.querySelector('#galleryLbClose').onclick = close;
-      lb.querySelector('#galleryLbPrev').onclick = () => navigate(-1);
-      lb.querySelector('#galleryLbNext').onclick = () => navigate(1);
+      lb.querySelector('#galleryLbPrev').onclick = function(){ if (_items) navigate(-1, _items); };
+      lb.querySelector('#galleryLbNext').onclick = function(){ if (_items) navigate(1, _items); };
       lb.onclick = (e) => { if (e.target === lb) close(); };
       // Swipe left/right — the way people actually move through photos on mobile.
       // Horizontal-dominant gesture only, so vertical scroll/video taps stay untouched.
