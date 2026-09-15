@@ -227,16 +227,19 @@
   @keyframes mc-toast-out{to{opacity:0;transform:translateY(6px)}}
   @media (prefers-reduced-motion:reduce){.mc-toast,.mc-toast.out{animation:none}}
 
-  /* ===== CREW AVATAR STACK — overlapping initials, palette hues only ===== */
+  /* ===== CREW AVATAR CHIPS — real photo when available, initial letter otherwise ===== */
+  .cs-av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:'Poppins';font-weight:600;font-size:12px;color:var(--ink);background:var(--surface2);overflow:hidden;flex:0 0 auto}
+  .cs-av img{width:100%;height:100%;object-fit:cover;display:block}
   .crew-stack{display:flex;align-items:center}
-  .crew-stack .cs-av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:'Poppins';font-weight:600;font-size:12px;color:var(--ink);border:2px solid var(--surface);margin-left:-8px;box-shadow:0 1px 3px rgba(26,26,26,.12)}
+  .crew-stack .cs-av{border:2px solid var(--surface);margin-left:-8px;box-shadow:0 1px 3px rgba(26,26,26,.12)}
   .crew-stack .cs-av:first-child{margin-left:0}
-  .crew-stack .cs-av:nth-child(1){background:var(--accent2)}
-  .crew-stack .cs-av:nth-child(2){background:var(--surface2)}
-  .crew-stack .cs-av:nth-child(3){background:#F3D9A4}
-  .crew-stack .cs-av:nth-child(4){background:var(--sage)}
+  .crew-stack .cs-av:not(.has-photo):nth-child(1){background:var(--accent2)}
+  .crew-stack .cs-av:not(.has-photo):nth-child(2){background:var(--surface2)}
+  .crew-stack .cs-av:not(.has-photo):nth-child(3){background:#F3D9A4}
+  .crew-stack .cs-av:not(.has-photo):nth-child(4){background:var(--sage)}
   .crew-stack .cs-more{margin-left:8px;font-family:'Outfit';font-size:12px;color:var(--muted)}
   #groupView .planner-head .crew-stack{margin-top:10px}
+  .to-go-item .cs-av{width:32px;height:32px;font-size:13px}
   /* ReUI-inspired empty states: dim icon above title. data-ic → Lucide mask (stroke art, tinted via background). */
   .empty[data-ic]::before{content:"";width:26px;height:26px;display:block;margin:0 auto 10px;background:var(--text-muted);opacity:.4;-webkit-mask:center/contain no-repeat;mask:center/contain no-repeat;}
   .empty[data-ic="heart"]::before{-webkit-mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M2%209.5a5.5%205.5%200%200%201%209.591-3.676.56.56%200%200%200%20.818%200A5.49%205.49%200%200%201%2022%209.5c0%202.29-1.5%204-3%205.5l-5.492%205.313a2%202%200%200%201-3%20.019L5%2015c-1.5-1.5-3-3.2-3-5.5%22%20/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M2%209.5a5.5%205.5%200%200%201%209.591-3.676.56.56%200%200%200%20.818%200A5.49%205.49%200%200%201%2022%209.5c0%202.29-1.5%204-3%205.5l-5.492%205.313a2%202%200%200%201-3%20.019L5%2015c-1.5-1.5-3-3.2-3-5.5%22%20/%3E%3C/svg%3E")}
@@ -2242,6 +2245,59 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     };
   }
 
+  // Real member photos: resolve private avatar paths to short-lived signed URLs
+  // once per session (1h TTL is far longer than any view lives). Cache lives on
+  // colState so realtime re-renders don't re-hit storage. Fallback everywhere:
+  // no avatar_url / failed sign -> initial letter, exactly like before.
+  var AVATAR_TTL = 50 * 60 * 1000;
+  function avatarUrlFor(userId){
+    if(!colState.avatarCache) colState.avatarCache = {};
+    return colState.avatarCache[userId] || null;
+  }
+  async function ensureAvatarUrls(userIds){
+    var APIx = window.MarkiAPI || window.API;
+    if(!APIx || !APIx.getAvatarSignedUrl) return;
+    if(!colState.avatarCache) colState.avatarCache = {};
+    if(!colState.avatarPending) colState.avatarPending = {};
+    var touched = false;
+    await Promise.all((userIds||[]).map(async function(uid){
+      if(!uid) return;
+      var c = colState.avatarCache[uid];
+      if(c && (c.url || (c.failed && Date.now()-c.failed < AVATAR_TTL))) return;
+      if(c && c.failed) return; // permanent miss (no photo) — never retry this session
+      var ident = (colState.identities||{})[uid];
+      var path = ident && ident.avatar;
+      if(!path){ colState.avatarCache[uid] = { failed: Date.now() }; return; }
+      if(colState.avatarPending[uid]) return colState.avatarPending[uid];
+      colState.avatarPending[uid] = (async function(){
+        try{
+          var res = await APIx.getAvatarSignedUrl(path);
+          var url = res && res.data && res.data.signed_url;
+          if(url){ colState.avatarCache[uid] = { url: url }; touched = true; }
+          else { colState.avatarCache[uid] = { failed: Date.now() }; }
+        }catch(e){ colState.avatarCache[uid] = { failed: Date.now() }; }
+        delete colState.avatarPending[uid];
+      })();
+      return colState.avatarPending[uid];
+    }));
+    if(touched){
+      // refresh whatever crew surfaces are live (same script scope; guarded by typeof)
+      if(typeof renderGroupPlanner==='function'){ try{ renderGroupPlanner(); }catch(e){} }
+      if(typeof renderGroupMembersList==='function'){ try{ renderGroupMembersList(); }catch(e){} }
+      if(typeof renderCrewStatusList==='function'){ try{ renderCrewStatusList(); }catch(e){} }
+    }
+  }
+
+  // Avatar chip markup: <img> when signed url exists, else initial letter.
+  function avatarChip(userId, name, extraClass){
+    var cls = 'cs-av' + (extraClass ? ' ' + extraClass : '');
+    var url = avatarUrlFor(userId);
+    if(url){
+      return '<span class="' + cls + ' has-photo" aria-hidden="true"><img src="' + url + '" alt="" loading="lazy"></span>';
+    }
+    return '<span class="' + cls + '" aria-hidden="true">' + esc((String(name||'?').trim().charAt(0) || '?').toUpperCase()) + '</span>';
+  }
+
   // Location status is metadata, never part of the name.
   function locationStatusOf(userId){
     const loc = (colState.crewLocations || []).find(function(m){ return m.user_id === userId; });
@@ -2279,8 +2335,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       var ms=(colState.members||[]).slice(0,4);
       cs.innerHTML = ms.map(function(m){
         var ident=resolveIdentity(m.user_id); var nm=ident.name||m.display_name||'?';
-        return '<span class="cs-av" aria-hidden="true">'+esc((nm.trim().charAt(0)||'?').toUpperCase())+'</span>';
+        return avatarChip(m.user_id, nm);
       }).join('') + ((colState.members||[]).length>4 ? '<span class="cs-more">+'+((colState.members.length-4))+' lainnya</span>' : '');
+      try{ ensureAvatarUrls((colState.members||[]).map(function(m){return m.user_id})); }catch(e){}
       cs.setAttribute('aria-label', (colState.members||[]).length+' anggota');
     })();
     // #groupMemberCount belonged to the removed "Anggota" section; Crew now owns
@@ -2334,6 +2391,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const members = colState.members || [];
     const canManage = canManageMembers();
     const uid = colState.uid;
+    try{ ensureAvatarUrls(members.map(function(m){return m.user_id})); }catch(e){}
 
     el.innerHTML = members.length ? members.map(function(m){
       const ident = resolveIdentity(m.user_id);
@@ -2342,6 +2400,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       const isMe = m.user_id === uid;
       const removable = canManage && !isMe && m.role !== 'owner';
       return '<article class="to-go-item" data-uid="' + esc(m.user_id) + '">' +
+        avatarChip(m.user_id, name, 'avatar-sm') +
         '<div class="to-go-copy">' +
           '<div class="to-go-name">' + esc(name) + '</div>' +
           '<div class="muted" style="font-size:11px">' + esc(role) + (isMe ? ' · kamu' : '') + '</div>' +
@@ -3113,7 +3172,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       const dist = distanceMeters(me, r.loc);
       const distTxt = dist != null ? ' · ' + fmtDistance(dist) + ' darimu' : '';
       const removable = canManage && r.uid !== colState.uid && r.role !== 'Trip Creator';
+      var _rAv = avatarChip(r.uid, r.name, 'avatar-sm');
       return '<article class="to-go-item" data-uid="' + esc(r.uid) + '">' +
+        _rAv +
         '<div class="to-go-copy">' +
           '<div class="to-go-name">' + r.icon + ' ' + esc(r.name) + '</div>' +
           '<div class="muted" style="font-size:11px">' + meta + distTxt + '</div>' +
