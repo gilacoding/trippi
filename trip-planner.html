@@ -1960,7 +1960,25 @@ function renderHome(){
       alert('Error editing trip dates: ' + (e.message || e));
     }
   }
-  async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const submitBtn=$('newTripSubmit');busyBtn(submitBtn,'Membuat...');try{const uid=await ensureAuth();if(!uid){alert('Layanan grup belum tersedia. Coba lagi nanti.');return}const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const _ownerName=loadName()||ownerNameFromAccount();const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:_ownerName});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
+  async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const submitBtn=$('newTripSubmit');busyBtn(submitBtn,'Membuat...');try{
+  // Founder rule 2026-09-15 (guest-first): a signed-out visitor creates a REAL
+  // server trip under an anonymous Supabase identity — same mechanism the guest
+  // join path uses. DB stays source of truth; claim = in-place conversion later.
+  let uid=await ensureAuth();
+  if(!uid){
+    const anonName=askName();
+    if(!anonName){freeBtn(submitBtn);return}
+    const anonRes=await API.signInAnonymously(anonName);
+    const anonUser=anonRes&&anonRes.data?anonRes.data.user:null;
+    if(!anonUser){
+      freeBtn(submitBtn);
+      const msg='Belum bisa mulai: '+((anonRes&&anonRes.error&&anonRes.error.message)||'unknown');
+      if(typeof mcToast==='function')mcToast(msg,'error');else alert(msg);
+      return;
+    }
+    colState.uid=anonUser.id; uid=anonUser.id;
+    await API.getSession(); // propagate session before RPCs
+  }const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const _ownerName=loadName()||ownerNameFromAccount();const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:_ownerName});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
 colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}finally{freeBtn(submitBtn)}}
   const normalizeLink=window.utils.normalizeLink;
   function addAgenda(event){event.preventDefault();const trip=getTrip();trip.items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,title:$('agendaTitle').value.trim(),time:$('agendaTime').value,budget:$('agendaBudget').value,link:normalizeLink($('agendaLink').value),note:$('agendaNote').value.trim()});save();syncTrip(trip);event.target.reset();$('addPanel').open=false;renderPlanner()}
@@ -3971,6 +3989,12 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
         // Signed in — load their trips
         if(mode) history.replaceState({}, '', 'trip-planner.html');
         load(); renderHome(); applyUserAvatar();
+      } else if(session && session.user && session.user.is_anonymous){
+        // Anonymous = a session, not a visitor: boot straight into the app
+        // (uid comes from the SIGNED_IN/INITIAL handler). Auth stays OPTIONAL;
+        // explicit ?mode=login|signup intent keeps working as the claim door.
+        if(mode){ history.replaceState({}, '', 'trip-planner.html'); window.__initialAuthMode = mode; }
+        load(); renderHome();
       } else if(mode === 'signup' || mode === 'login'){
         // Arrived from landing CTA — open the requested auth mode once the auth
         // module (a later script block) defines openAuth; store the intent now.
@@ -4044,6 +4068,10 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
     if(!email||pw.length<6){ errEl.textContent='Email valid dan password minimal 6 karakter.'; return; }
     submitBtn.disabled=true;
     if(mode==='login'){
+      // Claim safety net: if an anonymous session is active and signing in with an
+      // EXISTING account swaps the uid (server did not link in place), transfer the
+      // anon identity's rows to the new account so the just-made trip survives.
+      var _preUid=await API.ensureAuth(); if(_preUid){ window.__claimFromUid=_preUid; }
       var r=await API.signInWithEmail(email,pw);
       if(r.error){ errEl.textContent=humanErr(r.error); submitBtn.disabled=false; return; }
       // SIGNED_IN handled by onAuthChange
@@ -4407,6 +4435,15 @@ function openProfile(){
     var uid=session&&session.user?session.user.id:null;
     if(event==='SIGNED_IN'||(session&&uid)){
       colState.uid=uid;
+      // Anon -> real account with a DIFFERENT uid: move attribution, then resync.
+      if(window.__claimFromUid && uid && window.__claimFromUid!==uid){
+        var _oldAnon=window.__claimFromUid; window.__claimFromUid=null;
+        (async()=>{ try{
+          const tr=await API.transferAnonymousIdentity(_oldAnon, uid, colState.name||null);
+          if(tr&&tr.error)console.warn('[claim] transfer failed:',tr.error.message);
+          load(); renderHome();
+        }catch(e){ console.warn('[claim] transfer threw:',e); } })();
+      } else { window.__claimFromUid=null; }
       document.getElementById('headerAvatar').style.display='';
       // Apply avatar after uid is known — runs on every sign-in path
       applyUserAvatar();
