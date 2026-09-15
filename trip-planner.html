@@ -3999,7 +3999,13 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
         // explicit ?mode=login|signup intent keeps working as the claim door.
         // Review fix 2026-09-15: (1) only login|signup may open the modal —
         // forwarding 'start' here rendered Daftar on the landing-CTA arrival.
-        if(mode === 'login' || mode === 'signup'){ history.replaceState({}, '', 'trip-planner.html'); window.__initialAuthMode = mode; }
+        if(mode === 'login' || mode === 'signup'){
+          history.replaceState({}, '', 'trip-planner.html'); window.__initialAuthMode = mode;
+          // .then of the boot gate runs AFTER the auth module script block, so
+          // openAuth is defined; the flag alone raced (module consumed it
+          // synchronously at load, before this async branch existed).
+          if(typeof window.openAuth==='function') window.openAuth(mode);
+        }
         else if(mode){ history.replaceState({}, '', 'trip-planner.html'); }
         // (2) shared-device leak: when the local store was last stamped to a
         // DIFFERENT identity, this anon must not inherit (and later backfill)
@@ -4020,6 +4026,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
         history.replaceState({}, '', 'trip-planner.html');
         window.__initialAuthMode = mode;
         renderHome();
+        if(typeof window.openAuth==='function') window.openAuth(mode);
       } else if(mode === 'start'){
         // Founder rule 2026-09-15: landing CTAs (Buat trip gratis, Journey, Gas)
         // enter the app home directly, NO auth modal. Auth is asked only when an
@@ -4082,6 +4089,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
 
   form.onsubmit=async function(e){
     e.preventDefault(); errEl.textContent=''; noteEl.style.display='none';
+    window.__userAuthAttempt=true;
     var email=document.getElementById('authEmail').value.trim();
     var pw=document.getElementById('authPassword').value;
     if(!email||pw.length<6){ errEl.textContent='Email valid dan password minimal 6 karakter.'; return; }
@@ -4439,6 +4447,7 @@ function openProfile(){
   var googleBtn=document.getElementById('googleBtn');
   if(googleBtn) googleBtn.onclick=async function(){
     errEl.textContent='';
+    window.__userAuthAttempt=true;
     googleBtn.disabled=true;
     var r=await API.signInWithOAuth('google');
     if(r.error){ errEl.textContent=humanErr(r.error); googleBtn.disabled=false; return; }
@@ -4527,7 +4536,10 @@ function openProfile(){
           } 
         })();
       }
-      closeAuth();
+      // Review fix: closeAuth must only follow a USER-initiated sign-in. Boot
+      // restore of an anon session also fires SIGNED_IN and used to silently
+      // kill the claim modal the gate had just opened.
+      if(window.__userAuthAttempt){ window.__userAuthAttempt=false; closeAuth(); }
       onSessionReady(uid); // M2: backfill local trips to Supabase (idempotent, non-blocking)
       if(pendingAction){ var a=pendingAction; pendingAction=null; if(typeof a==='function') a(); else if(a==='makeGroup') makeGroupFromTrip(); }
     } else if(event==='SIGNED_OUT'||(!session)){
