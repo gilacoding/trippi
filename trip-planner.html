@@ -3977,6 +3977,12 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
         history.replaceState({}, '', 'trip-planner.html');
         window.__initialAuthMode = mode;
         renderHome();
+      } else if(mode === 'start'){
+        // Founder rule 2026-09-15: landing CTAs (Buat trip gratis, Journey, Gas)
+        // enter the app home directly, NO auth modal. Auth is asked only when an
+        // action actually needs it (ensureAuth paths).
+        history.replaceState({}, '', 'trip-planner.html');
+        renderHome();
       } else {
         // No session and no explicit intent — send to the public landing page
         location.replace('index.html');
