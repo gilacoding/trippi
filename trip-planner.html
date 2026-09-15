@@ -2251,8 +2251,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   // no avatar_url / failed sign -> initial letter, exactly like before.
   var AVATAR_TTL = 50 * 60 * 1000;
   function avatarUrlFor(userId){
-    if(!colState.avatarCache) colState.avatarCache = {};
-    return colState.avatarCache[userId] || null;
+    if(!colState.avatarCache) return null;
+    var c = colState.avatarCache[userId];
+    return (c && c.url) || null;
   }
   async function ensureAvatarUrls(userIds){
     var APIx = window.MarkiAPI || window.API;
