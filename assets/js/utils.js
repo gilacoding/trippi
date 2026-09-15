@@ -103,6 +103,33 @@
   }
 
   /**
+   * Map a trip destination (free text) to a blurred backdrop category.
+   * Returns null when nothing matches — the caller must render NO image
+   * (unknown destination stays a plain card). Order matters: more specific
+   * categories first. Keywords ID + EN, diacritic-insensitive by lowercasing.
+   * @param {string} destination
+   * @returns {string|null}
+   */
+  function tripBgCat(destination) {
+    var d = String(destination || '').toLowerCase();
+    if (!d.trim()) return null;
+    var CATS = [
+      ['airterjun', /air\s*terjun|curug|coban|pocur|waterfall|tumpak|madakaripur?|sidemen|nongko|srandakan|sewu/],
+      ['laut',      /selam|\bdiv(?:e|ing)\b|snorkel|reef|karang\s+laut|bawah\s+laut|underwater|raja\s+ampat|wakatobi|penyu|tukik|manta|bawah\s+air/],
+      ['gunung',    /gunung|\bmount|\bmt\.?|volcano|bromo|semeru|rinjani|lawu|slamet|merapi|kelimutu|kelud|batur|ijen|argapura|dieng|bukittinggi|puncak\b|highland|dataran\s+tinggi|tebing|cliff|kilimanjaro|fuji|alpen|cabai|marapi|singgalang|guntur|cereme|papandayan|papaya|salak|gede|gede|prahu|mandala/],
+      ['pantai',    /pantai|beach|\bbali\b|lombok|\bgili\b|\bnusa\b|kepulau|sanur|kuta|seminyak|canggu|senggigi|parangtritis|pulau\s+|coast|pesisir|teluk|bayan|drini|pangandaran|karang\s+bolong|pink\s+beach|white\s+beach|maldives|pesisir\s+selatan/],
+      ['budaya',    /candi|temple|borobudur|prambanan|keraton|kraton|budaya|culture|heritage|sejarah|histor|yogyakarta|jogja|museum|batik|wayang|sekaten|upacara|adat|tamansari|muara\s+jambi|trowulan/],
+      ['danau',     /danau|\blake\b|telaga|taupo|sentani|matano|linau|segara\s+anak|kerinci(?!\s+gunung)|towada/],
+      ['jalan',     /motoran|touring|road\s*trip|\bride\b|weekend\s+ride|\bgsx|nmax|pcx|vespa|safari|off\s*road|\bjeep\b|pantura|jalur\s+|toll|\btol\b|rinjani\s+loop|keliling|touring/],
+      ['kuliner',   /kuliner|street\s+food|wisata\s+rasa|\bcafe\b|café|restoran|restaurant|warung|bakso|sate|soto|gudeg|\bnasi\b|rawon|seafood|makan|kopi|coffee|brunch|sarapan|pecel|warteg/],
+      ['kota',      /kota|\bcity\b|jakarta|bandung|surabaya|medan|semarang|malang|yogyakarta|jogja|\bsolo\b|semarang|makassar|denpasar|balikpapan|pontianak|palembang|pekanbaru|bangkok|tokyo|seoul|kuala|lumpur|hanoi|manila|taipei|hong\s+kong|dubai|sydney|melbourne|singapore|new\s+york|london|paris|amsterdam|istanbul|johor|penang|ipoh|kinabalu|kuching/],
+      ['alam',      /\bsawah\b|rice\s+terras?|hutan|forest|jungle|nature|alam\b|nature|camping|glamping|hiking|trekking|taman\s+nasional|national\s+park|geopark|savana|savanna|leuwi|sungai|river|hotspring|hot\s+spring|air\s+panas|eco\s+park|taman\b|kebun|garden|perbukitan|green\s+canyon|tebat|sukamakmur/],
+    ];
+    for (var i = 0; i < CATS.length; i++) { if (CATS[i][1].test(d)) return CATS[i][0]; }
+    return null;
+  }
+
+  /**
    * Check if a name is a placeholder (e.g., "guest", "user", "anonymous").
    * Mirrors public.is_placeholder_name in the database.
    * @param {*} n
@@ -140,6 +167,7 @@
     normalizeLink,
     daysBetween,
     categoryIcon,
+    tripBgCat,
     isPlaceholderName,
     humanErr
   };

@@ -347,6 +347,25 @@
   #profileModal .btn:not(.secondary){background:var(--accent);color:var(--white);border-radius:12px;font-family:'Outfit';font-size:14px;font-weight:600;height:48px;min-width:96px}
   /* Trip Cards — V2 visual upgrade (CSS-only, preserves JS rendering) */
   #upcomingTrips .trip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+
+  /* ===== TRIP CARD DESTINATION BACKDROP (2026-09-15) ===== */
+  /* Blurred-in-source destination photos (Wikimedia Commons, CC — see
+     assets/trip-bg/CREDITS.md). Decorative only: unknown destination renders
+     no image at all. Scrim keeps text contrast AA. */
+  .trip-card{position:relative}
+  .trip-card>.trip-bg{position:absolute;inset:0;z-index:0;background:var(--bg) center/cover no-repeat;border-radius:inherit;pointer-events:none}
+  .trip-card>.trip-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,rgba(245,245,220,.92) 30%,rgba(245,245,220,.78) 100%)}
+  .trip-card.has-bg>span:not(.trip-bg),.trip-card.has-bg>h3,.trip-card.has-bg>.trip-meta,.trip-card.has-bg>.trip-summary{position:relative;z-index:1}
+  .trip-card .trip-bg.bg-pantai{background-image:url('assets/trip-bg/pantai.webp')}
+  .trip-card .trip-bg.bg-gunung{background-image:url('assets/trip-bg/gunung.webp')}
+  .trip-card .trip-bg.bg-kota{background-image:url('assets/trip-bg/kota.webp')}
+  .trip-card .trip-bg.bg-jalan{background-image:url('assets/trip-bg/jalan.webp')}
+  .trip-card .trip-bg.bg-kuliner{background-image:url('assets/trip-bg/kuliner.webp')}
+  .trip-card .trip-bg.bg-budaya{background-image:url('assets/trip-bg/budaya.webp')}
+  .trip-card .trip-bg.bg-airterjun{background-image:url('assets/trip-bg/airterjun.webp')}
+  .trip-card .trip-bg.bg-danau{background-image:url('assets/trip-bg/danau.webp')}
+  .trip-card .trip-bg.bg-laut{background-image:url('assets/trip-bg/laut.webp')}
+  .trip-card .trip-bg.bg-alam{background-image:url('assets/trip-bg/alam.webp')}
   .trip-card{border-radius:16px;padding:18px 16px 14px;box-shadow:0 2px 8px rgba(0,0,0,.04);transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}
   .trip-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08);border-color:rgba(250,105,0,.3)}
   .trip-card .state{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-family:'Outfit';font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
@@ -1238,6 +1257,8 @@
   const $=id=>document.getElementById(id);
   const dbg=(msg)=>{};
   const esc=window.utils.esc;
+
+  const tripBgCat=window.utils.tripBgCat;
   // ── Collaborative (P2) state ──
   const API=window.MarkiAPI;
   const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],gallery:[],nameMap:{},identities:{},activeDate:null,channel:null,poll:null,locationChannel:null,userAvatarUrl:null};
@@ -1717,7 +1738,7 @@ function renderHome(){
   renderToGo();
   updateHeaderAvatar(colState.name||loadName()||'');
 }
-  function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const dates=[];if(t.start)dates.push(dateText(t.start));if(t.end)dates.push(dateText(t.end));const metaStr=dates.length?' · '+dates.join(' — '):'';const spentSpan=spent>0?'<span>Keluar '+money(spent)+'</span>':'';return '<button class="trip-card" data-open="'+t.id+'"><span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination||'')+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+spentSpan+'</div><span class="open-hint">Buka trip →</span></button>';}
+  function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const dates=[];if(t.start)dates.push(dateText(t.start));if(t.end)dates.push(dateText(t.end));const metaStr=dates.length?' · '+dates.join(' — '):'';const spentSpan=spent>0?'<span>Keluar '+money(spent)+'</span>':'';var _bgc=tripBgCat?tripBgCat(t.destination):null;return '<button class="trip-card'+(_bgc?' has-bg':'')+'" data-open="'+t.id+'">'+(_bgc?'<span class="trip-bg bg-'+_bgc+'" aria-hidden="true"></span>':'')+'<span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination||'')+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+spentSpan+'</div><span class="open-hint">Buka trip →</span></button>';}
   function openTrip(id){
     // PHASE 2 INVARIANT: Opening a private trip must tear down any active group session.
     // Prevents leaked realtime channels, polls, and stale group state.

@@ -1,7 +1,7 @@
 // MarkiCab service worker — hardened cache
 // P1 fix: versioned cache + stale-cache cleanup on activate +
 //        network-first for API JS so backend/markicab-api.js is never permanently cached.
-const CACHE_VERSION = 'markicab-personal-v45';
+const CACHE_VERSION = 'markicab-personal-v46';
 
 // Immediate activation — don't wait for old tabs to close
 self.addEventListener('install', function (event) {
@@ -23,6 +23,16 @@ const CORE_FILES = [
   './markicab.webmanifest',
   './markicab-icon.svg',
   './assets/js/toast.js',
+  './assets/trip-bg/pantai.webp',
+  './assets/trip-bg/gunung.webp',
+  './assets/trip-bg/kota.webp',
+  './assets/trip-bg/jalan.webp',
+  './assets/trip-bg/kuliner.webp',
+  './assets/trip-bg/budaya.webp',
+  './assets/trip-bg/airterjun.webp',
+  './assets/trip-bg/danau.webp',
+  './assets/trip-bg/laut.webp',
+  './assets/trip-bg/alam.webp',
   './lzstring.js'
   // NOTE: backend/supabase-client.js and backend/markicab-api.js are intentionally
   // excluded from pre-cache AND served network-first (see fetch handler) so JS
