@@ -21,7 +21,7 @@
     var el = document.createElement('style');
     el.id = CSS_ID;
     el.textContent =
-      '#mcToastHost{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:9998;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}'
+      '#mcToastHost{position:fixed;left:0;right:0;bottom:24px;z-index:9998;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}'
       + '.mc-toast{display:inline-flex;align-items:center;gap:9px;background:#1A1A1A;color:#fff;font-family:Outfit,system-ui,sans-serif;font-size:13.5px;font-weight:500;line-height:1.4;padding:11px 16px;border-radius:12px;box-shadow:0 10px 26px rgba(26,26,26,.28);max-width:min(92vw,420px);pointer-events:auto;animation:mc-toast-in .22s ease}'
       + '.mc-toast.out{animation:mc-toast-out .18s ease forwards}'
       + '.mc-toast::before{content:"";width:7px;height:7px;border-radius:50%;background:#2E7D32;flex:0 0 auto}'
