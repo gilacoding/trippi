@@ -381,7 +381,12 @@
     if (!bar || !text) return;
     const pct = _batchTotal > 0 ? Math.round((_batchCompleted / _batchTotal) * 100) : 0;
     bar.style.width = pct + '%';
-    text.textContent = _batchCompleted + '/' + _batchTotal + ' selesai';
+    // Honest wording: 'selesai' only counts successes; failures are named.
+    const doneN = _batchItems.filter(function (it) { return it.status === 'done'; }).length;
+    const errN = _batchItems.filter(function (it) { return it.status === 'error'; }).length;
+    const parts = [doneN + '/' + _batchTotal + ' selesai'];
+    if (errN > 0) parts.push(errN + ' gagal');
+    text.textContent = parts.join(' · ');
   }
 
   /**
