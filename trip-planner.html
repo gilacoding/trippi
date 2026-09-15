@@ -2209,6 +2209,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
           };
         });
         colState.identities = map;
+        // Identities may land after the first crew render (which found no paths
+        // yet) — kick a sign+refresh pass now that avatar_url is known.
+        try{ if(typeof ensureAvatarUrls==='function') ensureAvatarUrls(Object.keys(map)); }catch(e){}
       }
     }catch(e){ console.warn('[identity] loadIdentities failed:', e && e.message); }
   }
@@ -2265,10 +2268,11 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       if(!uid) return;
       var c = colState.avatarCache[uid];
       if(c && (c.url || (c.failed && Date.now()-c.failed < AVATAR_TTL))) return;
-      if(c && c.failed) return; // permanent miss (no photo) — never retry this session
       var ident = (colState.identities||{})[uid];
       var path = ident && (ident.avatar_url || ident.avatar);
-      if(!path){ colState.avatarCache[uid] = { failed: Date.now() }; return; }
+      // No path *yet* is not a failure: loadIdentities may still be in flight.
+      // Only a real signing error gets the TTL'd failed marker.
+      if(!path) return;
       if(colState.avatarPending[uid]) return colState.avatarPending[uid];
       colState.avatarPending[uid] = (async function(){
         try{
