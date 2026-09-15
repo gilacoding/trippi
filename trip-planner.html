@@ -1487,10 +1487,6 @@
           // CRITICAL: sync colState.uid so isMember evaluates correctly on re-render
           // (signInAnonymously sets cachedUid internally but colState is separate)
           colState.uid = authData.user.id;
-          // Review fix: the typed guest name is this identity's display name —
-          // cache it so a later 'Buat Trip' under this anon uid owns the member
-          // row by name instead of 'Tanpa nama'.
-          colState.name = name; saveName(name);
           // Step 2: redeem invitation (inserts group_members for anonymous uid)
           const { error } = await API.redeemInvitation(guestSession.token, name);
           if(error){
@@ -1965,23 +1961,18 @@ function renderHome(){
     }
   }
   async function createGroupDirectly(name,destination,start,end,note,pendingToGoId){const submitBtn=$('newTripSubmit');busyBtn(submitBtn,'Membuat...');try{
-  // Founder rule 2026-09-15 (guest-first): a signed-out visitor creates a REAL
-  // server trip under an anonymous Supabase identity — same mechanism the guest
-  // join path uses. DB stays source of truth; claim = in-place conversion later.
+  // Founder rule 2026-09-15 (replaces guest-first): FREE, but an account is
+  // required to own a trip. No session - or an anonymous guest session - means
+  // the existing auth modal opens; creation continues after sign-in.
   let uid=await ensureAuth();
-  if(!uid){
-    const anonName=askName();
-    if(!anonName){freeBtn(submitBtn);return}
-    const anonRes=await API.signInAnonymously(anonName);
-    const anonUser=anonRes&&anonRes.data?anonRes.data.user:null;
-    if(!anonUser){
-      freeBtn(submitBtn);
-      const msg='Belum bisa mulai: '+((anonRes&&anonRes.error&&anonRes.error.message)||'unknown');
-      if(typeof mcToast==='function')mcToast(msg,'error');else alert(msg);
-      return;
-    }
-    colState.uid=anonUser.id; uid=anonUser.id;
-    await API.getSession(); // propagate session before RPCs
+  const _cu=uid?await API.getUserObject():null;
+  if(!uid||(_cu&&_cu.is_anonymous)){
+    freeBtn(submitBtn);
+    // Existing continue-after-auth pattern (same as makeGroupBtn/joinGroup):
+    // replay this creation once a real session exists.
+    pendingAction=function(){ createGroupDirectly(name,destination,start,end,note,pendingToGoId); };
+    openAuth('signup');
+    return;
   }const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const _ownerName=loadName()||ownerNameFromAccount();const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:_ownerName});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
 colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}finally{freeBtn(submitBtn)}}
   const normalizeLink=window.utils.normalizeLink;
@@ -2075,7 +2066,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       var sb = API._getSb && API._getSb();
       var u = sb && sb.auth && sb.auth.user ? sb.auth.user() : null;
       var meta = u && u.user_metadata;
-      var mn = meta && (meta.full_name || meta.name || meta.display_name);
+      var mn = meta && (meta.full_name || meta.name);
       if(mn) return String(mn).slice(0, 40);
       if(u && u.email) return String(u.email).split('@')[0].slice(0, 40);
     }catch(e){ /* fall through */ }
@@ -3993,33 +3984,6 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
         // Signed in — load their trips
         if(mode) history.replaceState({}, '', 'trip-planner.html');
         load(); renderHome(); applyUserAvatar();
-      } else if(session && session.user && session.user.is_anonymous){
-        // Anonymous = a session, not a visitor: boot straight into the app
-        // (uid comes from the SIGNED_IN/INITIAL handler). Auth stays OPTIONAL;
-        // explicit ?mode=login|signup intent keeps working as the claim door.
-        // Review fix 2026-09-15: (1) only login|signup may open the modal —
-        // forwarding 'start' here rendered Daftar on the landing-CTA arrival.
-        if(mode === 'login' || mode === 'signup'){
-          history.replaceState({}, '', 'trip-planner.html'); window.__initialAuthMode = mode;
-          // .then of the boot gate runs AFTER the auth module script block, so
-          // openAuth is defined; the flag alone raced (module consumed it
-          // synchronously at load, before this async branch existed).
-          if(typeof window.openAuth==='function') window.openAuth(mode);
-        }
-        else if(mode){ history.replaceState({}, '', 'trip-planner.html'); }
-        // (2) shared-device leak: when the local store was last stamped to a
-        // DIFFERENT identity, this anon must not inherit (and later backfill)
-        // it. Wipe before load(); server lists rebuild the truth. Absent stamp
-        // (single-account device) is intentionally NOT wiped — no data loss.
-        var _au=session.user.id, _own='markicab_store_owner';
-        var _prev=localStorage.getItem(_own);
-        if(_prev && _prev!==_au){
-          localStorage.removeItem(STORE_KEY);
-          localStorage.removeItem(LEGACY_STORE_KEY);
-          colState.name=''; localStorage.removeItem('markicab_display_name');
-        }
-        localStorage.setItem(_own,_au);
-        load(); renderHome();
       } else if(mode === 'signup' || mode === 'login'){
         // Arrived from landing CTA — open the requested auth mode once the auth
         // module (a later script block) defines openAuth; store the intent now.
@@ -4027,12 +3991,6 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
         window.__initialAuthMode = mode;
         renderHome();
         if(typeof window.openAuth==='function') window.openAuth(mode);
-      } else if(mode === 'start'){
-        // Founder rule 2026-09-15: landing CTAs (Buat trip gratis, Journey, Gas)
-        // enter the app home directly, NO auth modal. Auth is asked only when an
-        // action actually needs it (ensureAuth paths).
-        history.replaceState({}, '', 'trip-planner.html');
-        renderHome();
       } else {
         // No session and no explicit intent — send to the public landing page
         location.replace('index.html');
@@ -4095,10 +4053,6 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
     if(!email||pw.length<6){ errEl.textContent='Email valid dan password minimal 6 karakter.'; return; }
     submitBtn.disabled=true;
     if(mode==='login'){
-      // Claim safety net: if an anonymous session is active and signing in with an
-      // EXISTING account swaps the uid (server did not link in place), transfer the
-      // anon identity's rows to the new account so the just-made trip survives.
-      var _preUid=await API.ensureAuth(); if(_preUid){ window.__claimFromUid=_preUid; }
       var r=await API.signInWithEmail(email,pw);
       if(r.error){ errEl.textContent=humanErr(r.error); submitBtn.disabled=false; return; }
       // SIGNED_IN handled by onAuthChange
@@ -4463,32 +4417,6 @@ function openProfile(){
     var uid=session&&session.user?session.user.id:null;
     if(event==='SIGNED_IN'||(session&&uid)){
       colState.uid=uid;
-      // Anon -> real account with a DIFFERENT uid: move attribution, then resync.
-      var _claimSrc=(window.__claimFromUid||localStorage.getItem('markicab_pending_claim'));
-      if(_claimSrc && uid && _claimSrc!==uid){
-        window.__claimFromUid=null;
-        var _doClaim=function(attempt){
-          API.transferAnonymousIdentity(_claimSrc, uid, colState.name||null).then(function(tr){
-            if(tr&&tr.error){
-              console.warn('[claim] transfer failed:',tr.error.message);
-              if(attempt<1){ setTimeout(function(){_doClaim(attempt+1)},2000); return; }
-              // persist so next boot retries; tell the user honestly (SOP: no silent no-op)
-              localStorage.setItem('markicab_pending_claim',_claimSrc);
-              if(typeof mcToast==='function')mcToast('Trip anonim belum berhasil ditautkan \u2014 akan dicoba lagi saat kamu buka lagi.','error');
-            } else {
-              localStorage.removeItem('markicab_pending_claim');
-            }
-            load(); renderHome();
-          }).catch(function(e){
-            console.warn('[claim] transfer threw:',e);
-            if(attempt<1){ setTimeout(function(){_doClaim(attempt+1)},2000); return; }
-            localStorage.setItem('markicab_pending_claim',_claimSrc);
-            if(typeof mcToast==='function')mcToast('Trip anonim belum berhasil ditautkan \u2014 akan dicoba lagi saat kamu buka lagi.','error');
-            load(); renderHome();
-          });
-        };
-        _doClaim(0);
-      } else { window.__claimFromUid=null; localStorage.removeItem('markicab_pending_claim'); }
       document.getElementById('headerAvatar').style.display='';
       // Apply avatar after uid is known — runs on every sign-in path
       applyUserAvatar();
