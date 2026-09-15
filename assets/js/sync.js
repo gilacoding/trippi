@@ -56,7 +56,13 @@
    */
   async function backfillAndSync() {
     if (!colState.uid) return;
-    const localTrips = (state.trips || []).filter(t => !t.supabase_trip_id);
+    // Group trips live in groups/group_items — NEVER backfill them into the
+    // personal trips table. Root-cause of ghost cards: a "Buat Trip" is always
+    // a group; upserting one created a shadow personal row that kept coming
+    // back after the group was deleted (deleteTripFromServer only deletes one
+    // link per branch).
+    const localTrips = (state.trips || []).filter(t =>
+      !t.supabase_trip_id && !t.groupId && !t.serverId && !t.isGroup);
     for (const t of localTrips) {
       try { await syncTrip(t); } catch (e) { console.error('[sync] backfill trip failed (skipped, non-fatal):', e); }
     }
@@ -87,8 +93,10 @@
     if (!colState.uid) return;
     try {
       const { data, error } = await API.listMyGroups();
-      // GUARD: Only prune on confirmed successful response
-      if (error || !data || !data.length) return;
+      // GUARD: only prune on a CONFIRMED response — an error means "unknown",
+      // but an empty array is confirmed truth (all groups deleted) and MUST
+      // still prune, otherwise the last-deleted group lingers as a ghost card.
+      if (error || !Array.isArray(data)) return;
       const serverGroupIds = new Set(data.map(g => g.id));
       const now = [...state.trips];
       // PRUNE: Remove local group trips whose groupId is NOT in server response
@@ -116,8 +124,8 @@
     if (!colState.uid) return;
     try {
       const { data, error } = await API.listPersonalTrips();
-      // GUARD: Only prune on confirmed successful response
-      if (error || !data || !data.length) return;
+      // GUARD: empty array is confirmed truth (see loadServerGroups) — prune anyway.
+      if (error || !Array.isArray(data)) return;
       const serverTripIds = new Set(data.map(t => t.id));
       const now = [...state.trips];
       // PRUNE: Remove local personal trips whose server ID is NOT in server response
