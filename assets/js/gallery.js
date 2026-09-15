@@ -81,10 +81,11 @@
       const isVideo = it.mime_type && it.mime_type.indexOf('video/') === 0;
       const mediaEl = isVideo
         ? '<video src="' + it.signed_url + '" muted loop playsinline preload="metadata"></video><div class="video-badge" aria-hidden="true"></div>'
-        : '<img src="' + it.signed_url + '" alt="' + safeCaption + '" loading="lazy" onerror="this.style.display=\'none\'">';
+        : '<img src="' + it.signed_url + '" alt="' + safeCaption + '" loading="lazy" decoding="async" onerror="this.parentNode.classList.add(\'media-failed\')">';
+      // Google Photos behaviour: photos-first — no text burned onto tiles.
+      // Caption + uploader are shown in the lightbox instead.
       return '<div class="gallery-card" data-idx="' + idx + '" data-id="' + it.id + '">' +
         mediaEl +
-        (it.caption ? '<div class="caption">' + safeCaption + '</div>' : '') +
         '<button class="delete-btn" data-delgallery="' + it.id + '" aria-label="Hapus media"></button>' +
         '</div>';
     }).join('');
@@ -115,6 +116,23 @@
    * Open lightbox at given index.
    * @param {number} idx
    */
+  function uploaderName(userId){
+    try{
+      if (typeof resolveIdentity === 'function'){
+        var idn = resolveIdentity(userId);
+        if (idn && idn.name) return idn.name;
+        if (idn && idn.isGuest) return 'Tamu';
+      }
+    }catch(e){}
+    try{
+      var m=(colState.members||[]).find(function(x){return x.user_id===userId});
+      if(m && m.display_name) return m.display_name;
+    }catch(e){}
+    return null;
+  }
+
+  if (typeof window !== 'undefined') window.uploaderName = uploaderName;
+
   function openGalleryLightbox(idx) {
     window.galleryLightbox.open(idx, colState.gallery);
   }

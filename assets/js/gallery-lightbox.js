@@ -22,7 +22,7 @@
     '<button class="nav-btn prev-btn" id="galleryLbPrev" aria-label="Sebelumnya">‹</button>' +
     '<div id="galleryLbMedia"><img id="galleryLbImg" src="" alt=""></div>' +
     '<button class="nav-btn next-btn" id="galleryLbNext" aria-label="Berikutnya">›</button>' +
-    '<div class="caption" id="galleryLbCaption"></div>';
+    '<div class="lb-meta"><div class="caption" id="galleryLbCaption"></div><div class="lb-by" id="galleryLbBy"></div></div>';
 
   let _onNavigate = null; // callback for external state sync (optional)
 
@@ -146,6 +146,14 @@
       mediaContainer.appendChild(img);
     }
     lb.querySelector('#galleryLbCaption').textContent = it.caption || '';
+    var byEl = lb.querySelector('#galleryLbBy');
+    if (byEl){
+      var nm = null;
+      try { if (typeof window.uploaderName === 'function') nm = window.uploaderName(it.uploader_id); } catch(e){}
+      if (!nm){ try { var ms=(window.colState&&colState.members)||[]; var mm=ms.find(function(x){return x.user_id===it.uploader_id}); if(mm&&!/^(guest|user|anon)/i.test(mm.display_name||'')) nm=mm.display_name; } catch(e){} }
+      byEl.textContent = nm ? 'oleh ' + nm : '';
+      byEl.style.display = nm ? '' : 'none';
+    }
   }
 
   return {
