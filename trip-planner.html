@@ -4037,7 +4037,16 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
     document.getElementById('authEmail').value=''; document.getElementById('authPassword').value='';
     var nameEl=document.getElementById('authName'); if(nameEl) nameEl.value='';
     modal.style.display='flex'; document.getElementById('authEmail').focus(); }
-  function closeAuth(){ modal.style.display='none'; }
+  function closeAuth(){
+    modal.style.display='none';
+    // Founder rule 2026-09-15: cancelling auth returns the visitor to the
+    // public landing page — never strand them on an empty planner. The app is
+    // auth-required; with no session there is nothing to show. (In-app auth
+    // triggers like upgradeBtn keep their own close path via openAuth only.)
+    if(!colState.uid && !isGuest() && !pendingGuestToken){
+      location.replace('index.html');
+    }
+  }
   function renderMode(){
     var nameField=document.getElementById('authNameField');
     if(mode==='login'){ titleEl.textContent='Masuk'; leadEl.textContent='Masuk untuk membuat dan bergabung dengan grup perjalanan.'; submitBtn.textContent='Masuk'; switchEl.innerHTML='Belum punya akun? <a href="#" id="authToggle">Daftar</a>'; if(nameField) nameField.style.display='none'; }
@@ -4082,7 +4091,20 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
       } else {
         // P1: Fresh registration — signUpWithEmail creates a new account.
         // P1: mailer_autoconfirm=false means no session returned; user must verify email.
+        // After signup, auto-login to get a session so SIGNED_IN fires and
+        // pendingAction (e.g. trip creation) can continue.
         var s = await API.signUpWithEmail(email, pw);
+        if(!s.error){
+          var loginR = await API.signInWithEmail(email, pw);
+          if(loginR && !loginR.error){
+            // SIGNED_IN will fire from onAuthStateChange, setting colState.uid
+            // and replaying pendingAction.
+            noteEl.style.display='block';
+            noteEl.textContent='Akun dibuat. Membuka trip...';
+            submitBtn.disabled=false;
+            return;
+          }
+        }
         if(s.error){ errEl.textContent=humanErr(s.error); submitBtn.disabled=false; return; }
         if(nm && typeof saveName==='function'){ saveName(nm.slice(0,40)); if(colState) colState.name=nm.slice(0,40); }
         noteEl.style.display='block';
