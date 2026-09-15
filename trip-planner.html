@@ -670,6 +670,26 @@
   #homeView .history-card:hover{background:rgba(139,134,130,.07)}
   #homeView .history-card .h-copy{min-width:0;flex:1}
   #homeView .history-card .h-arrow{margin-left:auto;font-size:22px;font-weight:300;color:var(--muted);line-height:1}
+  /* ── History archive (Riwayat sebagai buku) ──
+     Mental model: Active = workspace, Saved = library, History = archive.
+     Quiet typography, hairlines, flat — no pills, no gradients, no nested cards. */
+  #historyView .hist-stats{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin:14px 0 4px;font-variant-numeric:tabular-nums}
+  #historyView .hist-stats b{color:var(--text);font-weight:700;font-family:'Poppins'}
+  #historyView .hist-month{font-family:'Poppins';font-weight:600;font-size:13px;color:var(--muted);letter-spacing:.3px;padding:20px 0 0}
+  #historyView .hist-rows{border-top:1px solid var(--line);margin-top:6px}
+  #historyView .hist-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;background:transparent;color:var(--text);font:inherit;padding:14px 10px;margin:0 -10px;border-radius:12px;cursor:pointer;transition:background .14s}
+  #historyView .hist-row+.hist-row{box-shadow:0 -1px 0 var(--line)}
+  #historyView .hist-row:hover{background:rgba(139,134,130,.07)}
+  #historyView .hist-copy{min-width:0;flex:1}
+  #historyView .hist-copy h3{font-family:'Poppins';font-weight:600;font-size:15px;margin:0;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #historyView .hist-copy .hist-meta{color:var(--muted);font-size:12px;margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #historyView .hist-nums{text-align:right;flex:0 0 auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.5}
+  #historyView .hist-nums b{display:block;font-weight:700;color:var(--text);font-size:13px}
+  #historyView .hist-arrow{font-size:22px;font-weight:300;color:var(--muted);line-height:1;flex:0 0 auto}
+  #historyView .empty{margin-top:26px}
+  /* home: see-all entry + capped compact list */
+  #homeView .see-all{display:block;width:100%;text-align:left;border:0;background:transparent;font:600 13px/1 'Outfit';color:var(--accent);padding:12px 10px 2px;margin:2px -10px 0;cursor:pointer;border-radius:10px}
+  #homeView .see-all:hover{text-decoration:underline;background:rgba(250,105,0,.05)}
   #homeView .history-card h3{font-family:'Poppins';font-weight:600;font-size:15px;color:var(--text)}
   #homeView .history-card .trip-meta{font-variant-numeric:tabular-nums}
   /* fixes from visual verification pass: flatten stray card-in-card wrapper, drop pill badges, strengthen ghost border, add card affordance */
@@ -1073,6 +1093,15 @@
     <h1>Trip Tersimpan</h1>
     <p class="lead">Template siap pakai dari trip-tripmu sebelumnya. Buka untuk pratinjau, lalu jadikan trip baru.</p>
     <div id="savedTripsList" class="trip-grid"></div>
+  </section>
+
+  <!-- History Archive View (Riwayat sebagai buku) -->
+  <section class="view" id="historyView">
+    <button class="back" data-nav="trip">← Semua trip</button>
+    <h1>Riwayat perjalanan</h1>
+    <p class="lead">Arsip trip yang sudah lewat. Buka untuk melihat lagi rencananya.</p>
+    <div class="hist-stats" id="histStats"></div>
+    <div id="histTimeline"></div>
   </section>
 
   <!-- Saved Trip Detail View -->
@@ -1765,7 +1794,8 @@ function renderHome(){
   $('upcomingCount').textContent=now.length?`${now.length} trip`:'';
   $('historyCount').textContent=past.length?`${past.length} trip`:'';
   $('upcomingTrips').innerHTML=now.length?now.map(tripCard).join(''):'<div class="empty"><strong>Belum ada trip yang direncanakan.</strong>Mulai dari satu tujuan dan tanggal — detailnya bisa menyusul.<br><button class="btn cta-primary" data-empty-create style="margin-top:14px">Buat trip pertama</button></div>';
-  $('historyTrips').innerHTML=past.length?past.map(t=>`<button class=\"history-card\" data-open=\"${t.id}\"><span class=\"h-copy\"><h3>${esc(t.name)}</h3><div class=\"trip-meta\">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></span><span class=\"h-arrow\" aria-hidden=\"true\">›</span></button>`).join(''):'<div class=\"empty\"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';
+  $('historyTrips').innerHTML=past.length?past.slice(0,3).map(historyRow).join('')+`<button class=\"see-all\" id=\"historySeeAll\">Lihat semua →</button>`:'<div class=\"empty\"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>';
+  const seeAll=$('historySeeAll'); if(seeAll) seeAll.onclick=()=>openHistoryView();
   document.querySelectorAll('[data-open]').forEach(b=>{
     const tripId = b.dataset.open;
     const trip = state.trips.find(t => t.id === tripId);
@@ -1780,6 +1810,46 @@ function renderHome(){
   renderToGo();
   updateHeaderAvatar(colState.name||loadName()||'');
 }
+  // History archive — read-only render from state.trips (single source).
+  function historyRow(t){
+    return `<button class="history-card" data-open="${t.id}"><span class="h-copy"><h3>${esc(t.name)}</h3><div class="trip-meta">${esc(t.destination)} · ${dateText(t.start)} — ${dateText(t.end)}</div></span><span class="h-arrow" aria-hidden="true">›</span></button>`;
+  }
+  const MONTHS_ID=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  function monthKey(iso){ return iso?iso.slice(0,7):'zzzzzz'; }
+  function monthLabel(key){ if(!/^\d{4}-\d{2}$/.test(key)) return 'Tanpa tanggal'; var d=new Date(key+'-15T12:00:00'); return MONTHS_ID[d.getMonth()]+' '+d.getFullYear(); }
+  function tripSpend(t){ return (t.expenses||[]).reduce(function(sum,x){return sum+(Number(x.amount)||0)},0); }
+  function openHistoryView(){ renderHistoryView(); show('historyView'); document.getElementById('globalTitle').textContent='Riwayat'; }
+  function renderHistoryView(){
+    var past=state.trips.filter(function(t){return tripStatus(t)[0]==='past'})
+      .sort(function(a,b){return (b.end||'').localeCompare(a.end||'')});
+    var spent=past.reduce(function(s,t){return s+tripSpend(t)},0);
+    var dests={}; past.forEach(function(t){ var d=(t.destination||'').trim().toLowerCase(); if(d)dests[d]=1; });
+    var destCount=Object.keys(dests).length;
+    var stats=[];
+    stats.push('<span><b>'+past.length+'</b> trip selesai</span>');
+    if(destCount) stats.push('<span><b>'+destCount+'</b> destinasi unik</span>');
+    if(spent>0) stats.push('<span>Tercatat <b>'+money(spent)+'</b></span>');
+    $('histStats').innerHTML=stats.join('');
+    var groups={},order=[];
+    past.forEach(function(t){ var k=monthKey(t.end); if(!groups[k]){groups[k]=[];order.push(k);} groups[k].push(t); });
+    if(!past.length){ $('histTimeline').innerHTML='<div class="empty"><strong>Belum ada riwayat.</strong>Trip yang tanggalnya lewat akan muncul di sini.</div>'; return; }
+    $('histTimeline').innerHTML=order.map(function(k){
+      var rows=groups[k].map(function(t){
+        var n=(t.items||[]).length, s=tripSpend(t);
+        return '<button class="hist-row" data-open="'+t.id+'"><span class="hist-copy"><h3>'+esc(t.destination||t.name)+'</h3>'+
+          '<div class="hist-meta">'+esc(t.name)+' · '+dateText(t.start)+' — '+dateText(t.end)+'</div></span>'+
+          '<span class="hist-nums"><b>'+n+' agenda</b>'+(s>0?'keluar '+money(s):'tanpa biaya tercatat')+'</span>'+
+          '<span class="hist-arrow" aria-hidden="true">›</span></button>';
+      }).join('');
+      return '<div class="hist-month">'+monthLabel(k)+'</div><div class="hist-rows">'+rows+'</div>';
+    }).join('');
+    // wire rows (same open logic as home cards)
+    document.querySelectorAll('#historyView [data-open]').forEach(function(b){
+      var trip=state.trips.find(function(t){return t.id===b.dataset.open});
+      b.onclick = trip && trip.groupId ? async function(){ await openGroup(trip.groupId,false); } : function(){ openTrip(b.dataset.open); };
+    });
+  }
+
   function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const dates=[];if(t.start)dates.push(dateText(t.start));if(t.end)dates.push(dateText(t.end));const metaStr=dates.length?' · '+dates.join(' — '):'';const spentSpan=spent>0?'<span>Keluar '+money(spent)+'</span>':'';var _bgc=tripBgCat?tripBgCat(t.destination):null;return '<button class="trip-card'+(_bgc?' has-bg':'')+'" data-open="'+t.id+'">'+(_bgc?'<span class="trip-bg bg-'+_bgc+'" aria-hidden="true"></span>':'')+'<span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination||'')+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+spentSpan+'</div><span class="open-hint">Buka trip →</span></button>';}
   function openTrip(id){
     // PHASE 2 INVARIANT: Opening a private trip must tear down any active group session.
@@ -4432,7 +4502,7 @@ function openProfile(){
   if(gb) gb.onclick=function(){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; gb.style.display='none'; };
   // keep nav synced when views change via in-app links
   var _show=show;
-  show=function(v){ _show(v); if(v==='homeView'){ setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; } else if(v==='plannerView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display='none'; } else if(v==='groupView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent=colState.group?colState.group.name:'Grup'; document.getElementById('globalBack').style.display='none'; } else if(v==='savedTripsView'||v==='savedTripDetailView'){ setActiveNav('saved'); document.getElementById('globalBack').style.display='none'; } else if(v==='guestView'){ document.getElementById('globalBack').style.display=''; } };
+  show=function(v){ _show(v); if(v==='homeView'){ setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; } else if(v==='plannerView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display='none'; } else if(v==='groupView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent=colState.group?colState.group.name:'Grup'; document.getElementById('globalBack').style.display='none'; } else if(v==='savedTripsView'||v==='savedTripDetailView'){ setActiveNav('saved'); document.getElementById('globalBack').style.display='none'; } else if(v==='historyView'){ setActiveNav('trip'); document.getElementById('globalBack').style.display='none'; } else if(v==='guestView'){ document.getElementById('globalBack').style.display=''; } };
   setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu';
   window.resolveIdentity=resolveIdentity;
 
