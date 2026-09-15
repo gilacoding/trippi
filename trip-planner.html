@@ -260,7 +260,14 @@
   .crew-stack .cs-av:not(.has-photo):nth-child(3){background:#F3D9A4}
   .crew-stack .cs-av:not(.has-photo):nth-child(4){background:var(--sage)}
   .crew-stack .cs-more{margin-left:8px;font-family:'Outfit';font-size:12px;color:var(--muted)}
-  #groupView .planner-head .crew-stack{margin-top:10px}
+  #groupView .planner-head .crew-stack{margin-top:0;padding-top:12px;border-top:1px solid var(--line)}
+  #groupView .planner-head .trip-meta{padding-bottom:12px}
+  #groupView .planner-head .planner-actions{margin-top:18px}
+  /* vertical rhythm: separate the stacked same-color boxes (head → stats → tabs → grid).
+     .view#groupView = higher specificity than the later V2 "#groupView .trip-stats" rule. */
+  .view#groupView>.trip-stats{margin:24px 0 0}
+  #groupView .view-tabs{margin:18px 0 16px}
+  #groupView #galleryUpload{margin-top:0}
   .to-go-item .cs-av{width:32px;height:32px;font-size:13px}
   /* ReUI-inspired empty states: dim icon above title. data-ic → Lucide mask (stroke art, tinted via background). */
   .empty[data-ic]::before{content:"";width:26px;height:26px;display:block;margin:0 auto 10px;background:var(--text-muted);opacity:.4;-webkit-mask:center/contain no-repeat;mask:center/contain no-repeat;}
