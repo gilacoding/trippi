@@ -1487,6 +1487,10 @@
           // CRITICAL: sync colState.uid so isMember evaluates correctly on re-render
           // (signInAnonymously sets cachedUid internally but colState is separate)
           colState.uid = authData.user.id;
+          // Review fix: the typed guest name is this identity's display name —
+          // cache it so a later 'Buat Trip' under this anon uid owns the member
+          // row by name instead of 'Tanpa nama'.
+          colState.name = name; saveName(name);
           // Step 2: redeem invitation (inserts group_members for anonymous uid)
           const { error } = await API.redeemInvitation(guestSession.token, name);
           if(error){
@@ -2071,7 +2075,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       var sb = API._getSb && API._getSb();
       var u = sb && sb.auth && sb.auth.user ? sb.auth.user() : null;
       var meta = u && u.user_metadata;
-      var mn = meta && (meta.full_name || meta.name);
+      var mn = meta && (meta.full_name || meta.name || meta.display_name);
       if(mn) return String(mn).slice(0, 40);
       if(u && u.email) return String(u.email).split('@')[0].slice(0, 40);
     }catch(e){ /* fall through */ }
@@ -3993,7 +3997,22 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
         // Anonymous = a session, not a visitor: boot straight into the app
         // (uid comes from the SIGNED_IN/INITIAL handler). Auth stays OPTIONAL;
         // explicit ?mode=login|signup intent keeps working as the claim door.
-        if(mode){ history.replaceState({}, '', 'trip-planner.html'); window.__initialAuthMode = mode; }
+        // Review fix 2026-09-15: (1) only login|signup may open the modal —
+        // forwarding 'start' here rendered Daftar on the landing-CTA arrival.
+        if(mode === 'login' || mode === 'signup'){ history.replaceState({}, '', 'trip-planner.html'); window.__initialAuthMode = mode; }
+        else if(mode){ history.replaceState({}, '', 'trip-planner.html'); }
+        // (2) shared-device leak: when the local store was last stamped to a
+        // DIFFERENT identity, this anon must not inherit (and later backfill)
+        // it. Wipe before load(); server lists rebuild the truth. Absent stamp
+        // (single-account device) is intentionally NOT wiped — no data loss.
+        var _au=session.user.id, _own='markicab_store_owner';
+        var _prev=localStorage.getItem(_own);
+        if(_prev && _prev!==_au){
+          localStorage.removeItem(STORE_KEY);
+          localStorage.removeItem(LEGACY_STORE_KEY);
+          colState.name=''; localStorage.removeItem('markicab_display_name');
+        }
+        localStorage.setItem(_own,_au);
         load(); renderHome();
       } else if(mode === 'signup' || mode === 'login'){
         // Arrived from landing CTA — open the requested auth mode once the auth
@@ -4436,14 +4455,31 @@ function openProfile(){
     if(event==='SIGNED_IN'||(session&&uid)){
       colState.uid=uid;
       // Anon -> real account with a DIFFERENT uid: move attribution, then resync.
-      if(window.__claimFromUid && uid && window.__claimFromUid!==uid){
-        var _oldAnon=window.__claimFromUid; window.__claimFromUid=null;
-        (async()=>{ try{
-          const tr=await API.transferAnonymousIdentity(_oldAnon, uid, colState.name||null);
-          if(tr&&tr.error)console.warn('[claim] transfer failed:',tr.error.message);
-          load(); renderHome();
-        }catch(e){ console.warn('[claim] transfer threw:',e); } })();
-      } else { window.__claimFromUid=null; }
+      var _claimSrc=(window.__claimFromUid||localStorage.getItem('markicab_pending_claim'));
+      if(_claimSrc && uid && _claimSrc!==uid){
+        window.__claimFromUid=null;
+        var _doClaim=function(attempt){
+          API.transferAnonymousIdentity(_claimSrc, uid, colState.name||null).then(function(tr){
+            if(tr&&tr.error){
+              console.warn('[claim] transfer failed:',tr.error.message);
+              if(attempt<1){ setTimeout(function(){_doClaim(attempt+1)},2000); return; }
+              // persist so next boot retries; tell the user honestly (SOP: no silent no-op)
+              localStorage.setItem('markicab_pending_claim',_claimSrc);
+              if(typeof mcToast==='function')mcToast('Trip anonim belum berhasil ditautkan \u2014 akan dicoba lagi saat kamu buka lagi.','error');
+            } else {
+              localStorage.removeItem('markicab_pending_claim');
+            }
+            load(); renderHome();
+          }).catch(function(e){
+            console.warn('[claim] transfer threw:',e);
+            if(attempt<1){ setTimeout(function(){_doClaim(attempt+1)},2000); return; }
+            localStorage.setItem('markicab_pending_claim',_claimSrc);
+            if(typeof mcToast==='function')mcToast('Trip anonim belum berhasil ditautkan \u2014 akan dicoba lagi saat kamu buka lagi.','error');
+            load(); renderHome();
+          });
+        };
+        _doClaim(0);
+      } else { window.__claimFromUid=null; localStorage.removeItem('markicab_pending_claim'); }
       document.getElementById('headerAvatar').style.display='';
       // Apply avatar after uid is known — runs on every sign-in path
       applyUserAvatar();
