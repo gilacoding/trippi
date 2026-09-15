@@ -46,7 +46,7 @@
     const isAnon = !uid || (userObj && userObj.is_anonymous);
     const isMember = !!(colState.group && colState.members.some(m => m.user_id === uid));
 
-    if (upload) upload.style.display = (isMember && !isAnon) ? 'flex' : 'none';
+    if (upload) upload.style.display = (isMember && !isAnon) ? '' : 'none';
 
     showLoading(grid, 'Memuat gallery...');
 
