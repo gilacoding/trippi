@@ -42,6 +42,7 @@
 <style>
   :root{--bg:#F5F5DC;--surface:#FFFFFF;--surface2:#E0E4CC;--line:#E0DBD5;--text:#1A1A1A;--muted:#5C5856;--text-muted:var(--muted);--ink:#1A1A1A;--white:#FFFFFF;--sage:#E8F5E9;--border:var(--line);--accent:#FA6900;--accent2:#FBC02D;--green:#2E7D32;--danger:#C62828;--accent-text:var(--text);--accent2-text:var(--text);--success-text:var(--green);--danger-text:var(--danger)}
   *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:'Outfit',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+  svg.ic{width:14px;height:14px;vertical-align:-2px;flex:none}  .st-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--line);border:1.5px solid var(--muted)}  .st-dot.online{background:var(--green);border-color:var(--green)}  .st-dot.offline{background:var(--danger);border-color:var(--danger)}  .st-dot.none{background:transparent;border-color:var(--muted)}
   button,input,textarea{font:inherit} button{cursor:pointer} .app{max-width:720px;margin:0 auto;padding:24px 18px 48px}.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px}.brand{display:flex;align-items:center;gap:9px;font-size:22px;font-weight:850;letter-spacing:.2px}.dot{width:13px;height:13px;border-radius:50%;background:var(--accent);box-shadow:none}
   .offline{color:var(--green);font-size:12px;font-weight:700;background:rgba(46,125,50,.08);border:1px solid rgba(46,125,50,.17);padding:5px 9px;border-radius:99px}.view{display:none}.view.active{display:block;animation:show .22s ease}@keyframes show{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
   h1{font-family:'Poppins';font-weight:700;font-size:clamp(28px,6vw,40px);line-height:1.08;letter-spacing:-1px;margin:0}h2{font-family:'Poppins';font-size:20px;font-weight:600;line-height:1.3;letter-spacing:-.3px;margin:0}.lead,.muted{color:var(--muted);line-height:1.55}.lead{font-size:15px;margin:10px 0 0}.section{margin-top:30px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}.count{color:var(--muted);font-size:13px}
@@ -1261,7 +1262,7 @@
       <div class="camera-overlay" id="cameraOverlay">
         <video id="cameraVideo" autoplay playsinline></video>
         <div class="camera-controls">
-          <button class="cancel-btn" id="cameraCancelBtn">✕</button>
+          <button class="cancel-btn" id="cameraCancelBtn" aria-label="Tutup kamera"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
           <button class="capture-btn" id="cameraCaptureBtn"></button>
         </div>
         <div class="camera-error" id="cameraError" style="display:none"></div>
@@ -1545,7 +1546,7 @@
     _setConsent(colState.locationConsent);
 
     const consentHtml = (colState.locationConsent === 'granted')
-      ? '<div class="consent-banner consent-denied" id="consentBanner"><p>📍 Sedang membagikan lokasi ke grup.</p><div class="consent-actions"><button class="btn secondary small" id="stopSharingBtn">Stop berbagi</button></div></div>'
+      ? '<div class="consent-banner consent-denied" id="consentBanner"><p><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Sedang membagikan lokasi ke grup.</p><div class="consent-actions"><button class="btn secondary small" id="stopSharingBtn">Stop berbagi</button></div></div>'
       : '<div class="consent-banner" id="consentBanner"><p><b>Bagikan lokasi kamu ke grup?</b></p><div class="muted" style="font-size:12px;margin:4px 0 10px">Anggota trip dapat melihat posisi kamu selama Journey Mode aktif dan halaman tetap terbuka.</div><div class="consent-actions"><button class="btn small" id="shareLocationBtn">Izinkan</button><button class="btn secondary small" id="denyLocationBtn">Nanti</button></div></div>';
 
     var innerHtml =
@@ -2207,7 +2208,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       html += '<div class="section-head" style="margin-top:14px"><div><h4 style="font-size:13px;color:var(--muted)">Sudah diproses</h4></div></div>';
       html += history.map(w => `<article class="to-go-item" style="opacity:.7">
         <div class="to-go-copy">
-          <div class="to-go-name">${esc(w.title)} <span class="muted" style="font-size:11px">· ${w.status === 'approved' ? '✓ masuk itinerary' : 'ditolak'}</span></div>
+          <div class="to-go-name">${esc(w.title)} <span class="muted" style="font-size:11px">· ${w.status === 'approved' ? '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> masuk itinerary' : 'ditolak'}</span></div>
         </div>
       </article>`).join('');
     }
@@ -2616,7 +2617,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     // Journey Mode banner — owner controls start/end
     if(isOwner){
       if(active){
-        html.push('<div class="journey-controls"><span class="journey-badge active"><span class="dot on"></span>Journey Mode aktif</span><button class="btn secondary small" id="endJourneyBtn">📍 End Journey</button></div>');
+        html.push('<div class="journey-controls"><span class="journey-badge active"><span class="dot on"></span>Journey Mode aktif</span><button class="btn secondary small" id="endJourneyBtn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Akhiri Journey</button></div>');
       } else {
         html.push('<div class="journey-controls"><span class="journey-badge inactive"><span class="dot off"></span>Journey Mode mati</span><button class="btn small" id="startJourneyBtn">Mulai Journey Mode</button></div>');
       }
@@ -2633,7 +2634,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       if(!hasConsent){
         html.push('<div class="consent-banner" id="consentBanner"><p><b>Bagikan lokasi kamu ke grup?</b></p><div class="muted" style="font-size:12px;margin:4px 0 10px">Anggota trip dapat melihat posisi kamu selama Journey Mode aktif dan halaman tetap terbuka.</div><div class="consent-actions"><button class="btn small" id="shareLocationBtn">Izinkan</button><button class="btn secondary small" id="denyLocationBtn">Nanti</button></div></div>');
       } else {
-        html.push('<div class="consent-banner consent-denied" id="consentBanner"><p>📍 Sedang membagikan lokasi ke grup.</p><div class="consent-actions"><button class="btn secondary small" id="stopSharingBtn">Stop berbagi</button></div></div>');
+        html.push('<div class="consent-banner consent-denied" id="consentBanner"><p><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> Sedang membagikan lokasi ke grup.</p><div class="consent-actions"><button class="btn secondary small" id="stopSharingBtn">Stop berbagi</button></div></div>');
       }
     }
 
@@ -3242,9 +3243,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       seen[uid] = true;
       const loc = byUid[uid];
       let icon, status;
-      if(loc && isFreshLocation(loc)){ icon = '🟢'; status = 'Online'; }
-      else if(loc){                     icon = '🔴'; status = 'Offline'; }
-      else {                            icon = '⚪'; status = 'Tidak berbagi'; }
+      if(loc && isFreshLocation(loc)){ icon = 'online'; status = 'Online'; }
+      else if(loc){                   icon = 'offline'; status = 'Offline'; }
+      else {                          icon = 'none'; status = 'Tidak berbagi'; }
       rows.push({ uid: uid, name: nameOf(uid), role: roleLabelOf(uid), icon: icon, status: status,
                   loc: loc || null });
     };
@@ -3273,7 +3274,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       return '<article class="to-go-item" data-uid="' + esc(r.uid) + '">' +
         _rAv +
         '<div class="to-go-copy">' +
-          '<div class="to-go-name">' + r.icon + ' ' + esc(r.name) + '</div>' +
+          '<div class="to-go-name"><span class="st-dot '+r.icon+'" aria-hidden="true"></span>' + esc(r.name) + '</div>' +
           '<div class="muted" style="font-size:11px">' + meta + distTxt + '</div>' +
         '</div>' +
         (removable
