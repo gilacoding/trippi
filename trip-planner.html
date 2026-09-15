@@ -2263,7 +2263,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   function renderGroupWishlist(){
     const wl = document.getElementById('groupWishList');
     if (!wl) return;
-    const canConvert = canEditTrip();
+    const canConvert = canEditItinerary();
     const pending = (colState.wishlists || []).filter(w => w.status === 'suggested');
     const history = (colState.wishlists || []).filter(w => w.status !== 'suggested');
     let html = '';
@@ -2529,7 +2529,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const dayItems=colState.items.filter(i=>i.date===colState.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
     $('groupDayTitle').textContent=`Itinerary · ${colState.activeDate?dateText(colState.activeDate):'pilih hari'} · ${dayItems.length} titik`;
     $('groupItineraryList').innerHTML=dayItems.length?dayItems.map(item=>`<article class="item"><div class="item-time" data-gtime="${item.id}" title="Klik ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'} · <span class="by">oleh ${esc(nameOf(item.created_by))}</span></div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-gcost="${item.id}" title="Klik ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-gcost="${item.id}" title="Klik ubah biaya">biaya?</div>`}</div>${canEditTrip()?`<button class="delete-item" data-gdel="${item.id}" aria-label="Hapus">×</button>`:''}</article>`).join(''):'<div class="empty" data-ic="cal"><strong>Belum ada agenda hari ini.</strong>Tambah kegiatan bareng-bareng.</div>';
-    if(canEditTrip()){
+    if(canEditItinerary()){
       document.querySelectorAll('[data-gtime]').forEach(el=>el.onclick=()=>editGroupTime(el));
       document.querySelectorAll('[data-gcost]').forEach(el=>el.onclick=()=>editGroupCost(el));
       document.querySelectorAll('[data-gdel]').forEach(b=>b.onclick=()=>removeGroupItem(b.dataset.gdel));
@@ -2560,7 +2560,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(myRow){ myRow.style.display = mine.length ? '' : 'none'; }
     $('groupMyExpense').textContent=money(sum(mine));
     $('groupExpenseList').innerHTML=dayExp.length?dayExp.map(item=>`<article class="expense-item"><span class="expense-icon">${categoryIcon(item.category)}</span><div class="expense-copy"><div class="expense-name">${esc(item.name)} ${isMine(item)?'<span class="exp-badge pribadi">Pribadi</span>':''} <span class="by">· oleh ${esc(nameOf(item.created_by))}</span></div><div class="expense-meta">${esc(item.category)}${item.paid_by&&item.paid_by!==item.created_by&&!isMine(item)?` · dibayar ${esc(nameOf(item.paid_by))}`:''}${item.note?` · ${esc(item.note)}`:''}</div></div><div class="expense-amount">${money(item.amount)}</div>${(item.type!=='personal'&&canEditTrip())||isMine(item)?`<button class="expense-delete" data-gdelexp="${item.id}">×</button>`:''}</article>`).join(''):'<div class="empty" data-ic="coins"><strong>Belum ada pengeluaran hari ini.</strong>Catat saat uang keluar.</div>';
-    if(canEditTrip()){
+    if(canEditExpense()){
       document.querySelectorAll('[data-gdelexp]').forEach(b=>b.onclick=()=>removeGroupExpense(b.dataset.gdelexp));
     }
   }
@@ -3610,6 +3610,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
   // M3 Phase 1: apply owner/member permission matrix to the group UI
   function canEditTrip(){ const p=colState.perms||{}; return !!p.can_edit; }
+  function canEditItinerary(){ const p=colState.perms||{}; return !!p.can_edit_itinerary; }
+  function canEditExpense(){ const p=colState.perms||{}; return !!p.can_edit_expense; }
   function canInvite(){ const p=colState.perms||{}; return !!p.can_invite; }
   function canManageMembers(){ const p=colState.perms||{}; return !!p.can_manage_members; }
   function canAddItinerary(){ const p=colState.perms||{}; return !!(p.can_edit || p.can_add_itinerary); }
@@ -3805,7 +3807,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const addAgendaPanel=document.querySelector('#itineraryPanel details');
     if(addAgendaPanel) addAgendaPanel.style.display = canAddItinerary() ? '' : 'none';
     const addExpensePanel=document.getElementById('expensesPanel');
-    if(addExpensePanel) addExpensePanel.style.display = canEditTrip() ? '' : 'none';
+    if(addExpensePanel) addExpensePanel.style.display = canEditExpense() ? '' : 'none';
     const cr=document.getElementById('createRouteBtn'); if(cr) cr.style.display = 'none'; // route hidden
     const _groupSettingsBtn=document.getElementById('groupSettingsBtn'); if(_groupSettingsBtn) _groupSettingsBtn.style.display = p.is_owner ? '' : 'none';
     if(_groupSettingsBtn) _groupSettingsBtn.onclick = openGroupSettings;
