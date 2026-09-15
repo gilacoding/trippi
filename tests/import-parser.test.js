@@ -160,5 +160,38 @@ test('parseImport: preview defaults for missing fields', () => {
   assert.strictEqual(result.preview.wishlistCount, 0);
 });
 
+// ── Nested day-container dates (regression: 2026-09-15 ghost-date bug) ──
+test('nested {itinerary:[{date, items}]} assigns day date to items', () => {
+  const json = JSON.stringify({ trip: { name: 'T', destination: 'Solo' },
+    itinerary: [
+      { date: '2026-10-01', items: [{ title: 'Keraton', time: '09:00' }, { title: 'Malioboro' }] },
+      { date: '2026-10-02', items: [{ title: 'Borobudur' }] }
+    ] });
+  const result = importParser.parseImport(json);
+  assert.strictEqual(result.valid, true);
+  const items = result.canonical.items;
+  assert.strictEqual(items.length, 3);
+  assert.ok(items.every(i => i.date), 'no item may lose its date');
+  assert.strictEqual(items[0].date, '2026-10-01');
+  assert.strictEqual(items[2].date, '2026-10-02');
+  assert.strictEqual(result.preview.wishlistCount, 0, 'dated items must NOT fall to wishlist');
+});
+test('day numbers do not masquerade as dates (epoch bug guard)', () => {
+  const json = JSON.stringify({ name: 'T', start: '2026-10-05', end: '2026-10-07',
+    days: [{ day: 1, items: [{ title: 'Alpha' }] }, { day: 3, items: [{ title: 'Gamma' }] }] });
+  const result = importParser.parseImport(json);
+  const items = result.canonical.items;
+  assert.strictEqual(items[0].date, '2026-10-05');
+  assert.strictEqual(items[1].date, '2026-10-07');
+  assert.ok(items.every(i => i.date && !i.date.startsWith('1970')));
+});
+test('item own date beats day container date', () => {
+  const json = JSON.stringify({ name: 'T', start: '2026-10-01',
+    itinerary: [{ date: '2026-10-03', items: [{ title: 'Own', date: '2026-10-05' }, { title: 'Inherits' }] }] });
+  const items = importParser.parseImport(json).canonical.items;
+  assert.strictEqual(items[0].date, '2026-10-05');
+  assert.strictEqual(items[1].date, '2026-10-03');
+});
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

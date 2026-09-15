@@ -574,9 +574,17 @@
     var hasDayNumbers = false;
 
     if (days && Array.isArray(days) && days.length > 0) {
-      // Structure: [{day: 1, items: [...], activities: [...], ...}]
+      // Structure: [{day: 1, items: [...], activities: [...], ...}] or [{date: 'YYYY-MM-DD', items:[...]}]
       days.forEach(function(day, di) {
         if (!day || typeof day !== 'object') return;
+        // ROOT FIX (2026-09-15): the day container's own date wins over the
+        // startDate+offset guess — previously it was ignored entirely, so
+        // {itinerary:[{date, items:[...]}} produced items with null dates
+        // (they landed in wishlist with the "biaya?" label).
+        // NB: read .date DIRECTLY — the 'date' alias list includes 'day',
+        // so getFromAliases would misread {day: 1} as a real date (epoch bug).
+        var dayDate = (typeof day.date === 'string' || typeof day.date === 'number') ? safeDate(day.date) : null;
+        if (dayDate === '1970-01-01') dayDate = null; // epoch means nonsense input
         var dayNum = getFromAliases(day, 'dayNumber') || (di + 1);
         dayNum = parseInt(dayNum, 10) || (di + 1);
         hasDayNumbers = true;
@@ -586,11 +594,12 @@
           // Maybe the day itself is an item
           var dayItem = normalizeItem(day, dayNum);
           if (dayItem) {
+            if (!dayItem.date && dayDate) dayItem.date = dayDate;
             if (!dayItem.date && startDate) {
               // Assign day to date if we can
-              var d = new Date(startDate);
-              d.setDate(d.getDate() + dayNum - 1);
-              dayItem.date = formatDate(d);
+              var d0 = new Date(startDate);
+              d0.setDate(d0.getDate() + dayNum - 1);
+              dayItem.date = formatDate(d0);
             }
             items.push(dayItem);
           }
@@ -600,8 +609,10 @@
         dayItems.forEach(function(item) {
           var norm = normalizeItem(item, dayNum);
           if (!norm) return;
-          // If item has no date, try to assign based on day number
-          if (!norm.date && startDate && dayNum) {
+          // Day container date first, then start+offset arithmetic, then keep null
+          if (!norm.date && dayDate) {
+            norm.date = dayDate;
+          } else if (!norm.date && startDate && dayNum) {
             var d = new Date(startDate);
             d.setDate(d.getDate() + dayNum - 1);
             norm.date = formatDate(d);
