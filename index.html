@@ -25,13 +25,17 @@ body{font-family:'Outfit',system-ui,sans-serif;background:var(--cream);color:var
 a{color:inherit}
 h1,h2,h3,.brand,.btn{font-family:'Poppins',sans-serif}
 
-.top{display:flex;align-items:center;gap:12px;padding:26px 0}
+.top{display:flex;align-items:center;gap:12px;padding-top:26px;padding-bottom:26px}
 .brand{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:700;letter-spacing:-.02em;text-decoration:none}
 .brand .mark{width:34px;height:34px}
 .brand .dot{color:var(--orange)}
 .top .btn{margin-left:auto}
+.top-nav{margin-left:auto;display:flex;gap:20px;font-size:14px}
+.top-nav a{color:var(--muted);text-decoration:none;font-weight:500}
+.top-nav a:hover{color:var(--orange)}
+.top-nav a.em{color:var(--ink,#1A1A1A);font-weight:600}
 
-.hero{padding:56px 0 72px}
+.hero{padding-top:56px;padding-bottom:72px}
 .hero-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:56px;align-items:center}
 .hero h1{font-size:clamp(38px,6vw,64px);font-weight:800;line-height:1.05;letter-spacing:-.03em}
 .hero h1 .pop{color:var(--orange)}
@@ -62,7 +66,7 @@ h1,h2,h3,.brand,.btn{font-family:'Poppins',sans-serif}
 .hc-sum b{font-family:'Poppins';font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
 .tag{display:inline-block;font-family:'Poppins';font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);background:var(--cream);border-radius:999px;padding:3px 9px}
 
-.features{padding:8px 0 72px}
+.features{padding-top:8px;padding-bottom:72px}
 .sec-head{margin-bottom:34px}
 .sec-head .kicker{display:inline-flex;align-items:center;gap:7px;font-family:'Poppins';font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
 .sec-head .kicker::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--orange)}
@@ -77,7 +81,7 @@ h1,h2,h3,.brand,.btn{font-family:'Poppins',sans-serif}
 .row:nth-child(2) .n b{border-bottom:3px solid var(--yellow);font-weight:inherit}
 .row:nth-child(4) .n{color:var(--red)}
 
-.steps{padding:0 0 80px}
+.steps{padding-bottom:80px}
 .steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .step{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px}
 .step .num{width:36px;height:36px;border-radius:50%;background:var(--soft);font-family:'Poppins';font-weight:700;font-size:15px;display:grid;place-items:center;margin-bottom:14px}
@@ -93,7 +97,7 @@ h1,h2,h3,.brand,.btn{font-family:'Poppins',sans-serif}
 .statement p{margin:16px auto 28px;color:#b9b5ae;max-width:42em;font-size:16px}
 .statement .btn-primary{background:var(--orange)}
 
-.faq{padding:72px 0}
+.faq{padding-top:72px;padding-bottom:72px}
 .faq h2{font-size:clamp(24px,3.5vw,32px);font-weight:700;letter-spacing:-.02em;margin-bottom:26px}
 .qa{border-top:1px solid var(--line);padding:20px 4px;border-bottom:1px solid var(--line)}
 .qa dt{font-family:'Poppins';font-weight:600;font-size:16px}
@@ -109,7 +113,7 @@ footer{padding:36px 0 48px;border-top:1px solid var(--line)}
 
 :focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 @media (max-width:860px){
-  .hero{padding:36px 0 56px}
+  .hero{padding-top:36px;padding-bottom:56px}
   .hero-grid{grid-template-columns:1fr;gap:40px}
   .steps-grid{grid-template-columns:1fr}
   .row{grid-template-columns:34px 1fr;gap:12px}
@@ -123,7 +127,7 @@ footer{padding:36px 0 48px;border-top:1px solid var(--line)}
 
 <header class="wrap top">
   <a class="brand" href="/"><img class="mark" src="marki-mark.svg" alt=""><span>marki<span class="dot">.</span>cab</span></a>
-  <a class="btn btn-primary" href="trip-planner.html?mode=signup">Mulai trip</a>
+  <nav class="top-nav" aria-label="Masuk akun"><a href="trip-planner.html">Masuk</a><a href="trip-planner.html?mode=signup" class="em">Daftar</a></nav>
 </header>
 
 <main id="main">
@@ -134,7 +138,6 @@ footer{padding:36px 0 48px;border-top:1px solid var(--line)}
       <p class="lead">Satu tempat buat merencanakan trip bersama temanmu — dari ide, jadwal, patungan, sampai hari-H. Grup chat nggak dirancang buat ini.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="trip-planner.html?mode=signup">Buat trip gratis</a>
-        <a class="btn btn-ghost" href="trip-planner.html">Masuk</a>
       </div>
       <p class="hero-note">Gratis · Tanpa kartu kredit · Cukup nama panggilan buat ikut trip</p>
     </div>
