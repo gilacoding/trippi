@@ -20,6 +20,7 @@
   };
 </script>
 <script src="assets/js/toast.js"></script>
+<script src="assets/js/avatar-crop.js"></script>
 <script>
 /* Toast adoption: route alerts through mcToast. toast.js ships its own CSS
    (self-contained); the copy in the main stylesheet is a harmless duplicate.
@@ -366,6 +367,20 @@
   .trip-card .trip-bg.bg-danau{background-image:url('assets/trip-bg/danau.webp')}
   .trip-card .trip-bg.bg-laut{background-image:url('assets/trip-bg/laut.webp')}
   .trip-card .trip-bg.bg-alam{background-image:url('assets/trip-bg/alam.webp')}
+
+  /* ===== AVATAR CROP MODAL ===== */
+  .crop-card{max-width:360px}
+  .crop-card h2{margin:0 0 2px;font-family:'Poppins'}
+  .crop-tip{margin:0 0 14px}
+  .crop-stage{position:relative;width:280px;height:280px;margin:0 auto;border-radius:16px;overflow:hidden;background:var(--bg)}
+  .crop-stage canvas{display:block;width:280px;height:280px;touch-action:none;cursor:grab}
+  .crop-stage canvas:active{cursor:grabbing}
+  .crop-stage canvas:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .crop-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;box-shadow:0 0 0 2px var(--surface),0 0 0 200vmax rgba(245,245,220,.62)}
+  .crop-controls{display:flex;align-items:center;gap:14px;margin-top:14px}
+  .crop-controls .btn{min-height:44px}
+  .crop-zoom{display:flex;align-items:center;gap:8px;flex:1;color:var(--muted);font-size:12px;font-family:'Outfit'}
+  .crop-zoom input[type=range]{flex:1;accent-color:var(--accent);height:32px}
   .trip-card{border-radius:16px;padding:18px 16px 14px;box-shadow:0 2px 8px rgba(0,0,0,.04);transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}
   .trip-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.08);border-color:rgba(250,105,0,.3)}
   .trip-card .state{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-family:'Outfit';font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
@@ -1067,6 +1082,27 @@
       <button class="btn btn-del" id="deleteSavedTripBtn">Hapus</button>
     </div>
   </section>
+
+  <!-- Avatar crop modal (proven flow: pick → circular crop w/ pan+zoom+rotate → crop-square upload) -->
+  <div class="modal-overlay" id="avatarCropModal" role="dialog" aria-modal="true" aria-labelledby="avatarCropHeading" style="display:none">
+    <div class="modal-card crop-card">
+      <h2 id="avatarCropHeading">Atur foto profil</h2>
+      <p class="muted crop-tip">Geser untuk menggeser, slider untuk zoom.</p>
+      <div class="crop-stage">
+        <canvas id="avatarCropCanvas" width="280" height="280" tabindex="0" aria-label="Area potong foto — drag untuk menggeser, panah keyboard untuk geser"></canvas>
+        <div class="crop-ring" aria-hidden="true"></div>
+      </div>
+      <div class="crop-controls">
+        <button class="btn secondary small" id="avatarCropRotate" type="button" aria-label="Putar 90 derajat">Putar</button>
+        <label class="crop-zoom"><input type="range" id="avatarCropZoom" min="100" max="300" value="100" aria-label="Zoom foto"><span>Zoom</span></label>
+      </div>
+      <p class="auth-error" id="avatarCropError"></p>
+      <div class="form-actions">
+        <button class="btn secondary" id="avatarCropCancel" type="button">Batal</button>
+        <button class="btn" id="avatarCropSave" type="button">Simpan Foto</button>
+      </div>
+    </div>
+  </div>
 
   <section class="view" id="guestView">
     <div class="guest-card">
@@ -3985,33 +4021,70 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
   var profileNameDisplay=document.getElementById('profileNameDisplay');
   var profileEmailDisplay=document.getElementById('profileEmailDisplay');
 
-  // V2 avatar upload handler — wire file input change
+  // ── Avatar flow (proven pattern: pick → crop dialog → save) ──
+  // FALLBACK: if avatar-crop.js failed to load, window.AvatarCrop is missing and
+  // we revert to the old direct upload (no framing) so uploads never break.
+  var _cropModal=document.getElementById('avatarCropModal');
+  var _cropCtrl=null, _cropFileUrl=null;
+  function _uploadAvatarFile(file){
+    profileError.textContent='Mengunggah foto...';
+    return API.uploadAvatar(file).then(function(res){
+      if(res.error){ profileError.textContent='Gagal mengunggah: '+res.error.message; throw new Error('upload'); }
+      if(res.data && res.data.signed_url){
+        profileAvatar.style.backgroundImage='url('+res.data.signed_url+')';
+        profileAvatar.classList.add('has-photo');
+        profileAvatar.textContent='';
+        profileError.textContent='';
+        colState.userAvatarUrl=res.data.signed_url;
+        var ha=document.getElementById('headerAvatar');
+        if(ha){ ha.classList.add('has-photo'); ha.style.backgroundImage='url('+res.data.signed_url+')'; ha.style.backgroundSize='cover'; ha.textContent=''; }
+        if(typeof mcToast==='function') mcToast('Foto profil diperbarui','ok');
+      }
+    });
+  }
+  function _openCrop(src){
+    _cropModal.style.display='flex';
+    _cropCtrl.openWith(src);
+    var el=document.getElementById('avatarCropSave'); if(el) el.focus();
+  }
+  function _closeCrop(){ _cropModal.style.display='none'; if(_cropFileUrl){URL.revokeObjectURL(_cropFileUrl);_cropFileUrl=null;} }
+  function _startAvatarPick(file){
+    if(!file) return;
+    if(typeof window.AvatarCrop==='function' || (window.AvatarCrop && window.AvatarCrop.mount)){
+      if(!_cropCtrl){
+        _cropCtrl = window.AvatarCrop.mount({
+          canvas: document.getElementById('avatarCropCanvas'),
+          stage: document.querySelector('.crop-stage'),
+          zoomEl: document.getElementById('avatarCropZoom'),
+          rotateBtn: document.getElementById('avatarCropRotate')
+        });
+      }
+      _cropFileUrl=URL.createObjectURL(file);
+      _openCrop(_cropFileUrl);
+    } else {
+      _uploadAvatarFile(file).catch(function(){});
+    }
+  }
   if(profileAvatarInput){
     profileAvatarInput.onchange=function(e){
       var file=e.target.files && e.target.files[0];
-      if(!file)return;
-      profileAvatar.classList.remove('has-photo');
-      var reader=new FileReader();
-      reader.onload=function(ev){
-        profileAvatar.classList.add('has-photo');
-        profileAvatar.style.backgroundImage='url('+ev.target.result+')';
-        profileAvatar.textContent='';
-      };
-      reader.readAsDataURL(file);
-      profileError.textContent='Mengunggah foto...';
-      API.uploadAvatar(file).then(function(res){
-        if(res.error){
-          profileError.textContent='Gagal mengunggah: '+res.error.message;
-        } else if(res.data && res.data.signed_url){
-          profileAvatar.style.backgroundImage='url('+res.data.signed_url+')';
-          profileAvatar.classList.add('has-photo');
-          profileAvatar.textContent='';
-          profileError.textContent='';
-        }
-      }).catch(function(err){
-        profileError.textContent='Gagal mengunggah: '+err.message;
-      });
       e.target.value='';
+      _startAvatarPick(file);
+    };
+  }
+  if(_cropModal){
+    document.getElementById('avatarCropCancel').onclick=_closeCrop;
+    _cropModal.onclick=function(e){ if(e.target===_cropModal) _closeCrop(); };
+    _cropModal.onkeydown=function(e){ if(e.key==='Escape') _closeCrop(); };
+    document.getElementById('avatarCropSave').onclick=function(){
+      var err=document.getElementById('avatarCropError'); err.textContent='';
+      var btn=document.getElementById('avatarCropSave'); btn.disabled=true; btn.textContent='Menyimpan...';
+      _cropCtrl.exportNow().then(function(blob){
+        var file=new File([blob],'avatar.jpg',{type:'image/jpeg'});
+        return _uploadAvatarFile(file);
+      }).catch(function(err2){
+        if(err2 && err2.message!=='upload') err.textContent=err2.message||'Gagal menyimpan foto';
+      }).finally(function(){ btn.disabled=false; btn.textContent='Simpan Foto'; _closeCrop(); });
     };
   }
 
