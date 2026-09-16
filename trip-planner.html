@@ -4694,7 +4694,7 @@ function openProfile(){
     }).join('');
     var why=(item.why||[]).map(function(w){ return '<li>'+esc(w)+'</li>'; }).join('');
     document.getElementById('exploreDetail').innerHTML=
-      '<div class="exp-nav"><button class="back" data-nav="trip"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="no"><path d="M13 4L6 10l7 6"/></svg> kembali</button></div>'+
+      '<div class="exp-nav"><button class="back" data-nav="explore"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="no"><path d="M13 4L6 10l7 6"/></svg> kembali</button></div>'+
       '<div class="exp-hero" style="background-image:url('+esc(item.cover||'')+')"><div class="exp-hero-scrim"></div>'+
         '<div class="exp-hero-copy"><h1>'+esc(item.title||'')+'</h1>'+
         '<div class="exp-meta">'+esc(item.destination||'')+' · '+item.duration+' hari · '+esc(item.type||'')+'</div></div></div>'+
