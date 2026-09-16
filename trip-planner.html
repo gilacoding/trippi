@@ -380,6 +380,20 @@
   .trip-card .trip-bg.bg-laut{background-image:url('assets/trip-bg/laut.webp')}
   .trip-card .trip-bg.bg-alam{background-image:url('assets/trip-bg/alam.webp')}
 
+  /* ── Gallery P0: trip-grouped aggregator ── */
+  .gallery-trip{padding:16px}
+  .gallery-trip+.gallery-trip{border-top:1px solid var(--border)}
+  .gt-head{margin-bottom:10px}
+  .gt-title{font-family:'Poppins';font-weight:700;font-size:15px;color:var(--text);margin:0}
+  .gt-date{font-size:12px;color:var(--muted);margin-top:2px}
+  .gt-count{font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:4px}
+  .gt-thumbs{display:flex;gap:6px;flex-wrap:wrap}
+  .gt-thumb{width:72px;height:72px;object-fit:cover;border-radius:6px;cursor:pointer;background:var(--border)}
+  .gt-more{width:72px;height:72px;border-radius:6px;background:var(--border);display:flex;align-items:center;justify-content:center;font-family:'Poppins';font-weight:700;font-size:18px;color:var(--muted);cursor:pointer;flex:0 0 auto}
+  .gt-more:hover{background:var(--line)}
+  .gallery-agg-empty{border:1.5px dashed var(--border);border-radius:18px;padding:36px 24px;text-align:center;color:var(--muted);line-height:1.6;background:var(--surface);box-shadow:0 1px 4px rgba(0,0,0,.03);margin:8px 0}
+  .gallery-agg-empty strong{display:block;font-family:'Poppins';font-size:16px;font-weight:600;color:var(--text);margin-bottom:6px}
+
   /* ===== AVATAR CROP MODAL ===== */
   .crop-card{max-width:360px}
   .crop-card h2{margin:0 0 2px;font-family:'Poppins'}
@@ -1302,10 +1316,10 @@
       </div>
     </div>
 
-  <!-- Gallery view (P0 foundation — view only, no content yet) -->
+  <!-- Gallery view (P0 — aggregated by trip) -->
   <section class="view" id="galleryView">
-    <div class="section-head"><h2>Galeri</h2></div>
-    <div class="empty">Galeri akan menampilkan media dari trip kamu di satu tempat.</div>
+    <div class="section-head"><h2>Galeri</h2><span style="font-size:13px;color:var(--muted)" id="galleryCount"></span></div>
+    <div id="galleryAgg"></div>
   </section>
 
   <!-- Journey view (P0 foundation — live trip mode, context-dependent) -->
@@ -4610,6 +4624,74 @@ function openProfile(){
 
   // ── MarkiCab bottom nav wiring (Penpot 1:1 mapping) ──────────────────────
   // Trip = home list · Plan = planner/group detail · Journey = journey panel
+  // ── Gallery P0: client-side aggregation by trip ──
+  function _galleryFmtDate(s){
+    if(!s) return '';
+    var m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    var d=new Date(s); if(isNaN(d.getTime())) return s;
+    return d.getDate()+' '+m[d.getMonth()]+' '+d.getFullYear();
+  }
+  async function loadGalleryAgg(){
+    var agg=document.getElementById('galleryAgg');
+    if(!agg) return;
+    var _esc=window.utils?window.utils.esc:function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+    agg.innerHTML='<div class="gallery-agg-empty"><strong>Memuat galeri...</strong>Mencari foto dari semua trip kamu.</div>';
+    try{
+      var uid=colState.uid;
+      if(!uid){ agg.innerHTML='<div class="gallery-agg-empty"><strong>Belum ada foto.</strong>Masuk untuk melihat galeri trip kamu.</div>'; document.getElementById('galleryCount').textContent=''; return; }
+      var gres=await API.listMyGroups();
+      if(gres.error||!Array.isArray(gres.data)){ agg.innerHTML='<div class="gallery-agg-empty"><strong>Galeri gagal dimuat.</strong>Coba buka panel ini lagi sebentar.</div>'; return; }
+      var groups=gres.data;
+      if(!groups.length){ agg.innerHTML='<div class="gallery-agg-empty"><strong>Belum ada trip.</strong>Buat trip baru dan upload foto untuk mengisi galeri ini.</div>'; document.getElementById('galleryCount').textContent=''; return; }
+      var mediaResults=await Promise.all(groups.map(function(g){ return API.listMedia(g.id).catch(function(){ return {data:[],error:null}; }); }));
+      var trips=[];
+      groups.forEach(function(g, i){ var items=mediaResults[i].data||[]; if(items.length) trips.push({group:g, items:items}); });
+      if(!trips.length){ agg.innerHTML='<div class="gallery-agg-empty"><strong>Belum ada foto.</strong>Upload foto dari trip untuk mengisi galeri ini.</div>'; document.getElementById('galleryCount').textContent='0 media · 0 trip'; return; }
+      var totalPhotos=0, totalVideos=0;
+      trips.forEach(function(t){ t.items.forEach(function(it){ if(it.mime_type&&it.mime_type.indexOf('video')===0) totalVideos++; else totalPhotos++; }); });
+      document.getElementById('galleryCount').textContent=(totalPhotos+totalVideos)+' media · '+trips.length+' trip';
+      agg.innerHTML=trips.map(function(t){
+        var g=t.group;
+        var date=g.start_date&&g.end_date?_galleryFmtDate(g.start_date)+' — '+_galleryFmtDate(g.end_date):(g.start_date?_galleryFmtDate(g.start_date):'');
+        var textVariant='';
+        if(g.name&&g.name.indexOf('Bersama')!==-1) textVariant='text-bersama';
+        else if(g.name&&g.name.indexOf('Personal')!==-1) textVariant='text-personal';
+        var gBadge=g.name?'<span class="trip-pill '+textVariant+'">'+_esc(g.name)+'</span>':'';
+                var thumbs=t.items.slice(0,5);
+                var remaining=t.items.length-5;
+                return '<div class="gallery-trip">'+
+                  '<div class="gt-head">'+
+                    '<div><div class="gt-title">'+gBadge+'</div>'+
+                    '<div class="gt-date">'+date+'</div>'+
+                    '<div class="gt-count">'+t.items.length+' foto · '+_esc(g.destination||'')+'</div></div>'+
+                  '</div>'+
+                  '<div class="gt-thumbs">'+
+                    thumbs.map(function(it, idx){
+                      var src=it.signed_url||'';
+                      var alt=_esc(it.caption||'');
+                      return '<img class="gt-thumb" src="'+_esc(src)+'" alt="'+alt+'" data-trip-idx="'+idx+'" data-group-id="'+_esc(g.id)+'" loading="lazy" '+(src?'':'style="visibility:hidden;background:var(--border)"')+'>';
+                    }).join('')+
+                    (remaining>0?'<div class="gt-more" data-group-id="'+_esc(g.id)+'">+'+remaining+'</div>':'')+
+          '</div>'+
+        '</div>';
+      }).join('');
+      // Wire lightbox with PER-TRIP items (group-scoped, not global)
+      agg.querySelectorAll('.gt-thumb').forEach(function(img){
+        var tripEl=img.closest('.gallery-trip');
+        var groupId=tripEl?tripEl.dataset.groupId:null;
+        var tripBucket=trips.filter(function(t){return t.group.id===groupId;})[0];
+        img.addEventListener('click', function(e){
+          e.stopPropagation();
+          var idx=parseInt(this.dataset.tripIdx||'0',10);
+          if(window.galleryLightbox&&tripBucket) window.galleryLightbox.open(idx, tripBucket.items);
+        });
+      });
+      agg.querySelectorAll('.gt-more').forEach(function(el){
+        el.addEventListener('click', function(){ goNav('trip'); openGroup(el.dataset.groupId, false); });
+      });
+    }catch(e){ console.error('[Gallery agg]', e); agg.innerHTML='<div class="gallery-agg-empty"><strong>Galeri gagal dimuat.</strong>Coba lagi.</div>'; }
+  }
+
   function setActiveNav(name){
     document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.nav===name); });
     var se=document.getElementById('savedEntryBtn'); if(se) se.classList.toggle('at-saved', name==='saved');
@@ -4619,11 +4701,10 @@ function openProfile(){
   function goNav(name){
     if(name==='trip'){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; }
     else if(name==='plan'){ setActiveNav('plan'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); } else if(state.activeTripId || state.readOnlyTrip){ show('plannerView'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display='none'; } else { setActiveNav('trip'); navigateHome("home"); } }
-    else if(name==='journey'){ setActiveNav('journey'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); document.getElementById('globalTitle').textContent='Journey Mode'; document.getElementById('globalBack').style.display='none'; } else { setActiveNav('trip'); navigateHome("home"); } }
+    else if(name==='journey'){ if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); } else { setActiveNav('journey'); show('journeyView'); document.getElementById('globalTitle').textContent='Journey'; document.getElementById('globalBack').style.display='none'; } }
     else if(name==='saved'){ openSavedTrips(); }
     else if(name==='explore'){ openExploreView(); }
-    else if(name==='gallery'){ setActiveNav('gallery'); show('galleryView'); document.getElementById('globalTitle').textContent='Galeri'; document.getElementById('globalBack').style.display='none'; }
-    else if(name==='journey'){ if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); } else { setActiveNav('journey'); show('journeyView'); document.getElementById('globalTitle').textContent='Journey'; document.getElementById('globalBack').style.display='none'; } }
+    else if(name==='gallery'){ setActiveNav('gallery'); show('galleryView'); document.getElementById('globalTitle').textContent='Galeri'; document.getElementById('globalBack').style.display='none'; loadGalleryAgg(); }
   }
   document.querySelectorAll('.nav-tab, #savedEntryBtn').forEach(function(t){ t.onclick=function(){ goNav(t.dataset.nav); }; });
   // Fix (2026-09-15 audit): .back buttons in saved views use data-nav but were never wired
