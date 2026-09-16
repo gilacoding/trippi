@@ -1346,7 +1346,7 @@
 
   <!-- Explore View -->
   <section class="view" id="exploreView">
-    <button class="back" data-nav="trip">← Trip Kamu</button>
+    <button class="back" data-nav="trip">&lt;---- kembali</button>
     <h1>Jelajah</h1>
     <p class="lead">Temukan rute yang ingin kamu coba.</p>
     <div id="exploreList" class="trip-grid"></div>
@@ -1909,7 +1909,7 @@ function renderHome(){
     });
   }
 
-  function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const dates=[];if(t.start)dates.push(dateText(t.start));if(t.end)dates.push(dateText(t.end));const metaStr=dates.length?' · '+dates.join(' — '):'';const spentSpan=spent>0?'<span>Keluar '+money(spent)+'</span>':'';var _bgc=tripBgCat?tripBgCat(t.destination):null;return '<button class="trip-card'+(_bgc?' has-bg':'')+'" data-open="'+t.id+'">'+(_bgc?'<span class="trip-bg bg-'+_bgc+'" aria-hidden="true"></span>':'')+'<span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination||'')+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+spentSpan+'</div><span class="open-hint">Buka trip →</span></button>';}
+  function tripCard(t){const [style,label]=tripStatus(t),count=t.items?.length||0,spent=(t.expenses||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0),dayCount=daysBetween(t.start,t.end).length;const daySpan=dayCount?'<span>'+dayCount+' hari</span>':'';const dates=[];if(t.start)dates.push(dateText(t.start));if(t.end)dates.push(dateText(t.end));const metaStr=dates.length?' · '+dates.join(' — '):'';const spentSpan=spent>0?'<span>Keluar '+money(spent)+'</span>':'';var _bgc=tripBgCat?tripBgCat(t.destination):null;return '<button class="trip-card'+(_bgc?' has-bg':'')+'" data-open="'+t.id+'">'+(_bgc?'<span class="trip-bg bg-'+_bgc+'" aria-hidden="true"></span>':'')+'<span class="state '+style+'">'+label+'</span><h3>'+esc(t.name||'')+'</h3><div class="trip-meta">'+esc(t.destination||'')+metaStr+'</div><div class="trip-summary"><span>'+count+' agenda</span>'+daySpan+spentSpan+'</div></button>';}
   function openTrip(id){
     // PHASE 2 INVARIANT: Opening a private trip must tear down any active group session.
     // Prevents leaked realtime channels, polls, and stale group state.
@@ -3757,7 +3757,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
           '<h3>' + esc(t.title||'') + '</h3>' +
           (locLine ? '<div class="trip-meta">' + locLine + '</div>' : '') +
           '<div class="trip-summary"><span>' + items.length + ' agenda</span>' + (dayCount ? '<span>' + dayCount + ' hari</span>' : '') + '</div>' +
-          '<span class="open-hint">Lihat simpanan →</span>' +
+          '' +
           '</button>';
       }).join('');
       list.querySelectorAll('[data-saved]').forEach(function(b){
@@ -4689,7 +4689,7 @@ function openProfile(){
     }).join('');
     var why=(item.why||[]).map(function(w){ return '<li>'+esc(w)+'</li>'; }).join('');
     document.getElementById('exploreDetail').innerHTML=
-      '<div class="exp-nav"><button class="back" data-nav="trip">← Trip Kamu</button></div>'+
+      '<div class="exp-nav"><button class="back" data-nav="trip">&lt;---- kembali</button></div>'+
       '<div class="exp-hero" style="background-image:url('+esc(item.cover||'')+')"><div class="exp-hero-scrim"></div>'+
         '<div class="exp-hero-copy"><h1>'+esc(item.title||'')+'</h1>'+
         '<div class="exp-meta">'+esc(item.destination||'')+' · '+item.duration+' hari · '+esc(item.type||'')+'</div></div></div>'+
