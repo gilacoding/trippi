@@ -4680,16 +4680,16 @@ function openProfile(){
     document.getElementById('globalBack').style.display='';
     var days=(item.days||[]).map(function(d){
       var items=(d.items||[]).map(function(it){
-        return '<div class="exp-item"><div class="exp-time">'+(it.time||'')+'</div><div><div class="exp-ttl">'+(it.title||'')+'</div>'+(it.note?'<div class="exp-note">'+it.note+'</div>':'')+'</div></div>';
+        return '<div class="exp-item"><div class="exp-time">'+esc(it.time||'')+'</div><div><div class="exp-ttl">'+esc(it.title||'')+'</div>'+(it.note?'<div class="exp-note">'+esc(it.note)+'</div>':'')+'</div></div>';
       }).join('');
-      return '<div class="exp-day"><div class="exp-day-h"><span class="exp-day-n">Hari '+d.day+'</span><span class="exp-day-t">'+(d.title||'')+'</span></div>'+items+'</div>';
+      return '<div class="exp-day"><div class="exp-day-h"><span class="exp-day-n">Hari '+esc(d.day)+'</span><span class="exp-day-t">'+esc(d.title||'')+'</span></div>'+items+'</div>';
     }).join('');
-    var why=(item.why||[]).map(function(w){ return '<li>'+w+'</li>'; }).join('');
+    var why=(item.why||[]).map(function(w){ return '<li>'+esc(w)+'</li>'; }).join('');
     document.getElementById('exploreDetail').innerHTML=
       '<button class="back" data-nav="explore">← Explore</button>'+
-      '<div class="exp-hero" style="background-image:url('+(item.cover||'')+')"><div class="exp-hero-scrim"></div>'+
-        '<div class="exp-hero-copy"><h1>'+(item.title||'')+'</h1>'+
-        '<div class="exp-meta">'+(item.destination||'')+' · '+item.duration+' hari · '+(item.type||'')+'</div></div></div>'+
+      '<div class="exp-hero" style="background-image:url('+esc(item.cover||'')+')"><div class="exp-hero-scrim"></div>'+
+        '<div class="exp-hero-copy"><h1>'+esc(item.title||'')+'</h1>'+
+        '<div class="exp-meta">'+esc(item.destination||'')+' · '+item.duration+' hari · '+esc(item.type||'')+'</div></div></div>'+
       '<div class="exp-body"><p class="exp-desc">'+(item.description||'').replace(/\n/g,'<br>')+'</p>'+
       '<h2>Kenapa trip ini?</h2><ul class="exp-why">'+why+'</ul>'+
       '<h2>Rencana per hari</h2><div class="exp-days">'+days+'</div>'+
@@ -4718,6 +4718,7 @@ function openProfile(){
     try{
       var res=await API.saveTrip({title:item.title,destination:item.destination,snapshot:snapshot});
       if(res && res.error){ alert('Gagal menyimpan: '+(res.error.message||'unknown')); return; }
+      if(!res || !res.data){ alert('Gagal menyimpan: tidak ada data yang tersimpan'); return; }
       openSavedTrips();
     }catch(e){ alert('Gagal menyimpan: '+e.message); }
     finally{ if(btn) freeBtn(btn); }
@@ -4731,11 +4732,11 @@ function openProfile(){
     if(!items.length){ list.innerHTML='<div class="empty"><strong>Belum ada trip.</strong>Catalog Explore masih kosong.</div>'; return; }
     list.innerHTML=items.map(function(t){
       return '<button class="trip-card" data-explore="'+t.id+'">'+
-        '<span class="trip-bg" style="background-image:url('+(t.cover||'')+')"></span>'+
-        '<span class="state upcoming">'+(t.type||'')+'</span>'+
-        '<h3>'+(t.title||'')+'</h3>'+
-        '<div class="trip-meta">'+(t.destination||'')+' · '+t.duration+' hari</div>'+
-        '<div class="trip-summary"><span>'+(t.summary||'')+'</span></div>'+
+        '<span class="trip-bg" style="background-image:url('+esc(t.cover||'')+')"></span>'+
+        '<span class="state upcoming">'+esc(t.type||'')+'</span>'+
+        '<h3>'+esc(t.title||'')+'</h3>'+
+        '<div class="trip-meta">'+esc(t.destination||'')+' · '+t.duration+' hari</div>'+
+        '<div class="trip-summary"><span>'+esc(t.summary||'')+'</span></div>'+
         '<span class="open-hint">Lihat trip →</span></button>';
     }).join('');
     list.querySelectorAll('[data-explore]').forEach(function(b){
