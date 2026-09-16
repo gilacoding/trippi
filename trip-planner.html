@@ -3865,8 +3865,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     _savedTrips = _savedTrips.filter(function(t){ return t.id !== id; });
     // Clear stored ID so stale detail state doesn't linger on the empty list
     var sdv = $('savedTripDetailView'); if(sdv) sdv.removeAttribute('data-current-id'); if(sdv && sdv.dataset) delete sdv.dataset.currentId;
-    // Ensure any modal/overlay state is closed (dialog cleanup owned here so caller doesn't need to know about modal internals)
-    if(typeof window.mcConfirmImpl === 'undefined' && typeof window.__mcConfirmClose === 'function') window.__mcConfirmClose();
+    // Modal overlay cleanup owned by mc-confirm.js (finish() removes overlay)
     await openSavedTrips();
   }
 
@@ -4709,7 +4708,7 @@ function openProfile(){
       name:item.title||'',
       destination:item.destination||'',
       start:null, end:null,
-      note:'Dari Explore: '+(item.summary||''),
+      note:'Dari Jelajah: '+(item.summary||''),
       items:[]
     };
     (item.days||[]).forEach(function(d){
@@ -4733,7 +4732,7 @@ function openProfile(){
     var list=document.getElementById('exploreList');
     if(!list) return;
     var items=(window.EXPLORE_CATALOG||[]).slice().sort(function(a,b){ return (a.order||99)-(b.order||99); });
-    if(!items.length){ list.innerHTML='<div class="empty"><strong>Belum ada trip.</strong>Catalog Explore masih kosong.</div>'; return; }
+    if(!items.length){ list.innerHTML='<div class="empty"><strong>Belum ada trip.</strong>Katalog Jelajah masih kosong.</div>'; return; }
     list.innerHTML=items.map(function(t){
       return '<button class="trip-card has-bg" data-explore="'+t.id+'">'+
         '<span class="trip-bg" style="background-image:url('+esc(t.cover||'')+')"></span>'+
