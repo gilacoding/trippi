@@ -1,7 +1,7 @@
 // MarkiCab service worker — hardened cache
 // P1 fix: versioned cache + stale-cache cleanup on activate +
 //        network-first for API JS so backend/markicab-api.js is never permanently cached.
-const CACHE_VERSION = 'markicab-personal-v66';
+const CACHE_VERSION = 'markicab-personal-v67';
 
 // Immediate activation — don't wait for old tabs to close
 self.addEventListener('install', function (event) {
@@ -24,6 +24,7 @@ const CORE_FILES = [
   './markicab-icon.svg',
   './assets/js/toast.js',
   './assets/js/mc-confirm.js',
+  './assets/js/explore-catalog.js',
   './assets/js/avatar-crop.js',
   './assets/trip-bg/pantai.webp',
   './assets/trip-bg/gunung.webp',
