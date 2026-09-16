@@ -1065,9 +1065,9 @@
 
     <div class="section home-section"><div class="section-head"><h2>Trip mendatang</h2><span class="count" id="upcomingCount"></span></div><div class="trip-grid" id="upcomingTrips"></div></div>
     <div class="section home-section" id="exploreEntry">
-      <div class="section-head"><h2>Explore</h2></div>
+      <div class="section-head"><h2>Jelajah</h2></div>
       <p class="explore-lead">Temukan rute yang ingin kamu coba.</p>
-      <button class="explore-entry-link" data-nav="explore">lihat Explore →</button>
+      <button class="explore-entry-link" data-nav="explore">lihat Jelajah →</button>
     </div>
     <div class="section home-section" id="historySection"><div class="section-head"><h2>Riwayat trip</h2><span class="count" id="historyCount"></span></div><div class="form-card" id="historyTrips"></div></div>
 
@@ -1346,14 +1346,14 @@
   <!-- Explore View -->
   <section class="view" id="exploreView">
     <button class="back" data-nav="trip">← Trip Kamu</button>
-    <h1>Explore</h1>
+    <h1>Jelajah</h1>
     <p class="lead">Temukan rute yang ingin kamu coba.</p>
     <div id="exploreList" class="trip-grid"></div>
   </section>
 
   <!-- Explore Detail View -->
   <section class="view" id="exploreDetailView">
-    <button class="back" data-nav="explore">← Explore</button>
+    <button class="back" data-nav="explore">← Jelajah</button>
     <div id="exploreDetail"></div>
   </section>
 
@@ -3863,6 +3863,10 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     }
     // Remove from local cache and refresh list
     _savedTrips = _savedTrips.filter(function(t){ return t.id !== id; });
+    // Clear stored ID so stale detail state doesn't linger on the empty list
+    var sdv = $('savedTripDetailView'); if(sdv) sdv.removeAttribute('data-current-id'); if(sdv && sdv.dataset) delete sdv.dataset.currentId;
+    // Ensure any modal/overlay state is closed (dialog cleanup owned here so caller doesn't need to know about modal internals)
+    if(typeof window.mcConfirmImpl === 'undefined' && typeof window.__mcConfirmClose === 'function') window.__mcConfirmClose();
     await openSavedTrips();
   }
 
@@ -4664,7 +4668,7 @@ function openProfile(){
   function openExploreView(){
     show('exploreView');
     setActiveNav('explore');
-    document.getElementById('globalTitle').textContent='Explore';
+    document.getElementById('globalTitle').textContent='Jelajah';
     document.getElementById('globalBack').style.display='none';
     renderExploreList();
   }
@@ -4676,8 +4680,8 @@ function openProfile(){
     if(!item){ openExploreView(); return; }
     show('exploreDetailView');
     setActiveNav('explore');
-    document.getElementById('globalTitle').textContent='Explore';
-    document.getElementById('globalBack').style.display='';
+    document.getElementById('globalTitle').textContent='Jelajah';
+    document.getElementById('globalBack').style.display='none';
     var days=(item.days||[]).map(function(d){
       var items=(d.items||[]).map(function(it){
         return '<div class="exp-item"><div class="exp-time">'+esc(it.time||'')+'</div><div><div class="exp-ttl">'+esc(it.title||'')+'</div>'+(it.note?'<div class="exp-note">'+esc(it.note)+'</div>':'')+'</div></div>';
@@ -4686,7 +4690,7 @@ function openProfile(){
     }).join('');
     var why=(item.why||[]).map(function(w){ return '<li>'+esc(w)+'</li>'; }).join('');
     document.getElementById('exploreDetail').innerHTML=
-      '<button class="back" data-nav="explore">← Explore</button>'+
+      '<button class="back" data-nav="explore">← Jelajah</button>'+
       '<div class="exp-hero" style="background-image:url('+esc(item.cover||'')+')"><div class="exp-hero-scrim"></div>'+
         '<div class="exp-hero-copy"><h1>'+esc(item.title||'')+'</h1>'+
         '<div class="exp-meta">'+esc(item.destination||'')+' · '+item.duration+' hari · '+esc(item.type||'')+'</div></div></div>'+
@@ -4731,7 +4735,7 @@ function openProfile(){
     var items=(window.EXPLORE_CATALOG||[]).slice().sort(function(a,b){ return (a.order||99)-(b.order||99); });
     if(!items.length){ list.innerHTML='<div class="empty"><strong>Belum ada trip.</strong>Catalog Explore masih kosong.</div>'; return; }
     list.innerHTML=items.map(function(t){
-      return '<button class="trip-card" data-explore="'+t.id+'">'+
+      return '<button class="trip-card has-bg" data-explore="'+t.id+'">'+
         '<span class="trip-bg" style="background-image:url('+esc(t.cover||'')+')"></span>'+
         '<span class="state upcoming">'+esc(t.type||'')+'</span>'+
         '<h3>'+esc(t.title||'')+'</h3>'+
