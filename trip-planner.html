@@ -1337,6 +1337,12 @@
   // ── Collaborative (P2) state ──
   const API=window.MarkiAPI;
   const colState={uid:null,name:null,group:null,items:[],wishlists:[],members:[],expenses:[],gallery:[],nameMap:{},identities:{},activeDate:null,channel:null,poll:null,locationChannel:null,userAvatarUrl:null};
+  // P0-3: Minimal activation telemetry (best-effort, non-blocking)
+  window.logEvent = async function(eventName, tripId, isGuest) {
+    try {
+      await API.rpc('log_product_event', {p_event_name: eventName, p_trip_id: tripId, p_is_guest: isGuest});
+    } catch(e) { /* telemetry must never block product */ }
+  };
   // Display name fallback chain: profile → metadata → localStorage → email prefix → Guest
   const loadName=()=>localStorage.getItem('markicab_display_name')||'';
   const saveName=n=>localStorage.setItem('markicab_display_name',n);
@@ -1505,11 +1511,13 @@
             return;
           }
           // Step 3: reload trip with isMember=true
-          const tk = guestSession.token;
-          guestSession.isMember = true;
-          colState.isGuest = false; // PHASE 2: Guest became a member — clear guest flag
-          if(name) colState.name = name;
-          unlockNav();
+                  const tk = guestSession.token;
+                  guestSession.isMember = true;
+                  colState.isGuest = false; // PHASE 2: Guest became a member — clear guest flag
+                  if(name) colState.name = name;
+                  // P0-3: Telemetry - guest joined (best-effort, non-blocking)
+                  if(window.logEvent) window.logEvent('guest_joined', colState.group?.id || null, true);
+                  unlockNav();
           if(tk) await openGuestTrip(tk);
         }catch(e){
           alert('Gagal bergabung: ' + (e.message || e));
@@ -1984,6 +1992,8 @@ function renderHome(){
     openAuth('signup');
     return;
   }const { data:g,error:e }=await API.createGroup({name:name,destination:destination||'',start_date:start,end_date:end,created_by:uid});if(e){console.error('[createGroup] INSERT gagal:',e);alert('Gagal buat grup: '+e.message);return}const _ownerName=loadName()||ownerNameFromAccount();const { error:em }=await API.joinGroup({group_id:g.id,user_id:uid,display_name:_ownerName});if(em){console.error('[createGroup] member insert FAILED:',em);alert('Grup berhasil dibuat, tapi gagal mendaftarkan diri sebagai anggota: '+em.message);return}
+  // P0-3: Telemetry - trip created (best-effort, non-blocking)
+  if(window.logEvent) window.logEvent('trip_created', g.id, false);
 colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.display='none';if(event&&event.target)event.target.reset();await openGroup(g.id,true);if(!colState.group||colState.group.id!==g.id){alert('Error: Gagal membuka grup. Silakan coba buat ulang.');return}history.replaceState({},'',groupLink(g.id));if(pendingToGoId){const sp=(state.toGo||[]).find(t=>t.id===pendingToGoId);if(sp){await API.addItem({group_id:g.id,date:start,title:sp.name,time:'',link:normalizeLink(sp.link||''),note:sp.note||'',budget:0,created_by:uid});await loadShared(g.id )}}}finally{freeBtn(submitBtn)}}
   const normalizeLink=window.utils.normalizeLink;
   function addAgenda(event){event.preventDefault();const trip=getTrip();trip.items.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),date:state.activeDate,title:$('agendaTitle').value.trim(),time:$('agendaTime').value,budget:$('agendaBudget').value,link:normalizeLink($('agendaLink').value),note:$('agendaNote').value.trim()});save();syncTrip(trip);event.target.reset();$('addPanel').open=false;renderPlanner()}
@@ -2903,6 +2913,8 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       const res = await API.startJourney();
       if(res.error){ alert('Gagal memulai Journey: ' + (res.error.message || res.error)); return; }
       if(res.data){ colState.journey = {status:'active'}; }
+      // P0-3: Telemetry - journey started (best-effort, non-blocking)
+      if(window.logEvent) window.logEvent('journey_started', colState.group?.id || null, false);
       setTimeout(renderJourneyView, 500);
     } finally { freeBtn(btn); }
   }
