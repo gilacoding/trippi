@@ -103,7 +103,7 @@
       btn.addEventListener('click', async function (e) {
         e.stopPropagation();
         const mediaId = btn.dataset.delgallery;
-        if (!confirm('Hapus foto ini?')) return;
+        if (!(await window.mcConfirm('Hapus foto ini?'))) return;
         const { error } = await API.deleteMedia(mediaId);
         if (error) { alert('Gagal menghapus: ' + error.message); return; }
         colState.gallery = colState.gallery.filter(g => g.id !== mediaId);

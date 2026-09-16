@@ -20,6 +20,7 @@
   };
 </script>
 <script src="assets/js/toast.js"></script>
+<script src="assets/js/mc-confirm.js"></script>
 <script src="assets/js/avatar-crop.js"></script>
 <script>
 /* Toast adoption: route alerts through mcToast. toast.js ships its own CSS
@@ -33,6 +34,15 @@
   window.alert = function(msg){
     var m = String(msg==null?'':msg);
     mcToast(m, /^(Gagal|Error|Undangan tidak|Trip tidak|Grup tidak|Isi |Nama terlalu|Tanggal selesai|Hanya pembuat|Layanan grup|Email valid|Pendaftaran berhasil|Silakan cek)/i.test(m) ? (/^(Pendaftaran berhasil|Silakan cek)/i.test(m)?'info':'err') : 'ok');
+  };
+
+  // Confirm adoption: destructive/important confirmations route through
+  // mcConfirm (Promise<boolean>). FALLBACK: if mc-confirm.js failed to load,
+  // window.mcConfirm is missing -> native confirm() used. To disable entirely,
+  // delete the mc-confirm.js script tag.
+  window.mcConfirm=function(msg,opts){
+    if (typeof window.mcConfirmImpl==='function') return window.mcConfirmImpl(msg,opts);
+    return Promise.resolve(window.confirm(String(msg==null?'':msg)));
   };
 })();
 </script>
@@ -1873,7 +1883,7 @@ function renderHome(){
   $('plannerName').textContent=trip.name;$('plannerMeta').textContent=`${trip.destination}${trip.start||trip.end?` · ${dateText(trip.start||'')} ${trip.end?`— ${dateText(trip.end)}`:''}`:''}`.trim();$('placeTotal').textContent=items.length;$('budgetTotal').textContent=money(items.reduce((sum,item)=>sum+(Number(item.budget)||0),0));$('dayTotal').textContent=dates.length;$('dayTabs').innerHTML=dates.map((date,index)=>`<button class="day-tab ${date===state.activeDate?'active':''}" data-day="${date}">Hari ${index+1}<br><span style="font-weight:500;opacity:.8">${dateText(date).replace(/ \d{4}/,'')}</span></button>`).join('');document.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{state.activeDate=b.dataset.day;renderPlanner()});
   const todayItems=items.filter(i=>i.date===state.activeDate).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
   $('itineraryList').innerHTML=todayItems.length?todayItems.map(item=>`<article class="item"><div class="item-time" data-edit-time="${item.id}" title="Klik untuk ubah jam">${item.time||'—'}</div><div><div class="item-title">${esc(item.title)}</div><div class="item-detail">${esc(item.note)||'Belum ada catatan'}</div>${item.link?`<a class="item-link" href="${esc(item.link)}" target="_blank" rel="noopener">Buka referensi ↗</a>`:''}${Number(item.budget)?`<div class="item-cost" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">${money(item.budget)}</div>`:`<div class="item-cost muted" data-edit-cost="${item.id}" title="Klik untuk ubah biaya">biaya?</div>`}</div><button class="delete-item" data-delete="${item.id}" aria-label="Hapus agenda">×</button></article>`).join(''):`<div class="empty" data-ic="cal"><strong>Hari ini masih longgar.</strong>Tambahkan tempat, transport, atau agenda yang ingin kamu ingat.</div>`;document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteItem(b.dataset.delete));document.querySelectorAll('[data-edit-time]').forEach(el=>el.onclick=()=>editInline(el,'time','time'));document.querySelectorAll('[data-edit-cost]').forEach(el=>el.onclick=()=>editInline(el,'budget','number'));renderExpenses()}
-  function deleteItem(id){
+  async function deleteItem(id){
   const trip=getTrip();
   if(!trip)return;
   // PHASE 0 INVARIANT: Respect read-only mode for non-owners
@@ -1881,7 +1891,7 @@ function renderHome(){
   if(state.readOnlyTrip && !isOwner && !colState.group)return;
   const item=trip.items.find(i=>i.id===id);
   if(!item)return;
-  if(!confirm(`Hapus “${item.title}” dari itinerary?`))return;
+  if(!(await window.mcConfirm(`Hapus “${item.title}” dari itinerary?`)))return;
   trip.items=trip.items.filter(i=>i.id!==id);
   save();
   // PHASE 7: Use correct persistence path for shared trips
@@ -2010,7 +2020,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   async function shareGroup(){
     const gid=colState.group?colState.group.id:(getTrip()&&getTrip().groupId);
     if(!gid){
-      const ok=confirm('Mulai kolaborasi?\n\nTrip ini akan dikonversi ke grup — setiap orang yang membuka link grup akan ikut otomatis dan melihat perubahan secara langsung (via realtime + polling 3 detik).');
+      const ok=await window.mcConfirm('Mulai kolaborasi?\n\nTrip ini akan dikonversi ke grup — setiap orang yang membuka link grup akan ikut otomatis dan melihat perubahan secara langsung (via realtime + polling 3 detik).');
       if(!ok)return;
       await makeGroupFromTrip();
       const gid2=colState.group?colState.group.id:(getTrip()&&getTrip().groupId);
@@ -3142,7 +3152,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     const btn = document.getElementById('guestLeaveBtn');
     if(!btn) return;
     btn.onclick = async function(){
-      if(!confirm('Keluar dari trip ini? Nama kamu akan dihapus dari daftar anggota.')) return;
+      if(!(await window.mcConfirm('Keluar dari trip ini? Nama kamu akan dihapus dari daftar anggota.')))return;
       busyBtn(btn, 'Keluar...');
       try{
         if(colState.group && colState.group.id){
@@ -3376,7 +3386,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   async function removeMemberFromCrew(uid){
     if(!colState.group || !uid) return;
     const name = nameOf(uid);
-    if(!confirm('Keluarkan ' + name + ' dari trip ini?')) return;
+    if(!(await window.mcConfirm('Keluarkan ' + name + ' dari trip ini?')))return;
     const res = await API.removeMember(colState.group.id, uid);
     if(res && res.error){ alert('Gagal: ' + (res.error.message || res.error)); return; }
     if(res && res.data === false){
@@ -3516,11 +3526,11 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       if(!g) return;
       const gid = g.id;
       if(colState.perms && colState.perms.is_owner){
-        if(!confirm('Hapus trip ini secara permanen? Tindakan tidak bisa dibatalkan.')) return;
+        if(!(await window.mcConfirm('Hapus trip ini secara permanen? Tindakan tidak bisa dibatalkan.')))return;
         const { error }=await API.deleteGroup(gid);
         if(error){ alert('Gagal: '+humanErr(error)); return; }
       } else {
-        if(!confirm('Keluar dari trip ini?')) return;
+        if(!(await window.mcConfirm('Keluar dari trip ini?')))return;
         const { error }=await API.leaveGroup(gid, colState.uid);
         if(error){ alert('Gagal: '+humanErr(error)); return; }
       }
@@ -3598,7 +3608,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     } finally { freeBtn(btn); }
   }
   async function deleteWaypoint(id){
-    if(!confirm('Hapus perhentian ini?')) return;
+    if(!(await window.mcConfirm('Hapus perhentian ini?')))return;
     const {error}=await API.deleteWaypoint(id);
     if(error){ alert('Gagal: '+(error&&error.message||'unknown')); return; }
     await loadRoute(colState.group.id);
@@ -3759,7 +3769,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     var start = snap.start || '';
     var end = snap.end || '';
     var note = snap.note || '';
-    if(!confirm('Membuat trip baru dari "' + (res.data.title||name) + '".')) return;
+    if(!(await window.mcConfirm('Membuat trip baru dari "' + (res.data.title||name) + '".')))return;
     var uid = await ensureAuth();
     if(!uid){
       // Saved trips are DB-backed. User must be authenticated to use them.
@@ -3786,7 +3796,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
   async function deleteSavedTripConfirm(){
     var id = $('savedTripDetailView').dataset.currentId;
     if(!id) return;
-    if(!confirm('Hapus trip tersimpan ini? Tindakan ini tidak bisa dibatalkan.')) return;
+    if(!(await window.mcConfirm('Hapus trip tersimpan ini? Tindakan ini tidak bisa dibatalkan.')))return;
     var res = await API.deleteSavedTrip(id);
     if(res.error){ alert('Gagal menghapus: ' + res.error.message); return; }
     if(!res.data || !res.data.length){
@@ -3813,7 +3823,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(_groupSettingsBtn) _groupSettingsBtn.onclick = openGroupSettings;
   }
   async function removeMemberFromTrip(userId){
-    if(!confirm('Hapus anggota ini dari trip?')) return;
+    if(!(await window.mcConfirm('Hapus anggota ini dari trip?')))return;
     const { error }=await API.removeMember(colState.group.id, userId);
     if(error){ alert('Gagal: '+humanErr(error)); return; }
     await loadMembers(colState.group.id);
@@ -3822,7 +3832,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
   function openFromHash(){if(location.hash.startsWith('#t=')){try{const json=LZString.decompressFromEncodedURIComponent(location.hash.slice(3));const trip=JSON.parse(json);if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}if(location.hash.startsWith('#trip=')){try{const trip=JSON.parse(decodeURIComponent(location.hash.slice(6)));if(trip&&trip.id&&trip.name&&trip.start&&trip.end){if(!Array.isArray(trip.items))trip.items=[];if(!Array.isArray(trip.expenses))trip.expenses=[];openSharedTrip(trip);return true}}catch{}}return false}
 
-  $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=async()=>{navigateHome("teardown+home")});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;if($('toGoForm'))$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};if($('cancelToGo'))$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=async()=>{const t=getTrip();if(confirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)){await deleteTripFromServer(t);state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;if(typeof renderHome==='function')navigateHome("home")}};  async function deleteTripFromServer(t){if(!colState.uid||!t){console.log('[delete] no uid or trip, skipping server delete');return;}try{if(t.isGroup&&t.serverId){const r=await API.deleteGroup(t.serverId);if(r&&r.error)console.error('[delete] group delete failed',r.error);else console.log('[delete] group deleted on server',t.serverId); // also drop any shadow personal row (see backfillAndSync root cause)
+  $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=async()=>{navigateHome("teardown+home")});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;if($('toGoForm'))$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};if($('cancelToGo'))$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=async()=>{const t=getTrip();if(!(await window.mcConfirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)))return;await deleteTripFromServer(t);state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;if(typeof renderHome==='function')navigateHome("home")};  async function deleteTripFromServer(t){if(!colState.uid||!t){console.log('[delete] no uid or trip, skipping server delete');return;}try{if(t.isGroup&&t.serverId){const r=await API.deleteGroup(t.serverId);if(r&&r.error)console.error('[delete] group delete failed',r.error);else console.log('[delete] group deleted on server',t.serverId); // also drop any shadow personal row (see backfillAndSync root cause)
         if(t.supabase_trip_id){const r2=await API.deleteTrip(t.supabase_trip_id);if(r2&&r2.error)console.error('[delete] shadow personal delete failed',r2.error);}}else if(t.supabase_trip_id){const r=await API.deleteTrip(t.supabase_trip_id);if(r&&r.error)console.error('[delete] trip delete failed',r.error);else console.log('[delete] trip deleted on server',t.supabase_trip_id);}else{console.log('[delete] local-only trip, no server sync needed',t.id);}}catch(e){console.error('[delete] server delete error',e);}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;$('saveTripBtn').onclick=openSaveTripModal;if($('toGoSearch'))$('toGoSearch').oninput=renderToGo;
 $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=deleteSavedTripConfirm;$('cancelSaveTrip').onclick=closeSaveTripModal;$('confirmSaveTrip').onclick=confirmSaveTrip;
   // Close modal on backdrop click
@@ -4338,7 +4348,7 @@ function openProfile(){
   // Uses flexible JSONImportParser — accepts arbitrary valid JSON travel plans.
   // The parser normalizes field aliases, missing fields become empty/null,
   // and internal IDs are generated by Markicab (never trusted from external).
-  if(importSubmit)importSubmit.onclick=function(){
+  if(importSubmit)importSubmit.onclick=async function(){
     if(!importTextarea.value.trim())return;
 
     // Parse + normalize — any valid JSON is accepted; only true JSON syntax
@@ -4370,7 +4380,7 @@ function openProfile(){
     if(!canonical.start)summary+='\n(tanggal belum diisi)';
     if(!canonical.end)summary+='\n(tanggal belum diisi)';
 
-    if(!confirm(summary+'\n\nKontinjurkan?'))return;
+    if(!(await window.mcConfirm(summary+'\n\nKontinjurkan?')))return;
 
     // Wire the canonical adapter with local context variables
     if(typeof MarkicabCanonicalAdapter.setContext==='function'){
