@@ -4609,6 +4609,11 @@ function openProfile(){
   // (only .nav-tab was) — bottom nav's display:none didn't remove them from the DOM, so
   // clicking "← Semua trip" / "← Trip tersimpan" did nothing. Route them through goNav too.
   document.querySelectorAll('button.back[data-nav]').forEach(function(t){ t.onclick=function(e){ e.preventDefault(); goNav(t.dataset.nav); }; });
+  // Delegate for dynamically-injected back buttons (exploreDetail renders after DOM ready)
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('button.back[data-nav]');
+    if(b){ e.preventDefault(); goNav(b.dataset.nav); }
+  });
   document.querySelectorAll('.explore-entry-link[data-nav]').forEach(function(t){ t.onclick=function(e){ e.preventDefault(); goNav(t.dataset.nav); }; });
   // global back → return to Trip
   var gb=document.getElementById('globalBack');
