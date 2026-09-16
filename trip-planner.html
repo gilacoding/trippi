@@ -4592,6 +4592,8 @@ function openProfile(){
     document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.nav===name); });
     var se=document.getElementById('savedEntryBtn'); if(se) se.classList.toggle('at-saved', name==='saved');
   }
+  window.setActiveNav=setActiveNav;
+  window.goNav=goNav;
   function goNav(name){
     if(name==='trip'){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; }
     else if(name==='plan'){ setActiveNav('plan'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); } else if(state.activeTripId || state.readOnlyTrip){ show('plannerView'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display='none'; } else { setActiveNav('trip'); navigateHome("home"); } }
