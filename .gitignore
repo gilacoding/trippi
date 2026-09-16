@@ -4,3 +4,7 @@ package-lock.json
 temp_*.sql
 *.png
 .test-venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
