@@ -4712,7 +4712,7 @@ function openProfile(){
       // Wire lightbox + navigation
       agg.querySelectorAll('.gt-thumb').forEach(function(img){
         var tripEl=img.closest('.gallery-trip');
-        var groupId=tripEl?tripEl.dataset.groupId:null;
+        var groupId=img.dataset.groupId||(tripEl?tripEl.dataset.groupId:null);
         var tripBucket=trips.filter(function(t){return t.group.id===groupId;})[0];
         img.addEventListener('click', function(e){
           e.stopPropagation();
