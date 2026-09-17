@@ -860,6 +860,15 @@
   #savedTripDetailView .saved-actions .btn-use:hover{filter:brightness(.94);transform:none;box-shadow:none}
   #savedTripDetailView .saved-actions .btn-del{margin-left:auto;background:transparent;border:1px solid rgba(198,40,40,.35);color:var(--danger);height:40px;font-size:13px;padding:0 14px;border-radius:12px;min-height:40px}
   #savedTripDetailView .saved-actions .btn-del:hover{background:rgba(198,40,40,.06);border-color:var(--danger);transform:none;box-shadow:none}
+  #savedTripDetailView .saved-date-edit{margin:14px 0 0;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--surface2)}
+  #savedTripDetailView .saved-date-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #savedTripDetailView .saved-date-row label{font-family:'Poppins';font-weight:600;font-size:13px;color:var(--muted);min-width:52px}
+  #savedTripDetailView .saved-date-inputs{display:flex;align-items:center;gap:8px;flex:1}
+  #savedTripDetailView .saved-date-inputs input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font:500 13px 'Outfit'}
+  #savedTripDetailView .saved-date-arrow{color:var(--muted);font-size:14px}
+  #savedTripDetailView .saved-date-empty{font:500 13px 'Outfit';color:var(--muted)}
+  #savedTripDetailView .saved-date-actions{display:flex;gap:8px;margin-top:10px}
+  #savedTripDetailView .saved-date-actions .btn{height:36px;font-size:13px;padding:0 14px;border-radius:10px}
   @media (max-width:480px){
     #savedTripDetailView .saved-actions{flex-direction:column;align-items:stretch}
     #savedTripDetailView .saved-actions .btn-use{width:100%}
@@ -1174,6 +1183,21 @@
     <span class="saved-flag">Pratinjau simpanan</span>
     <h1 id="savedTripTitle"></h1>
     <p class="trip-meta" id="savedTripMeta"></p>
+    <div class="saved-date-edit" id="savedDateEditSection">
+      <div class="saved-date-row">
+        <label>Tanggal</label>
+        <div class="saved-date-inputs" id="savedDateInputs" style="display:none">
+          <input type="date" id="savedTripStartDate">
+          <span class="saved-date-arrow">→</span>
+          <input type="date" id="savedTripEndDate">
+        </div>
+        <span class="saved-date-empty" id="savedDateEmpty">Belum ditentukan</span>
+      </div>
+      <div class="saved-date-actions">
+        <button class="btn secondary small" id="savedDateEditBtn">Tentukan tanggal</button>
+        <button class="btn small" id="savedDateSaveBtn" style="display:none">Simpan perubahan</button>
+      </div>
+    </div>
     <div class="day-tabs" id="savedTripDayTabs"></div>
     <div class="itinerary" id="savedTripItinerary"></div>
     <div class="saved-actions">
@@ -3882,10 +3906,116 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     });
     // Store current id for use/delete
     $('savedTripDetailView').dataset.currentId = t.id;
+    // Initialize date edit section
+    initSavedDateEdit(snap);
     show('savedTripDetailView');
     setActiveNav('saved');
     document.getElementById('globalTitle').textContent = t.title || 'Trip Tersimpan';
     document.getElementById('globalBack').style.display = 'none';
+  }
+
+  function initSavedDateEdit(snap){
+    var start = snap.start || '';
+    var end = snap.end || '';
+    var inputs = $('savedDateInputs');
+    var empty = $('savedDateEmpty');
+    var editBtn = $('savedDateEditBtn');
+    var saveBtn = $('savedDateSaveBtn');
+    if(start && end){
+      $('savedTripStartDate').value = String(start).slice(0,10);
+      $('savedTripEndDate').value = String(end).slice(0,10);
+      inputs.style.display = '';
+      empty.style.display = 'none';
+      editBtn.textContent = 'Ubah tanggal';
+      saveBtn.style.display = 'none';
+    } else {
+      inputs.style.display = 'none';
+      empty.style.display = '';
+      editBtn.textContent = 'Tentukan tanggal';
+      saveBtn.style.display = 'none';
+    }
+  }
+
+  function startSavedDateEdit(){
+    $('savedDateInputs').style.display = '';
+    $('savedDateEmpty').style.display = 'none';
+    $('savedDateSaveBtn').style.display = '';
+    $('savedDateEditBtn').style.display = 'none';
+  }
+
+  async function saveSavedDateEdit(){
+    var id = $('savedTripDetailView').dataset.currentId;
+    if(!id) return;
+    var start = $('savedTripStartDate').value;
+    var end = $('savedTripEndDate').value;
+    if(!start || !end){ alert('Tanggal mulai dan selesai harus diisi.'); return; }
+    if(end < start){ alert('Tanggal selesai tidak boleh sebelum tanggal mulai.'); return; }
+    var res = await API.getSavedTrip(id);
+    if(res.error || !res.data){ alert('Gagal memuat trip.'); return; }
+    var snap = res.data.snapshot || {};
+    var items = snap.items || [];
+    // Distribute items across the new date range
+    // CRITICAL: items array length must never change
+    if(items.length){
+      var days = daysBetween(start, end);
+      if(days.length){
+        // Assign dates to items: distribute evenly across days
+        var itemsPerDay = Math.ceil(items.length / days.length);
+        var dayIdx = 0;
+        var count = 0;
+        items.forEach(function(it, i){
+          if(dayIdx < days.length){
+            it.date = days[dayIdx];
+            count++;
+            if(count >= itemsPerDay && dayIdx < days.length - 1){
+              dayIdx++;
+              count = 0;
+            }
+          } else {
+            // More items than days — put remaining on last day
+            it.date = days[days.length - 1];
+          }
+        });
+      }
+      // If no days (shouldn't happen), keep items as-is
+    }
+    snap.start = start;
+    snap.end = end;
+    var updateRes = await API.updateSavedTrip(id, { snapshot: snap });
+    if(updateRes.error){ alert('Gagal menyimpan: ' + (updateRes.error.message || 'unknown')); return; }
+    // Update local state
+    var meta = [];
+    if(snap.destination) meta.push(snap.destination);
+    meta.push(dateText(start) + ' — ' + dateText(end));
+    $('savedTripMeta').textContent = meta.join(' · ');
+    // Re-render day tabs and itinerary
+    var newDays = daysBetween(start, end);
+    if(newDays.length){
+      $('savedTripDayTabs').innerHTML = newDays.map(function(d, i){
+        return '<button class="day-tab ' + (i===0?'active':'') + '" data-sday="' + d + '">Hari ' + (i+1) + '<br><span style="font-weight:500;opacity:.8">' + dateText(d).replace(/ \d{4}/,'') + '</span></button>';
+      }).join('');
+      $('savedTripDayTabs').style.display = '';
+    }
+    function renderSavedDay(day){
+      var dayItems = items.filter(function(it){ return it.date === day; }).sort(function(a,b){ return (a.time||'99:99').localeCompare(b.time||'99:99'); });
+      if(!dayItems.length){
+        $('savedTripItinerary').innerHTML = '<div class="empty"><strong>Hari ini masih longgar.</strong></div>';
+        return;
+      }
+      $('savedTripItinerary').innerHTML = dayItems.map(function(it){
+        return '<article class="item"><div class="item-time">' + esc(it.time||'—') + '</div><div><div class="item-title">' + esc(it.title) + '</div>' + (it.note?'<div class="item-detail">' + esc(it.note) + '</div>':'') + (it.link?'<a class="item-link" href="' + esc(it.link) + '" target="_blank" rel="noopener">Buka referensi ↗</a>':'') + (it.budget?'<div class="item-cost" title="Estimasi biaya">' + money(it.budget) + '</div>':'') + '</div></article>';
+      }).join('');
+    }
+    renderSavedDay(newDays[0]);
+    $('savedTripDayTabs').querySelectorAll('[data-sday]').forEach(function(b){
+      b.onclick = function(){
+        $('savedTripDayTabs').querySelectorAll('.day-tab').forEach(function(t){ t.classList.remove('active'); });
+        b.classList.add('active');
+        renderSavedDay(b.dataset.sday);
+      };
+    });
+    // Reset date edit UI
+    initSavedDateEdit(snap);
   }
 
   async function useSavedTrip(){
@@ -3968,7 +4098,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
 
   $('newTripBtn').onclick=()=>{state.pendingToGoId=null;state.editTripId=null;$('selectedToGo').style.display='none';$('newTripTitle').textContent='Buat trip baru';$('newTripLead').textContent='Mulai dari tujuan dan tanggal. Detail agenda bisa kamu tambah sesudahnya.';$('newTripSubmit').textContent='Buat planner';show('newTripView')};document.querySelectorAll('[data-home]').forEach(b=>b.onclick=async()=>{navigateHome("teardown+home")});$('tripForm').onsubmit=addOrUpdateTrip;$('agendaForm').onsubmit=addAgenda;$('expenseForm').onsubmit=addExpense;if($('toGoForm'))$('toGoForm').onsubmit=addToGo;$('cancelAgenda').onclick=()=>{$('agendaForm').reset();$('addPanel').open=false};$('cancelExpense').onclick=()=>{$('expenseForm').reset();$('expensePanel').open=false};if($('cancelToGo'))$('cancelToGo').onclick=()=>{$('toGoForm').reset();$('toGoPanel').open=false};$('copyTrip').onclick=async()=>{try{await navigator.clipboard.writeText(itineraryText());alert('Itinerary disalin.')}catch{alert(itineraryText())}};$('printTrip').onclick=()=>window.print();$('deleteTrip').onclick=async()=>{const t=getTrip();if(!(await window.mcConfirm(`Hapus trip “${t.name}”? Data ini tidak bisa dipulihkan.`)))return;await deleteTripFromServer(t);state.trips=state.trips.filter(x=>x.id!==t.id);save();state.activeTripId=null;if(typeof renderHome==='function')navigateHome("home")};  async function deleteTripFromServer(t){if(!colState.uid||!t){console.log('[delete] no uid or trip, skipping server delete');return;}try{if(t.isGroup&&t.serverId){const r=await API.deleteGroup(t.serverId);if(r&&r.error)console.error('[delete] group delete failed',r.error);else console.log('[delete] group deleted on server',t.serverId); // also drop any shadow personal row (see backfillAndSync root cause)
         if(t.supabase_trip_id){const r2=await API.deleteTrip(t.supabase_trip_id);if(r2&&r2.error)console.error('[delete] shadow personal delete failed',r2.error);}}else if(t.supabase_trip_id){const r=await API.deleteTrip(t.supabase_trip_id);if(r&&r.error)console.error('[delete] trip delete failed',r.error);else console.log('[delete] trip deleted on server',t.supabase_trip_id);}else{console.log('[delete] local-only trip, no server sync needed',t.id);}}catch(e){console.error('[delete] server delete error',e);}};$('editTripBtn').onclick=editTrip;$('shareTrip').onclick=shareTrip;$('saveTripBtn').onclick=openSaveTripModal;if($('toGoSearch'))$('toGoSearch').oninput=renderToGo;
-$('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=deleteSavedTripConfirm;$('cancelSaveTrip').onclick=closeSaveTripModal;$('confirmSaveTrip').onclick=confirmSaveTrip;
+$('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=deleteSavedTripConfirm;$('cancelSaveTrip').onclick=closeSaveTripModal;$('confirmSaveTrip').onclick=confirmSaveTrip;$('savedDateEditBtn').onclick=startSavedDateEdit;$('savedDateSaveBtn').onclick=saveSavedDateEdit;
   // Close modal on backdrop click
   $('saveTripModal').onclick=function(e){ if(e.target===this) closeSaveTripModal(); };
   // Enter key in modal triggers save

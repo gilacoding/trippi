@@ -804,6 +804,26 @@
       });
     },
 
+    updateSavedTrip: function (id, patch) {
+      var uid = colState.uid;
+      if (!uid) return Promise.resolve({ data: null, error: { message: 'Not authenticated' } });
+      patch = patch || {};
+      return getClient().then(function (client) {
+        if (!client) return { data: null, error: { message: 'Backend unavailable' } };
+        var update = {};
+        if (patch.title !== undefined) update.title = patch.title;
+        if (patch.destination !== undefined) update.destination = patch.destination;
+        if (patch.snapshot !== undefined) update.snapshot = patch.snapshot;
+        if (Object.keys(update).length === 0) return { data: null, error: { message: 'No fields to update' } };
+        return client.from('saved_trips')
+          .update(update)
+          .eq('id', id)
+          .eq('user_id', uid)
+          .select('id,title,destination,snapshot,created_at,updated_at')
+          .maybeSingle();
+      });
+    },
+
     deleteSavedTrip: function (id) {
       var uid = colState.uid;
       if (!uid) return Promise.resolve({ data: null, error: { message: 'Not authenticated' } });
