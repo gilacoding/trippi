@@ -3877,7 +3877,14 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         days = daysBetween(itemDates[0], itemDates[itemDates.length - 1]);
       }
     }
-    if(days.length){
+    // If still no days (explore saves with null dates), show all items without day tabs
+    if (!days.length && items.length) {
+      $('savedTripDayTabs').innerHTML = '';
+      $('savedTripDayTabs').style.display = 'none';
+      $('savedTripItinerary').innerHTML = items.map(function(it){
+        return '<article class="item"><div class="item-time">' + esc(it.time||'—') + '</div><div><div class="item-title">' + esc(it.title) + '</div>' + (it.note?'<div class="item-detail">' + esc(it.note) + '</div>':'') + (it.link?'<a class="item-link" href="' + esc(it.link) + '" target="_blank" rel="noopener">Buka referensi ↗</a>':'') + (it.budget?'<div class="item-cost" title="Estimasi biaya">' + money(it.budget) + '</div>':'') + '</div></article>';
+      }).join('');
+    } else if(days.length){
       $('savedTripDayTabs').innerHTML = days.map(function(d, i){
         return '<button class="day-tab ' + (i===0?'active':'') + '" data-sday="' + d + '">Hari ' + (i+1) + '<br><span style="font-weight:500;opacity:.8">' + dateText(d).replace(/ \d{4}/,'') + '</span></button>';
       }).join('');
