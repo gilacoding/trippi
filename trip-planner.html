@@ -2943,6 +2943,33 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
           // Update local state immediately
           g.name = name;
           g.destination = destination || g.destination;
+          // Shift item dates by the same delta as the trip date change
+          // This preserves item visibility when trip dates are edited
+          const oldStart = g.start_date ? new Date(String(g.start_date).slice(0,10)) : null;
+          const newStart = new Date(start);
+          if (oldStart && !isNaN(oldStart.getTime()) && !isNaN(newStart.getTime())) {
+            const deltaMs = newStart.getTime() - oldStart.getTime();
+            const deltaDays = Math.round(deltaMs / (1000 * 60 * 60 * 24));
+            if (deltaDays !== 0 && colState.items && colState.items.length) {
+              colState.items.forEach(function(it) {
+                if (it.date) {
+                  const itemDate = new Date(String(it.date).slice(0,10));
+                  if (!isNaN(itemDate.getTime())) {
+                    itemDate.setDate(itemDate.getDate() + deltaDays);
+                    it.date = itemDate.toISOString().slice(0,10);
+                  }
+                }
+              });
+              // Persist item date shifts to DB (source of truth)
+              colState.items.forEach(function(it) {
+                if (it.id && it.date) {
+                  API.updateItem(it.id, { date: it.date }).catch(function(e) {
+                    console.warn('[saveEditTrip] item date update failed:', e);
+                  });
+                }
+              });
+            }
+          }
           g.start_date = start;
           g.end_date = end;
           g.note = note || g.note;
