@@ -3779,7 +3779,7 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
       var items = (trip.items || []).map(function(it){
         return { date: it.date, title: it.title, time: it.time||'', link: it.link||'', note: it.note||'', budget: it.budget||0 };
       });
-      var snapshot = { name: trip.name, destination: trip.destination, start: trip.start, end: trip.end, note: trip.note||'', items: items };
+      var snapshot = { name: trip.name, destination: trip.destination, start: trip.start_date || trip.start || '', end: trip.end_date || trip.end || '', note: trip.note||'', items: items };
       var res = await API.saveTrip({ title: title, destination: destination, snapshot: snapshot });
       if(res.error){ alert('Gagal menyimpan: ' + (res.error.message || 'unknown')); return; }
       closeSaveTripModal();
@@ -3844,8 +3844,15 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
     if(snap.start) meta.push(dateText(snap.start) + ' — ' + dateText(snap.end));
     $('savedTripMeta').textContent = meta.join(' · ');
     // Render day-grouped itinerary
-    var days = daysBetween(snap.start, snap.end);
+    // Fallback: if snap.start/end are null (legacy saves), derive from item dates
     var items = snap.items || [];
+    var days = daysBetween(snap.start, snap.end);
+    if (!days.length && items.length) {
+      var itemDates = items.map(function(it){ return it.date; }).filter(Boolean).sort();
+      if (itemDates.length) {
+        days = daysBetween(itemDates[0], itemDates[itemDates.length - 1]);
+      }
+    }
     if(days.length){
       $('savedTripDayTabs').innerHTML = days.map(function(d, i){
         return '<button class="day-tab ' + (i===0?'active':'') + '" data-sday="' + d + '">Hari ' + (i+1) + '<br><span style="font-weight:500;opacity:.8">' + dateText(d).replace(/ \d{4}/,'') + '</span></button>';
