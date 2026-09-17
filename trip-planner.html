@@ -3903,8 +3903,9 @@ colState.activeDate=null;state.pendingToGoId=null;$('selectedToGo').style.displa
         return '<article class="item"><div class="item-time">' + esc(it.time||'—') + '</div><div><div class="item-title">' + esc(it.title) + '</div>' + (it.note?'<div class="item-detail">' + esc(it.note) + '</div>':'') + (it.link?'<a class="item-link" href="' + esc(it.link) + '" target="_blank" rel="noopener">Buka referensi ↗</a>':'') + (it.budget?'<div class="item-cost" title="Estimasi biaya">' + money(it.budget) + '</div>':'') + '</div></article>';
       }).join('');
     }
-    renderSavedDay(days[0]);
-    $('savedTripDayTabs').querySelectorAll('[data-sday]').forEach(function(b){
+    if (days.length) {
+      renderSavedDay(days[0]);
+      $('savedTripDayTabs').querySelectorAll('[data-sday]').forEach(function(b){
       b.onclick = function(){
         $('savedTripDayTabs').querySelectorAll('.day-tab').forEach(function(t){ t.classList.remove('active'); });
         b.classList.add('active');
