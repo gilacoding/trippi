@@ -112,6 +112,8 @@
         done = true;
         document.removeEventListener('keydown', onKey, true);
         h.removeChild(overlay);
+        // Remove host if empty — prevents stale overlay blocking UI
+        if (!h.children.length) h.remove();
         resolve(val);
       }
 
