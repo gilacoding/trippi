@@ -1079,6 +1079,12 @@
               .then(function (res) {
                 if (res.error) return { data: null, error: res.error };
                 var items = res.data || [];
+                // Filter out malformed storage_paths (e.g., ':1' or 'gallery:1')
+                // Valid path: group_id/user_id/filename.ext (contains at least one '/')
+                items = items.filter(function (it) {
+                  return it.storage_path && it.storage_path.indexOf('/') !== -1 && it.storage_path.indexOf('gallery:') === -1;
+                });
+                if (!items.length) return { data: [], error: null };
                 // Generate signed URLs for each (1 hour expiry)
                 var signedPaths = items.map(function (it) { return it.storage_path; });
                 return client.storage.from('gallery').createSignedUrls(signedPaths, 3600).then(function (urlRes) {
