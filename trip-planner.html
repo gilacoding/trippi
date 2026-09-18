@@ -4913,7 +4913,7 @@ function openProfile(){
     else if(name==='plan'){ setActiveNav('plan'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); } else if(state.activeTripId || state.readOnlyTrip){ show('plannerView'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display='none'; } else { setActiveNav('trip'); navigateHome("home"); } }
     else if(name==='journey'){ if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); } else { setActiveNav('journey'); show('journeyView'); document.getElementById('globalTitle').textContent='Journey'; document.getElementById('globalBack').style.display='none'; } }
     else if(name==='saved'){ openSavedTrips(); }
-    else if(name==='explore'){ openExploreView(); }
+    else if(name==='explore'){ if(window.Explore&&window.Explore.show)window.Explore.show(); }
     else if(name==='gallery'){ setActiveNav('gallery'); show('galleryView'); document.getElementById('globalTitle').textContent='Galeri'; document.getElementById('globalBack').style.display='none'; loadGalleryAgg(); }
   }
   document.querySelectorAll('.nav-tab, #savedEntryBtn').forEach(function(t){ t.onclick=function(){ goNav(t.dataset.nav); }; });
@@ -4975,96 +4975,7 @@ function openProfile(){
 })();
 </script>
 
-<script>
-/* ── Explore (curated trip discovery) ─────────────────────────────────────
-   Renderer reads window.EXPLORE_CATALOG (assets/js/explore-catalog.js).
-   Save path: auth gate → ensureAuth → API.saveTrip → saved_trips table.
-   Keep auth as a separate concern — do not fold it into an abstraction. */
-(function(){
-  function openExploreView(){
-    show('exploreView');
-    setActiveNav('explore');
-    document.getElementById('globalTitle').textContent='Jelajah';
-    document.getElementById('globalBack').style.display='none';
-    renderExploreList();
-  }
-  window.openExploreView=openExploreView;
-
-  async function openExploreDetail(id){
-    var item=null;
-    (window.EXPLORE_CATALOG||[]).forEach(function(t){ if(t.id===id) item=t; });
-    if(!item){ openExploreView(); return; }
-    show('exploreDetailView');
-    setActiveNav('explore');
-    document.getElementById('globalTitle').textContent='Jelajah';
-    document.getElementById('globalBack').style.display='none';
-    var days=(item.days||[]).map(function(d){
-      var items=(d.items||[]).map(function(it){
-        return '<div class="exp-item"><div class="exp-time">'+esc(it.time||'')+'</div><div><div class="exp-ttl">'+esc(it.title||'')+'</div>'+(it.note?'<div class="exp-note">'+esc(it.note)+'</div>':'')+'</div></div>';
-      }).join('');
-      return '<div class="exp-day"><div class="exp-day-h"><span class="exp-day-n">Hari '+esc(d.day)+'</span><span class="exp-day-t">'+esc(d.title||'')+'</span></div>'+items+'</div>';
-    }).join('');
-    var why=(item.why||[]).map(function(w){ return '<li>'+esc(w)+'</li>'; }).join('');
-    document.getElementById('exploreDetail').innerHTML=
-      '<div class="exp-nav"><button class="back" data-nav="explore"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="no"><path d="M13 4L6 10l7 6"/></svg> kembali</button></div>'+
-      '<div class="exp-hero" style="background-image:url('+esc(item.cover||'')+')"><div class="exp-hero-scrim"></div>'+
-        '<div class="exp-hero-copy"><h1>'+esc(item.title||'')+'</h1>'+
-        '<div class="exp-meta">'+esc(item.destination||'')+' · '+item.duration+' hari · '+esc(item.type||'')+'</div></div></div>'+
-      '<div class="exp-body"><p class="exp-desc">'+(item.description||'').replace(/\n/g,'<br>')+'</p>'+
-      '<h2>Kenapa trip ini?</h2><ul class="exp-why">'+why+'</ul>'+
-      '<h2>Rencana per hari</h2><div class="exp-days">'+days+'</div>'+
-      '<div class="exp-actions"><button class="btn" id="exploreSaveBtn">Simpan trip</button></div></div>';
-    var sb=document.getElementById('exploreSaveBtn');
-    if(sb) sb.onclick=function(){ saveExploreTrip(item); };
-  }
-  window.openExploreDetail=openExploreDetail;
-
-  async function saveExploreTrip(item){
-    if(!colState.uid){ openAuth('login'); return; }
-    var snapshot={
-      name:item.title||'',
-      destination:item.destination||'',
-      start:null, end:null,
-      note:'Dari Jelajah: '+(item.summary||''),
-      items:[]
-    };
-    (item.days||[]).forEach(function(d){
-      (d.items||[]).forEach(function(it){
-        snapshot.items.push({date:null,title:it.title||'',time:it.time||'',note:it.note||'',link:'',budget:0});
-      });
-    });
-    var btn=document.getElementById('exploreSaveBtn');
-    if(btn) busyBtn(btn,'Menyimpan...');
-    try{
-      var res=await API.saveTrip({title:item.title,destination:item.destination,snapshot:snapshot});
-      if(res && res.error){ alert('Gagal menyimpan: '+(res.error.message||'unknown')); return; }
-      if(!res || !res.data){ alert('Gagal menyimpan: tidak ada data yang tersimpan'); return; }
-      openSavedTrips();
-    }catch(e){ alert('Gagal menyimpan: '+e.message); }
-    finally{ if(btn) freeBtn(btn); }
-  }
-  window.saveExploreTrip=saveExploreTrip;
-
-  function renderExploreList(){
-    var list=document.getElementById('exploreList');
-    if(!list) return;
-    var items=(window.EXPLORE_CATALOG||[]).slice().sort(function(a,b){ return (a.order||99)-(b.order||99); });
-    if(!items.length){ list.innerHTML='<div class="empty"><strong>Belum ada trip.</strong>Katalog Jelajah masih kosong.</div>'; return; }
-    list.innerHTML=items.map(function(t){
-          return '<button class="trip-card has-bg" data-explore="'+t.id+'">'+
-            '<span class="trip-bg" style="background-image:url('+esc(t.cover||'')+')"></span>'+
-            '<span class="state upcoming">'+esc(t.type||'')+'</span>'+
-            '<h3>'+esc(t.title||'')+'</h3>'+
-            '<div class="trip-meta">'+esc(t.destination||'')+' · '+t.duration+' hari</div>'+
-            '<div class="trip-summary"><span>'+esc(t.summary||'')+'</span></div></button>';
-        }).join('');
-    list.querySelectorAll('[data-explore]').forEach(function(b){
-      b.onclick=function(){ openExploreDetail(b.dataset.explore); };
-    });
-  }
-  window.renderExploreList=renderExploreList;
-})();
-</script>
+<script src="assets/js/explore.js"></script>
 </body>
 <div id="debugEl" style="position:fixed;left:0;bottom:0;right:0;background:#1119;color:#ff6;padding:6px 8px;font:11px/1.4 monospace;z-index:99999;white-space:pre-wrap;display:none"></div>
 </html>
