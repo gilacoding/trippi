@@ -4303,6 +4303,11 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
 <script>
   // ── Avatar upload handler (removed duplicate — see lines ~3107-3134) ──
 
+  // Auth API + error element (restored from auth-UX IIFE extracted to auth-ux.js —
+  // these were local vars inside the extracted IIFE, not exported to window)
+  var API = window.MarkiAPI;
+  var errEl = document.getElementById('authError');
+
   // ── Import Trip modal ──────────────────────────────────────────
   var importModal=document.getElementById('importModal');
   var importTextarea=document.getElementById('importTextarea');
@@ -4444,9 +4449,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
   // Show/hide password (login + daftar)
   var showPwEl=document.getElementById('showPw');
   if(showPwEl) showPwEl.onchange=function(){ document.getElementById('authPassword').type = showPwEl.checked ? 'text' : 'password'; };
-  // reset toggle whenever the auth modal opens (don't stay revealed across modes)
-  var _openAuth=openAuth;
-  openAuth=function(m){ var el=document.getElementById('showPw'); if(el){ el.checked=false; var p=document.getElementById('authPassword'); if(p) p.type='password'; } _openAuth(m); };
+  // NOTE: openAuth's showPw reset (was here) now lives in auth-ux.js init()
 
   // M3.5: Google OAuth button (adds a login path; email/password stays).
   // On success Supabase redirects to redirectTo; the returned session fires
@@ -4521,7 +4524,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
       // Review fix: closeAuth must only follow a USER-initiated sign-in. Boot
       // restore of an anon session also fires SIGNED_IN and used to silently
       // kill the claim modal the gate had just opened.
-      if(window.__userAuthAttempt){ window.__userAuthAttempt=false; closeAuth(); }
+      if(window.__userAuthAttempt){ window.__userAuthAttempt=false; if(window.Auth&&typeof window.Auth.closeAuth==='function')window.Auth.closeAuth(); }
       onSessionReady(uid); // M2: backfill local trips to Supabase (idempotent, non-blocking)
       if(pendingAction){ var a=pendingAction; pendingAction=null; if(typeof a==='function') a(); else if(a==='makeGroup') makeGroupFromTrip(); }
     } else if(event==='SIGNED_OUT'||(!session)){
@@ -4540,12 +4543,10 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
 
   // gate primary group-creation entry
   var mg=document.getElementById('makeGroupBtn');
-  if(mg) mg.onclick=async function(){ var s=await API.getSession(); if(!(s.data&&s.data.session)){ pendingAction='makeGroup'; openAuth('login'); return; } makeGroupFromTrip(); };
+  if(mg) mg.onclick=async function(){ var s=await API.getSession(); if(!(s.data&&s.data.session)){ pendingAction='makeGroup'; if(typeof window.openAuth==='function')window.openAuth('login'); return; } makeGroupFromTrip(); };
 
   // clear error message for invalid/expired group links (startup catch already shows one)
-  window.openAuth=openAuth;
-  window.openProfile=openProfile;
-  window.closeProfile=closeProfile;
+  // window.openAuth/openProfile/closeProfile exports now live in auth-ux.js
 
   // ── MarkiCab bottom nav wiring (Penpot 1:1 mapping) ──────────────────────
   // Trip = home list · Plan = planner/group detail · Journey = journey panel
@@ -4620,7 +4621,6 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
   function _uploadSingleItem(item) { return window.gallery._uploadSingleItem(item); }
   function _processBatch() { return window.gallery._processBatch(); }
   function _addBatchFiles(files) { return window.gallery._addBatchFiles(files); }
-})();
 </script>
 
 <script src="assets/js/gallery-agg.js"></script>
