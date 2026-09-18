@@ -4187,7 +4187,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
   if(_cancelWaypoint) _cancelWaypoint.onclick=()=>{$('waypointForm').reset();$('waypointForm').parentElement.open=false};
   // M3.5: capture pending guest token so a newly-authenticated user can be
   // soft-converted into a real member of the trip they were viewing.
-  var pendingGuestToken=null;
+  pendingGuestToken=null;
   // auto-open guest trip from ?gt={token} (M2 security patch: guest, no login)
   (async()=>{
     const gt=new URLSearchParams(location.search).get('gt');
@@ -4253,6 +4253,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
     });
   }
 }
+var pendingGuestToken=null;
 // Gate: signed-out visitors belong on the landing page, not the app.
 // Exceptions: guest links (?gt / ?group / #hash), onboarding links from landing (?mode=signup|login),
 // and API-unreachable fallback (keep the app — offline PWA users shouldn't be bounced).
