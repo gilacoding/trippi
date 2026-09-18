@@ -145,12 +145,22 @@
     // No persistent state, intervals, or channels to tear down.
   }
 
-  // Expose public interface
-  window.Gallery = { init: init, show: show, hide: hide, destroy: destroy };
+  // ── Public interface (published BEFORE init — see auth-ux.js header) ──
+  var iface = {
+    Gallery: { init: init, show: show, hide: hide, destroy: destroy },
+    loadGalleryAgg: loadGalleryAgg
+  };
+  window.Gallery = iface.Gallery;
+  window.loadGalleryAgg = iface.loadGalleryAgg;
 
-  // Backward-compatible export (bridge for existing nav wiring)
-  window.loadGalleryAgg = loadGalleryAgg;
+  // UMD export for headless testing
+  if (typeof module !== 'undefined' && module.exports) module.exports = iface;
 
-  // Auto-init
-  init();
+  // Init with failure isolation: defer to FeatureBootstrap when available,
+  // fall back to bare init() (original behaviour) when it is not.
+  if (typeof window !== 'undefined' && window.FeatureBootstrap) {
+    window.FeatureBootstrap.register('gallery', init);
+  } else {
+    init();
+  }
 })();

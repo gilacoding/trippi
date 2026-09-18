@@ -4298,6 +4298,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
   window.load=load;
 })();
 </script>
+<script src="assets/js/feature-bootstrap.js"></script>
 <script src="assets/js/auth-ux.js"></script>
 <script>
   // ── Avatar upload handler (removed duplicate — see lines ~3107-3134) ──
@@ -4559,7 +4560,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
     if(name==='trip'){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; }
     else if(name==='plan'){ setActiveNav('plan'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); } else if(state.activeTripId || state.readOnlyTrip){ show('plannerView'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display='none'; } else { setActiveNav('trip'); navigateHome("home"); } }
     else if(name==='journey'){ if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); } else { setActiveNav('journey'); show('journeyView'); document.getElementById('globalTitle').textContent='Journey'; document.getElementById('globalBack').style.display='none'; } }
-    else if(name==='saved'){ openSavedTrips(); }
+    else if(name==='saved'){ if(window.SavedTrips&&window.SavedTrips.show)window.SavedTrips.show(); else openSavedTrips(); }
     else if(name==='explore'){ if(window.Explore&&window.Explore.show)window.Explore.show(); }
     else if(name==='gallery'){ if(window.Gallery&&window.Gallery.show)window.Gallery.show(); }
   }
@@ -4624,6 +4625,8 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
 
 <script src="assets/js/gallery-agg.js"></script>
 <script src="assets/js/explore.js"></script>
+<script src="assets/js/saved-trips.js"></script>
+<script>window.FeatureBootstrap.bootstrap();</script>
 </body>
 <div id="debugEl" style="position:fixed;left:0;bottom:0;right:0;background:#1119;color:#ff6;padding:6px 8px;font:11px/1.4 monospace;z-index:99999;white-space:pre-wrap;display:none"></div>
 </html>

@@ -131,17 +131,31 @@
 
   function destroy(){ /* no-op — no persistent state */ }
 
-  // ── Exports ───────────────────────────────────────────────────────
+  // ── Exports ────────────────────────────────────────────────────────
 
-  // Public interface
-  window.Explore = { init: init, show: show, hide: hide, destroy: destroy };
+  // Public interface (published BEFORE init — FeatureBootstrap guarantees
+  // containment even if init throws)
+  var iface = {
+    Explore: { init: init, show: show, hide: hide, destroy: destroy },
+    openExploreView: openExploreView,
+    openExploreDetail: openExploreDetail,
+    saveExploreTrip: saveExploreTrip,
+    renderExploreList: renderExploreList
+  };
+  window.Explore = iface.Explore;
+  window.openExploreView = iface.openExploreView;
+  window.openExploreDetail = iface.openExploreDetail;
+  window.saveExploreTrip = iface.saveExploreTrip;
+  window.renderExploreList = iface.renderExploreList;
 
-  // Backward-compatible exports (bridge for existing nav wiring in Script 2)
-  window.openExploreView = openExploreView;
-  window.openExploreDetail = openExploreDetail;
-  window.saveExploreTrip = saveExploreTrip;
-  window.renderExploreList = renderExploreList;
+  // UMD export for headless testing
+  if (typeof module !== 'undefined' && module.exports) module.exports = iface;
 
-  // Auto-init on script load
-  init();
+  // Init with failure isolation: defer to FeatureBootstrap when available,
+  // fall back to bare init() (original behaviour) when it is not.
+  if (typeof window !== 'undefined' && window.FeatureBootstrap) {
+    window.FeatureBootstrap.register('explore', init);
+  } else {
+    init();
+  }
 })();

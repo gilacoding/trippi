@@ -467,20 +467,27 @@
     window.closeProfile = closeProfile;
   }
 
-  // Expose public interface
-  window.Auth = {
-    init: init,
+  // ── Public interface (published BEFORE init so consumers can reference
+  //    it even when init throws — FeatureBootstrap guarantees containment) ──
+  var iface = {
+    Auth: { init: init, openAuth: openAuth, closeAuth: closeAuth, openProfile: openProfile, closeProfile: closeProfile },
     openAuth: openAuth,
-    closeAuth: closeAuth,
     openProfile: openProfile,
     closeProfile: closeProfile
   };
+  window.Auth = iface.Auth;
+  window.openAuth = iface.openAuth;
+  window.openProfile = iface.openProfile;
+  window.closeProfile = iface.closeProfile;
 
-  // Backward-compatible exports (bridge for existing consumers)
-  window.openAuth = openAuth;
-  window.openProfile = openProfile;
-  window.closeProfile = closeProfile;
+  // UMD export for headless testing
+  if (typeof module !== 'undefined' && module.exports) module.exports = iface;
 
-  // Auto-init
-  init();
+  // Init with failure isolation: defer to FeatureBootstrap when available,
+  // fall back to bare init() (original behaviour) when it is not.
+  if (typeof window !== 'undefined' && window.FeatureBootstrap) {
+    window.FeatureBootstrap.register('auth', init);
+  } else {
+    init();
+  }
 })();
