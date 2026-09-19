@@ -7,10 +7,13 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "node tests/utils.test.js && node tests/import-parser.test.js && node tests/gallery-lightbox.test.js && node tests/avatar-crop.test.js",
+    "test": "node tests/utils.test.js && node tests/import-parser.test.js && node tests/gallery-lightbox.test.js && node tests/avatar-crop.test.js && node tests/regression-matrix.test.js && node tests/feature-isolation.test.js && node tests/navigation.test.js && node tests/verify-equivalence.mjs",
     "test:utils": "node tests/utils.test.js",
     "test:import": "node tests/import-parser.test.js",
-    "test:gallery": "node tests/gallery-lightbox.test.js"
+    "test:gallery": "node tests/gallery-lightbox.test.js",
+    "test:regression": "node tests/regression-matrix.test.js",
+    "test:features": "node tests/feature-isolation.test.js",
+    "test:navigation": "node tests/navigation.test.js && node tests/verify-equivalence.mjs"
   },
   "repository": {
     "type": "git",
