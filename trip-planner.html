@@ -4295,11 +4295,13 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
   window.openGroup=openGroup;
   window.openTrip=openTrip;
   window.show=show;
+  window.navigateHome=navigateHome;
   window.load=load;
 })();
 </script>
 <script src="assets/js/feature-bootstrap.js"></script>
 <script src="assets/js/auth-ux.js"></script>
+<script src="assets/js/navigation.js"></script>
 <script>
   // ── Avatar upload handler (removed duplicate — see lines ~3107-3134) ──
 
@@ -4548,47 +4550,13 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
   // clear error message for invalid/expired group links (startup catch already shows one)
   // window.openAuth/openProfile/closeProfile exports now live in auth-ux.js
 
-  // ── MarkiCab bottom nav wiring (Penpot 1:1 mapping) ──────────────────────
-  // Trip = home list · Plan = planner/group detail · Journey = journey panel
-
-  function setActiveNav(name){
-    document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.nav===name); });
-    var se=document.getElementById('savedEntryBtn'); if(se) se.classList.toggle('at-saved', name==='saved');
-  }
-  window.setActiveNav=setActiveNav;
-  window.goNav=goNav;
-  function goNav(name){
-    if(name==='trip'){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; }
-    else if(name==='plan'){ setActiveNav('plan'); if(colState.group && colState.group.id){ openGroup(colState.group.id, false); } else if(state.activeTripId || state.readOnlyTrip){ show('plannerView'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display='none'; } else { setActiveNav('trip'); navigateHome("home"); } }
-    else if(name==='journey'){ if(colState.group && colState.group.id){ openGroup(colState.group.id, false); var jt=document.querySelector('[data-gview="journey"]'); if(jt) jt.click(); } else { setActiveNav('journey'); show('journeyView'); document.getElementById('globalTitle').textContent='Journey'; document.getElementById('globalBack').style.display='none'; } }
-    else if(name==='saved'){ if(window.SavedTrips&&window.SavedTrips.show)window.SavedTrips.show(); else openSavedTrips(); }
-    else if(name==='explore'){ if(window.Explore&&window.Explore.show)window.Explore.show(); }
-    else if(name==='gallery'){ if(window.Gallery&&window.Gallery.show)window.Gallery.show(); }
-  }
-  document.querySelectorAll('.nav-tab, #savedEntryBtn').forEach(function(t){ t.onclick=function(){ goNav(t.dataset.nav); }; });
-  // Fix (2026-09-15 audit): .back buttons in saved views use data-nav but were never wired
-  // (only .nav-tab was) — bottom nav's display:none didn't remove them from the DOM, so
-  // clicking "← Semua trip" / "← Trip tersimpan" did nothing. Route them through goNav too.
-  document.querySelectorAll('button.back[data-nav]').forEach(function(t){ t.onclick=function(e){ e.preventDefault(); goNav(t.dataset.nav); }; });
-  // Delegate for dynamically-injected back buttons (exploreDetail renders after DOM ready)
-  document.addEventListener('click', function(e){
-    var b = e.target.closest('button.back[data-nav]');
-    if(b){ e.preventDefault(); goNav(b.dataset.nav); }
-  });
-  document.querySelectorAll('.explore-entry-link[data-nav]').forEach(function(t){ t.onclick=function(e){ e.preventDefault(); goNav(t.dataset.nav); }; });
-  // global back → return to Trip
-  var gb=document.getElementById('globalBack');
-  if(gb) gb.onclick=function(){ setActiveNav('trip'); navigateHome("home"); document.getElementById('globalTitle').textContent='Trip Kamu'; gb.style.display='none'; };
-  // keep nav synced when views change via in-app links
-  var _show=show;
-  show=function(v){ _show(v); if(v==='homeView'){ setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu'; document.getElementById('globalBack').style.display='none'; } else if(v==='plannerView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent='Rencana'; document.getElementById('globalBack').style.display='none'; } else if(v==='groupView'){ setActiveNav('plan'); document.getElementById('globalTitle').textContent=colState.group?colState.group.name:'Grup'; document.getElementById('globalBack').style.display='none'; } else if(v==='savedTripsView'||v==='savedTripDetailView'){ setActiveNav('saved'); document.getElementById('globalBack').style.display='none'; } else if(v==='historyView'){ setActiveNav('trip'); document.getElementById('globalBack').style.display='none'; } else if(v==='guestView'){ document.getElementById('globalBack').style.display=''; } };
-  setActiveNav('trip'); document.getElementById('globalTitle').textContent='Trip Kamu';
+  // ── Bottom-nav routing + show() patch now in assets/js/navigation.js (window.Navigation) ──
   window.resolveIdentity=resolveIdentity;
 
   // Expose for iframe embed / deep linking
+  // (window.showView is set by navigation.js init — captures the patched show)
   window.loadTrip = load;
   window.openImport = function(){ importModal.style.display='flex'; };
-  window.showView = show;
   window.loadIdentities=loadIdentities;
 
   // ── Gallery v1 (delegated to gallery.js) ───────────────────────
