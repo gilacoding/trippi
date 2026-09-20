@@ -164,26 +164,38 @@
         saveName(nm.slice(0, 40));
         if (colState) colState.name = nm.slice(0, 40);
       }
-      return API.clearMemberAnonFlag().then(function () {
-        noteEl.style.display = 'block';
-        noteEl.textContent = 'Email diperbarui. Silakan cek email ' + email + ' untuk konfirmasi. (Konfirmasi email wajib di proyek ini.)';
-        submitBtn.disabled = false;
-        closeAuth();
-        if (typeof window.loadIdentities === 'function' && colState.group) {
-          window.loadIdentities(colState.group.id);
-        }
-        if (typeof window.renderCrewStatusList === 'function') {
-          window.renderCrewStatusList();
-        }
-        return Promise.resolve('converted');
+      var ensureP = nm ? API.ensureProfile(nm) : Promise.resolve();
+      return ensureP.catch(function (e) {
+        console.warn('[identity] ensureProfile failed:', e && e.message);
+      }).then(function () {
+        return API.clearMemberAnonFlag().then(function () {
+          noteEl.style.display = 'block';
+          noteEl.textContent = 'Email diperbarui. Silakan cek email ' + email + ' untuk konfirmasi. (Konfirmasi email wajib di proyek ini.)';
+          submitBtn.disabled = false;
+          closeAuth();
+          if (typeof window.loadIdentities === 'function' && colState.group) {
+            window.loadIdentities(colState.group.id);
+          }
+          if (typeof window.renderCrewStatusList === 'function') {
+            window.renderCrewStatusList();
+          }
+          return Promise.resolve('converted');
+        });
       });
     });
   }
 
-  function _postSignupCleanup(nm) {
+  async function _postSignupCleanup(nm) {
     if (nm && typeof saveName === 'function') {
       saveName(nm.slice(0, 40));
       if (colState) colState.name = nm.slice(0, 40);
+    }
+    if (nm) {
+      try {
+        await API.ensureProfile(nm);
+      } catch (e) {
+        console.warn('[identity] ensureProfile failed:', e && e.message);
+      }
     }
   }
 
@@ -213,12 +225,12 @@
           submitBtn.disabled = false;
         });
       } else {
-        _handleSignupFresh(email, pw, nm).then(function (result) {
+        _handleSignupFresh(email, pw, nm).then(async function (result) {
           if (result === 'signin_failed' || result === 'error') {
             submitBtn.disabled = false;
             return;
           }
-          _postSignupCleanup(nm);
+          await _postSignupCleanup(nm);
           if (result !== 'created') {
             noteEl.style.display = 'block';
             noteEl.textContent = 'Pendaftaran berhasil. Silakan cek email ' + email + ' untuk konfirmasi, lalu masuk. (Konfirmasi email wajib di proyek ini.)';
@@ -342,7 +354,7 @@
     if (profileModal) profileModal.style.display = 'none';
   }
 
-  function onProfileSave(e) {
+  async function onProfileSave(e) {
     e.preventDefault();
     var name = (profileNameInput.value || '').trim();
     if (profileError) profileError.textContent = '';
@@ -361,7 +373,7 @@
       return;
     }
     try {
-      var res = API.updateMyProfile(name);
+      var res = await API.updateMyProfile(name);
       if (res && res.error) {
         if (profileError) profileError.textContent = 'Gagal menyimpan: ' + (res.error.message || 'Unknown error');
         return;
