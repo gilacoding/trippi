@@ -135,6 +135,15 @@
   }
 
   function _handleSignupFresh(email, pw, nm) {
+    // P1: Persist display name to localStorage BEFORE sign-in so that the
+    // SIGNED_IN onAuthChange handler (ensureProfile(loadName())) picks up
+    // the correct name. Without this, SIGNED_IN fires async during
+    // signInWithEmail, calling ensureProfile('') and falling back to
+    // email-prefix as display_name in the profiles table.
+    if (nm && typeof saveName === 'function') {
+      saveName(nm.slice(0, 40));
+      if (colState) colState.name = nm.slice(0, 40);
+    }
     return API.signUpWithEmail(email, pw).then(function (s) {
       if (s.error) {
         errEl.textContent = humanErr(s.error);
@@ -186,10 +195,8 @@
   }
 
   async function _postSignupCleanup(nm) {
-    if (nm && typeof saveName === 'function') {
-      saveName(nm.slice(0, 40));
-      if (colState) colState.name = nm.slice(0, 40);
-    }
+    // saveName already called in _handleSignupFresh before sign-in.
+    // Here we just ensure the profile row has the display_name (idempotent upsert).
     if (nm) {
       try {
         await API.ensureProfile(nm);
