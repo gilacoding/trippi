@@ -4485,13 +4485,38 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
       if(metaName&&typeof saveName==='function'){ saveName(String(metaName).slice(0,40)); colState.name=String(metaName).slice(0,40); }
       // P0.7: every registered sign-in guarantees a canonical profile row.
       // Anonymous sessions are skipped on purpose — guests keep their per-trip name.
+      //
+      // Stage 15.2: DB-first hydration.  The Profile DB is authoritative.
+      // ensureProfile(null) reads/repairs but NEVER overwrites a real name.
+      // Only fill a missing/placeholder DB name from the localStorage cache
+      // (gap-fill), never the other way around.
       if(!(session && session.user && session.user.is_anonymous)){
         (async()=>{
           try{
-            const pr = await API.ensureProfile(loadName() || null);
-            if(pr && !pr.error && pr.data && pr.data.display_name){
-              colState.name = pr.data.display_name;
-              if(typeof saveName==='function') saveName(pr.data.display_name);
+            var utilsObj = window.utils;
+            var loadNameSafe = (utilsObj && typeof utilsObj.loadName==='function')
+              ? utilsObj.loadName() : '';
+            var isPlaceholderSafe = (utilsObj && typeof utilsObj.isPlaceholderName==='function')
+              ? utilsObj.isPlaceholderName : function(){return false;};
+
+            // 1. DB-first: read / repair (null = never downgrade)
+            var pr = await API.ensureProfile(null);
+            var dbName = (pr && pr.data) ? pr.data.display_name : null;
+
+            if(dbName && !isPlaceholderSafe(dbName)){
+              // DB has an authoritative name — use it, sync cache
+              colState.name = dbName;
+              if(typeof saveName==='function') saveName(dbName);
+            } else {
+              // 2. DB has no real name — gap-fill from localStorage cache
+              var cachedName = loadNameSafe;
+              if(cachedName && !isPlaceholderSafe(cachedName)){
+                var pr2 = await API.ensureProfile(cachedName);
+                if(pr2 && pr2.data && pr2.data.display_name){
+                  colState.name = pr2.data.display_name;
+                  if(typeof saveName==='function') saveName(pr2.data.display_name);
+                }
+              }
             }
           }catch(e){ console.warn('[identity] ensureProfile failed:', e && e.message); }
         })();

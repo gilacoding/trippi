@@ -169,6 +169,12 @@
     categoryIcon,
     tripBgCat,
     isPlaceholderName,
-    humanErr
+    humanErr,
+    saveName: function(n) {
+      localStorage.setItem('markicab_display_name', String(n).slice(0, 40));
+    },
+    loadName: function() {
+      return localStorage.getItem('markicab_display_name') || '';
+    }
   };
 });
