@@ -4503,14 +4503,20 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
             var pr = await API.ensureProfile(null);
             var dbName = (pr && pr.data) ? pr.data.display_name : null;
 
-            if(dbName && !isPlaceholderSafe(dbName)){
+            // Detect placeholder names that the RPC creates/repairs to:
+            // the email prefix (e.g. "test_signup_1790063236")
+            var emailPrefix = session && session.user && session.user.email
+              ? session.user.email.split('@')[0] : '';
+            var dbIsPlaceholder = !dbName || dbName === emailPrefix || isPlaceholderSafe(dbName);
+
+            if(dbName && !dbIsPlaceholder){
               // DB has an authoritative name — use it, sync cache
               colState.name = dbName;
               if(typeof saveName==='function') saveName(dbName);
             } else {
               // 2. DB has no real name — gap-fill from localStorage cache
               var cachedName = loadNameSafe;
-              if(cachedName && !isPlaceholderSafe(cachedName)){
+              if(cachedName && cachedName !== emailPrefix && !isPlaceholderSafe(cachedName)){
                 var pr2 = await API.ensureProfile(cachedName);
                 if(pr2 && pr2.data && pr2.data.display_name){
                   colState.name = pr2.data.display_name;
