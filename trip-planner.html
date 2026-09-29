@@ -4494,6 +4494,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
       // Anonymous users are excluded — guests keep their per-trip name.
       window.hydrateIdentity = async function(session) {
         if (!session || (session.user && session.user.is_anonymous)) return;
+        var sessionUid = session.user.id;
         try {
           var utilsObj = window.utils;
           var loadNameSafe = (utilsObj && typeof utilsObj.loadName === 'function')
@@ -4503,6 +4504,12 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
 
           // 1. DB-first: read / repair (null = never downgrade)
           var pr = await API.ensureProfile(null);
+          // Stale-result guard: if colState.uid changed during the RPC (sign-out
+          // or sign-in as a different user), discard this result — it belongs to
+          // a session that is no longer current. colState.uid starts as null on
+          // reload; the `colState.uid &&` prefix preserves that "no prior session"
+          // window so the first hydration is not blocked.
+          if (colState.uid && colState.uid !== sessionUid) return;
           var dbName = (pr && pr.data) ? pr.data.display_name : null;
 
           // Detect placeholder names that the RPC creates/repairs to:
@@ -4520,6 +4527,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
             var cachedName = loadNameSafe;
             if (cachedName && cachedName !== emailPrefix && !isPlaceholderSafe(cachedName)) {
               var pr2 = await API.ensureProfile(cachedName);
+              if (colState.uid && colState.uid !== sessionUid) return;
               if (pr2 && pr2.data && pr2.data.display_name) {
                 colState.name = pr2.data.display_name;
                 if (typeof saveName === 'function') saveName(pr2.data.display_name);
