@@ -449,6 +449,104 @@ test('sign-out during hydration: stale result cannot restore name', async () => 
   // This is the documented reload-path behavior: null uid = no newer session.
   assert.strictEqual(deps.colState.name, 'Alice', 'Null uid allows result (reload semantics)');
 });
+// ═══════════════════════════════════════════════════════════════════
+// SOFT-CONVERT TIMING DEPENDENCY (Stage 21 audit finding)
+// ═══════════════════════════════════════════════════════════════════
+// The soft-convert at L4555 reads colState.name synchronously AFTER
+// hydrateIdentity(session) is called at L4540 but BEFORE the first
+// `await API.ensureProfile(null)` inside hydrateIdentity yields (L4506).
+//
+// The pre-hydration writes in auth-ux.js (L145 _handleSignupFresh,
+// L174 _handleAnonConvert) and in the SIGNED_IN handler (L4490 OAuth
+// metaName) bridge this gap — they set colState.name synchronously
+// so the soft-convert reads the correct name before the async RPC completes.
+//
+// Removing those writes WITHOUT also fixing L4555 to fall back to
+// loadName() would break soft-convert for guest-preview → signup
+// and anon→registered paths (colState.name would be null/stale at L4555).
+console.log('\n── Soft-Convert Timing Dependency ──');
+
+test('soft-convert reads colState.name before hydrateIdentity completes (bridge required)', async () => {
+  // Simulate: user signs up from guest preview, name persisted via saveName
+  var colState = { uid: null, name: null };
+  var store = {};
+  var saveName = function(n) { store['dn'] = String(n).slice(0, 40); };
+  var loadName = function() { return store['dn'] || ''; };
+  var isPlaceholderName = function(n) {
+    var PLACEHOLDERS = ['guest','user','creator','placeholder'];
+    return !n || PLACEHOLDERS.indexOf(String(n).toLowerCase()) !== -1;
+  };
+
+  // auth-ux.js pre-hydration pattern (L145/L174):
+  //   saveName(nm); colState.name = nm;
+  var nm = 'Alice';
+  saveName(nm);
+  colState.name = nm;  // ← the synchronous bridge write under audit
+
+  // Simulate hydrateIdentity (async, first `await` yields before setting colState.name)
+  // L4540: hydrateIdentity(session) — fired but NOT awaited
+  // L4506: var pr = await API.ensureProfile(null) — first await yields
+  var hydrateDone = false;
+  var hydrateP = (async function() {
+    // Synchronous portion of hydrateIdentity runs here (L4496-L4505),
+    // then yields at the first await (L4506). colState.name is NOT set yet.
+    await new Promise(function(r) { setTimeout(r, 50); }); // simulate ensureProfile RPC
+    // After RPC: DB has placeholder → gap-fill from localStorage
+    if (loadName() && !isPlaceholderName(loadName())) {
+      colState.name = loadName(); // hydrateIdentity sets colState.name from localStorage
+    }
+    hydrateDone = true;
+  })();
+
+  // Simulate soft-convert at L4555 (runs synchronously after hydrateIdentity call,
+  // BEFORE hydrateIdentity's RPC resolves):
+  var softConvertNm = (colState.name) || '';
+
+  // The pre-hydration bridge write ensures soft-convert reads the correct name
+  assert.strictEqual(softConvertNm, 'Alice',
+    'Pre-hydration write is required for soft-convert before hydrateIdentity completes');
+
+  await hydrateP;
+  assert.strictEqual(hydrateDone, true);
+  assert.strictEqual(colState.name, 'Alice',
+    'hydrateIdentity should confirm the name via gap-fill');
+});
+
+test('soft-convert reads wrong name WITHOUT pre-hydration write (demonstrates hazard)', async () => {
+  // Simulate: pre-hydration colState.name write is REMOVED (Stage 22 removal)
+  var colState = { uid: null, name: null };
+  var store = {};
+  var saveName = function(n) { store['dn'] = String(n).slice(0, 40); };
+  var loadName = function() { return store['dn'] || ''; };
+  var isPlaceholderName = function(n) {
+    var PLACEHOLDERS = ['guest','user','creator','placeholder'];
+    return !n || PLACEHOLDERS.indexOf(String(n).toLowerCase()) !== -1;
+  };
+
+  // Only saveName is called — colState.name is NOT set
+  var nm = 'Alice';
+  saveName(nm);
+  // colState.name = nm;  ← REMOVED (simulating Stage 22 removal)
+
+  // hydrateIdentity (async, RPC pending)
+  var hydrateP = (async function() {
+    await new Promise(function(r) { setTimeout(r, 50); });
+    if (loadName() && !isPlaceholderName(loadName())) {
+      colState.name = loadName();
+    }
+  })();
+
+  // Soft-convert reads colState.name BEFORE hydrateIdentity completes
+  var softConvertNm = (colState.name) || '';
+
+  // Without the pre-hydration write, soft-convert gets empty name
+  assert.strictEqual(softConvertNm, '',
+    'Without pre-hydration write, soft-convert reads empty name before hydrateIdentity completes');
+
+  await hydrateP;
+  assert.strictEqual(colState.name, 'Alice',
+    'hydrateIdentity eventually sets the correct name, but soft-convert already ran with wrong value');
+});
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   process.exit(1);
