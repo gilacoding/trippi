@@ -4269,6 +4269,11 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
         // Signed in — load their trips
         if(mode) history.replaceState({}, '', 'trip-planner.html');
         load(); renderHome(); applyUserAvatar();
+        // Stage 18: DB-first identity hydration on reload.
+        // On page reload, SIGNED_IN does not fire for an already-restored session,
+        // so ensureProfile(null) must be called here to hydrate colState.name
+        // from the DB (not from stale localStorage).
+        if (typeof window.hydrateIdentity === 'function') window.hydrateIdentity(session);
       } else if(mode === 'signup' || mode === 'login'){
         // Arrived from landing CTA — open the requested auth mode once the auth
         // module (a later script block) defines openAuth; store the intent now.
@@ -4483,50 +4488,49 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
       // for trips/members without re-prompting. Falls back to existing.
       var metaName=session&&session.user&&session.user.user_metadata&&session.user.user_metadata.full_name||session.user.user_metadata&&session.user.user_metadata.name;
       if(metaName&&typeof saveName==='function'){ saveName(String(metaName).slice(0,40)); colState.name=String(metaName).slice(0,40); }
-      // P0.7: every registered sign-in guarantees a canonical profile row.
-      // Anonymous sessions are skipped on purpose — guests keep their per-trip name.
-      //
-      // Stage 15.2: DB-first hydration.  The Profile DB is authoritative.
-      // ensureProfile(null) reads/repairs but NEVER overwrites a real name.
-      // Only fill a missing/placeholder DB name from the localStorage cache
-      // (gap-fill), never the other way around.
-      if(!(session && session.user && session.user.is_anonymous)){
-        (async()=>{
-          try{
-            var utilsObj = window.utils;
-            var loadNameSafe = (utilsObj && typeof utilsObj.loadName==='function')
-              ? utilsObj.loadName() : '';
-            var isPlaceholderSafe = (utilsObj && typeof utilsObj.isPlaceholderName==='function')
-              ? utilsObj.isPlaceholderName : function(){return false;};
+      // Stage 18: canonical identity hydration — DB-first, with localStorage gap-fill.
+      // Extracted from SIGNED_IN handler to serve as the single authoritative seam
+      // for all authenticated-identity hydration (reload, sign-in, OAuth, anon→registered).
+      // Anonymous users are excluded — guests keep their per-trip name.
+      window.hydrateIdentity = async function(session) {
+        if (!session || (session.user && session.user.is_anonymous)) return;
+        try {
+          var utilsObj = window.utils;
+          var loadNameSafe = (utilsObj && typeof utilsObj.loadName === 'function')
+            ? utilsObj.loadName() : '';
+          var isPlaceholderSafe = (utilsObj && typeof utilsObj.isPlaceholderName === 'function')
+            ? utilsObj.isPlaceholderName : function() { return false; };
 
-            // 1. DB-first: read / repair (null = never downgrade)
-            var pr = await API.ensureProfile(null);
-            var dbName = (pr && pr.data) ? pr.data.display_name : null;
+          // 1. DB-first: read / repair (null = never downgrade)
+          var pr = await API.ensureProfile(null);
+          var dbName = (pr && pr.data) ? pr.data.display_name : null;
 
-            // Detect placeholder names that the RPC creates/repairs to:
-            // the email prefix (e.g. "test_signup_1790063236")
-            var emailPrefix = session && session.user && session.user.email
-              ? session.user.email.split('@')[0] : '';
-            var dbIsPlaceholder = !dbName || dbName === emailPrefix || isPlaceholderSafe(dbName);
+          // Detect placeholder names that the RPC creates/repairs to:
+          // the email prefix (e.g. "test_signup_1790063236")
+          var emailPrefix = session.user && session.user.email
+            ? session.user.email.split('@')[0] : '';
+          var dbIsPlaceholder = !dbName || dbName === emailPrefix || isPlaceholderSafe(dbName);
 
-            if(dbName && !dbIsPlaceholder){
-              // DB has an authoritative name — use it, sync cache
-              colState.name = dbName;
-              if(typeof saveName==='function') saveName(dbName);
-            } else {
-              // 2. DB has no real name — gap-fill from localStorage cache
-              var cachedName = loadNameSafe;
-              if(cachedName && cachedName !== emailPrefix && !isPlaceholderSafe(cachedName)){
-                var pr2 = await API.ensureProfile(cachedName);
-                if(pr2 && pr2.data && pr2.data.display_name){
-                  colState.name = pr2.data.display_name;
-                  if(typeof saveName==='function') saveName(pr2.data.display_name);
-                }
+          if (dbName && !dbIsPlaceholder) {
+            // DB has an authoritative name — use it, sync cache
+            colState.name = dbName;
+            if (typeof saveName === 'function') saveName(dbName);
+          } else {
+            // 2. DB has no real name — gap-fill from localStorage cache
+            var cachedName = loadNameSafe;
+            if (cachedName && cachedName !== emailPrefix && !isPlaceholderSafe(cachedName)) {
+              var pr2 = await API.ensureProfile(cachedName);
+              if (pr2 && pr2.data && pr2.data.display_name) {
+                colState.name = pr2.data.display_name;
+                if (typeof saveName === 'function') saveName(pr2.data.display_name);
               }
             }
-          }catch(e){ console.warn('[identity] ensureProfile failed:', e && e.message); }
-        })();
-      }
+          }
+        } catch(e) { console.warn('[identity] ensureProfile failed:', e && e.message); }
+      };
+
+      hydrateIdentity(session);
+
       // M3.5: soft-convert a guest (?gt=) viewer into a real member of the
       // trip they were viewing. redeem_invitation accepts authenticated users.
       //

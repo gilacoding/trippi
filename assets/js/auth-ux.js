@@ -173,7 +173,12 @@
         saveName(nm.slice(0, 40));
         if (colState) colState.name = nm.slice(0, 40);
       }
-      var ensureP = nm ? API.ensureProfile(nm) : Promise.resolve();
+      var ensureP = API.getSession().then(function (sess) {
+        var session = sess && sess.data && sess.data.session;
+        if (session && typeof window.hydrateIdentity === 'function') {
+          return window.hydrateIdentity(session);
+        }
+      });
       return ensureP.catch(function (e) {
         console.warn('[identity] ensureProfile failed:', e && e.message);
       }).then(function () {
@@ -195,15 +200,10 @@
   }
 
   async function _postSignupCleanup(nm) {
-    // saveName already called in _handleSignupFresh before sign-in.
-    // Here we just ensure the profile row has the display_name (idempotent upsert).
-    if (nm) {
-      try {
-        await API.ensureProfile(nm);
-      } catch (e) {
-        console.warn('[identity] ensureProfile failed:', e && e.message);
-      }
-    }
+    // SIGNED_IN handler calls hydrateIdentity (DB-first + gap-fill), which
+    // creates the profile row and syncs the name to localStorage.
+    // No redundant ensureProfile(nm) call needed here — the canonical seam
+    // in the SIGNED_IN handler already handles persistence.
   }
 
   // ── Auth form submit handler ──
