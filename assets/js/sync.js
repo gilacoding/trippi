@@ -173,7 +173,7 @@
    * Hook: when a session appears, backfill.
    */
   async function onSessionReady(uid) {
-    if (uid) { colState.uid = uid; await backfillAndSync(); await loadServerGroups(); await loadPersonalTrips(); }
+    if (uid) { await backfillAndSync(); await loadServerGroups(); await loadPersonalTrips(); }
   }
 
   // ── Group Data Loading ─────────────────────────────────────────────

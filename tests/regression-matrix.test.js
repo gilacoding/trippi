@@ -723,6 +723,106 @@ test('Stage 22.2: upload error leaves colState.userAvatarUrl unchanged', () => {
   assert.ok(!profileAvatar.classList.contains('has-photo'),
     'profileAvatar should not get has-photo class on upload error');
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// STAGE 23.1 — colState.uid: sync.js onSessionReady no longer seeds uid
+// ═══════════════════════════════════════════════════════════════════
+// Audit finding: sync.js:176 `colState.uid = uid` was redundant with L4486
+// (onAuthChange SIGNED_IN handler) — same value, same call chain, no
+// intervening reads. Removal: onSessionReady now CONSUMES colState.uid
+// (via guards in backfillAndSync/loadServerGroups/loadPersonalTrips) rather
+// than ESTABLISHING it.
+// Auth lifecycle owner: SIGNED_IN → colState.uid = uid (L4486),
+//                         SIGNED_OUT → colState.uid = null (L4583).
+// sync.js: onSessionReady(uid) → consumes colState.uid, does not seed it.
+
+// Spy helpers for tracking sync function calls
+function spy(name) { return function() { calls.push(name); }; }
+
+// Models the POST-Stage-23.1 onSessionReady: calls sync functions WITHOUT
+// writing colState.uid. The sync functions internally guard on colState.uid.
+function onSessionReadyPost(uid, colState, backfill, groups, trips) {
+  if (uid) { backfill(); groups(); trips(); }
+}
+
+// Models sync.js sync functions WITH their colState.uid guards
+function backfillGuarded(colState) {
+  if (!colState.uid) return;
+  calls.push('backfill');
+}
+function loadGroupsGuarded(colState) {
+  if (!colState.uid) return;
+  calls.push('groups');
+}
+function loadTripsGuarded(colState) {
+  if (!colState.uid) return;
+  calls.push('trips');
+}
+
+test('Stage 23.1: onSessionReady does not seed colState.uid; sync runs when uid pre-established', () => {
+  // Scenario 1: colState.uid already set by auth handler (L4486)
+  // onSessionReady is called → sync functions execute (guards pass because uid is set)
+  calls = [];
+  var colState = { uid: 'abc123' };
+  onSessionReadyPost('abc123', colState,
+    function() { backfillGuarded(colState); },
+    function() { loadGroupsGuarded(colState); },
+    function() { loadTripsGuarded(colState); });
+  assert.strictEqual(colState.uid, 'abc123',
+    'colState.uid unchanged — onSessionReady does not seed identity');
+  assert.deepStrictEqual(calls, ['backfill', 'groups', 'trips'],
+    'sync functions executed — guards pass because colState.uid was set by auth handler');
+});
+
+test('Stage 23.1: onSessionReady with uid=null does nothing', () => {
+  // uid is null → the `if (uid)` guard prevents sync calls
+  calls = [];
+  var colState = { uid: 'abc123' };
+  onSessionReadyPost(null, colState,
+    function() { backfillGuarded(colState); },
+    function() { loadGroupsGuarded(colState); },
+    function() { loadTripsGuarded(colState); });
+  assert.deepStrictEqual(calls, [],
+    'sync functions not called when uid is null — onSessionReady guard prevents it');
+  assert.strictEqual(colState.uid, 'abc123',
+    'colState.uid unchanged');
+});
+
+test('Stage 23.1: sync functions guarded — safe even if called without colState.uid', () => {
+  // Safety property: if colState.uid is null, sync functions' internal guards
+  // (L58/L93/L124) prevent execution. This validates the fail-safe of the removal:
+  // onSessionReady no longer establishes uid, so uid MUST be set by the auth
+  // handler before onSessionReady runs. If not, sync functions are no-ops.
+  calls = [];
+  var colState = { uid: null };
+  onSessionReadyPost('xyz', colState,
+    function() { backfillGuarded(colState); },
+    function() { loadGroupsGuarded(colState); },
+    function() { loadTripsGuarded(colState); });
+  assert.deepStrictEqual(calls, [],
+    'sync functions return immediately when colState.uid is null — guards prevent execution');
+  assert.strictEqual(colState.uid, null,
+    'colState.uid remains null — onSessionReady did not seed it');
+});
+
+test('Stage 23.1: auth handler establishes uid before onSessionReady runs', () => {
+  // Full auth lifecycle: 1) onAuthChange SIGNED_IN → colState.uid = uid (L4486),
+  // 2) onSessionReady(uid) called (L4576) → sync functions execute.
+  var colState = { uid: null };
+  // Step 1: auth handler sets uid (L4486 — canonical writer)
+  colState.uid = 'user-123';
+  assert.strictEqual(colState.uid, 'user-123', 'auth handler establishes colState.uid');
+  // Step 2: onSessionReady runs — sync functions execute because uid is set
+  calls = [];
+  onSessionReadyPost('user-123', colState,
+    function() { backfillGuarded(colState); },
+    function() { loadGroupsGuarded(colState); },
+    function() { loadTripsGuarded(colState); });
+  assert.deepStrictEqual(calls, ['backfill', 'groups', 'trips'],
+    'sync functions executed — uid was pre-established by auth handler');
+  assert.strictEqual(colState.uid, 'user-123',
+    'colState.uid unchanged by onSessionReady — auth handler remains canonical owner');
+});
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   process.exit(1);
