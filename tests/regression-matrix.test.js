@@ -595,6 +595,134 @@ test('guest→anon-conversion: name preserved without pre-hydration write', asyn
   assert.strictEqual(colState.name, 'Bob',
     'hydrateIdentity gap-fill should confirm colState.name from localStorage');
 });
+console.log(`\n── Stage 22.2: colState.userAvatarUrl ownership reduction ──`);
+
+// Mock DOM element with working classList and style
+function mkEl() {
+  var cls = [];
+  return {
+    classList: {
+      add: function(c) { if (cls.indexOf(c) === -1) cls.push(c); },
+      remove: function(c) { var i = cls.indexOf(c); if (i !== -1) cls.splice(i, 1); },
+      contains: function(c) { return cls.indexOf(c) !== -1; },
+    },
+    style: {},
+    textContent: '',
+  };
+}
+
+// Models the FIXED _uploadAvatarFile: DOM updates retained,
+// colState.userAvatarUrl write REMOVED. Only DOM reflects avatar.
+function uploadAvatarFile(res, profileAvatar, headerAvatar) {
+  if (res.error) {
+    return { error: res.error };
+  }
+  if (res.data && res.data.signed_url) {
+    var url = res.data.signed_url;
+    if (profileAvatar) {
+      profileAvatar.style.backgroundImage = 'url(' + url + ')';
+      profileAvatar.classList.add('has-photo');
+      profileAvatar.textContent = '';
+    }
+    if (headerAvatar) {
+      headerAvatar.classList.add('has-photo');
+      headerAvatar.style.backgroundImage = 'url(' + url + ')';
+      headerAvatar.style.backgroundSize = 'cover';
+      headerAvatar.textContent = '';
+    }
+    return { ok: true, url: url };
+  }
+  return {};
+}
+
+// Models the FIXED visibilitychange TTL gate with has-photo fallback
+function ttlGate(colState, headerAvatarEl) {
+  return colState.userAvatarUrl || (headerAvatarEl && headerAvatarEl.classList.contains('has-photo'));
+}
+
+// Models applyUserAvatar: canonical writer of colState.userAvatarUrl
+function applyUserAvatar(colState, headerAvatarEl, profileAvatarEl, user) {
+  var url = (user && user.avatar_url) || null;
+  if (!url) { colState.userAvatarUrl = null; return; }
+  colState.userAvatarUrl = url;
+  [profileAvatarEl, headerAvatarEl].forEach(function (e) {
+    if (!e) return;
+    e.classList.add('has-photo');
+    e.style.backgroundImage = 'url("' + url + '")';
+    e.textContent = '';
+  });
+}
+
+test('Stage 22.2: immediate upload display sets DOM has-photo + backgroundImage', () => {
+  var colState = { userAvatarUrl: null };
+  var profileAvatar = mkEl();
+  var headerAvatar = mkEl();
+  var res = { data: { signed_url: 'https://cdn.example.com/avatar1.webp' } };
+  uploadAvatarFile(res, profileAvatar, headerAvatar);
+  assert.strictEqual(colState.userAvatarUrl, null,
+    'upload no longer writes colState.userAvatarUrl — only DOM updated');
+  assert.ok(profileAvatar.classList.contains('has-photo'),
+    'profileAvatar should have has-photo class');
+  assert.ok(headerAvatar.classList.contains('has-photo'),
+    'headerAvatar should have has-photo class');
+  assert.ok(profileAvatar.style.backgroundImage,
+    'profileAvatar should have backgroundImage set');
+  assert.ok(headerAvatar.style.backgroundImage,
+    'headerAvatar should have backgroundImage set');
+});
+
+test('Stage 22.2: upload-after-no-avatar init — colState stays null, DOM shows avatar', () => {
+  var colState = { userAvatarUrl: null };
+  var profileAvatar = mkEl();
+  var headerAvatar = mkEl();
+  applyUserAvatar(colState, headerAvatar, profileAvatar, { avatar_url: null });
+  assert.strictEqual(colState.userAvatarUrl, null,
+    'init with no avatar sets colState.userAvatarUrl to null');
+  assert.ok(!profileAvatar.classList.contains('has-photo'),
+    'no has-photo class without avatar');
+  assert.ok(!headerAvatar.classList.contains('has-photo'),
+    'no has-photo class without avatar');
+  var res = { data: { signed_url: 'https://cdn.example.com/new-avatar.webp' } };
+  uploadAvatarFile(res, profileAvatar, headerAvatar);
+  assert.strictEqual(colState.userAvatarUrl, null,
+    'upload does not set colState.userAvatarUrl — stays null from init');
+  assert.ok(headerAvatar.classList.contains('has-photo'),
+    'headerAvatar should have has-photo after upload display');
+  assert.ok(ttlGate(colState, headerAvatar),
+    'TTL gate fires on has-photo class even when colState.userAvatarUrl is null');
+});
+
+test('Stage 22.2: TTL refresh fires on has-photo class when colState.userAvatarUrl is null', () => {
+  var colState = { userAvatarUrl: null };
+  var headerAvatar = mkEl();
+  headerAvatar.classList.add('has-photo');
+  assert.ok(ttlGate(colState, headerAvatar),
+    'TTL gate should fire when has-photo present but colState.userAvatarUrl is null');
+  assert.ok(!ttlGate(colState, null),
+    'TTL gate should not fire when no element and colState.userAvatarUrl is null');
+});
+
+test('Stage 22.2: existing-avatar refresh still works (colState.userAvatarUrl truthy)', () => {
+  var colState = { userAvatarUrl: 'https://cdn.example.com/existing.webp' };
+  var headerAvatar = mkEl();
+  assert.ok(ttlGate(colState, headerAvatar),
+    'TTL gate should fire when colState.userAvatarUrl is set (existing avatar)');
+  assert.ok(ttlGate(colState, null),
+    'TTL gate should fire even without element if colState.userAvatarUrl is set');
+});
+
+test('Stage 22.2: upload error leaves colState.userAvatarUrl unchanged', () => {
+  var colState = { userAvatarUrl: 'https://cdn.example.com/before.webp' };
+  var profileAvatar = mkEl();
+  var headerAvatar = mkEl();
+  var res = { error: { message: 'File too large' } };
+  var result = uploadAvatarFile(res, profileAvatar, headerAvatar);
+  assert.ok(result.error, 'upload error should be returned');
+  assert.strictEqual(colState.userAvatarUrl, 'https://cdn.example.com/before.webp',
+    'colState.userAvatarUrl should remain unchanged on upload error (matches pre-Stage-22.2 behavior)');
+  assert.ok(!profileAvatar.classList.contains('has-photo'),
+    'profileAvatar should not get has-photo class on upload error');
+});
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed > 0) {
   process.exit(1);

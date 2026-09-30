@@ -4225,7 +4225,10 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
       document.addEventListener('visibilitychange', function(){
         if(!document.hidden) checkForUpdate();
         // Refresh avatar signed URL before it expires (1h TTL) when tab regains focus.
-        if (colState.userAvatarUrl) applyUserAvatar();
+        // has-photo class is the canonical signal (covers upload path that no longer
+        // writes colState.userAvatarUrl directly).
+        var hdr = document.getElementById('headerAvatar');
+        if (colState.userAvatarUrl || (hdr && hdr.classList.contains('has-photo'))) applyUserAvatar();
       });
       setInterval(checkForUpdate, 15 * 60 * 1000);
 

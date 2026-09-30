@@ -279,7 +279,6 @@
           profileAvatar.textContent = '';
         }
         profileError.textContent = '';
-        colState.userAvatarUrl = res.data.signed_url;
         if (headerAvatar) {
           headerAvatar.classList.add('has-photo');
           headerAvatar.style.backgroundImage = 'url(' + res.data.signed_url + ')';
