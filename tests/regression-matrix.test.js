@@ -450,102 +450,150 @@ test('sign-out during hydration: stale result cannot restore name', async () => 
   assert.strictEqual(deps.colState.name, 'Alice', 'Null uid allows result (reload semantics)');
 });
 // ═══════════════════════════════════════════════════════════════════
-// SOFT-CONVERT TIMING DEPENDENCY (Stage 21 audit finding)
+// STAGE 21.1 — Name ownership reduction after consumer fix
 // ═══════════════════════════════════════════════════════════════════
-// The soft-convert at L4555 reads colState.name synchronously AFTER
-// hydrateIdentity(session) is called at L4540 but BEFORE the first
-// `await API.ensureProfile(null)` inside hydrateIdentity yields (L4506).
+// Audit revealed: the pre-hydration colState.name writes in auth-ux.js
+// (L145 _handleSignupFresh, L174 _handleAnonConvert) were NOT redundant.
+// They bridged a synchronous read at trip-planner.html:4555 (soft-convert)
+// that fires AFTER hydrateIdentity() is called (L4540) but BEFORE the
+// async RPC inside hydrateIdentity resolves (L4506 first await).
 //
-// The pre-hydration writes in auth-ux.js (L145 _handleSignupFresh,
-// L174 _handleAnonConvert) and in the SIGNED_IN handler (L4490 OAuth
-// metaName) bridge this gap — they set colState.name synchronously
-// so the soft-convert reads the correct name before the async RPC completes.
+// Fix applied: soft-convert now falls back to window.utils.loadName():
+//   const nm = colState.name || (window.utils && window.utils.loadName()) || '';
 //
-// Removing those writes WITHOUT also fixing L4555 to fall back to
-// loadName() would break soft-convert for guest-preview → signup
-// and anon→registered paths (colState.name would be null/stale at L4555).
-console.log('\n── Soft-Convert Timing Dependency ──');
+// These tests validate that removing the pre-hydration writes does NOT
+// break name preservation in the soft-convert path.
+console.log('\n── Stage 21.1: colState.name ownership reduction ──');
 
-test('soft-convert reads colState.name before hydrateIdentity completes (bridge required)', async () => {
-  // Simulate: user signs up from guest preview, name persisted via saveName
-  var colState = { uid: null, name: null };
-  var store = {};
-  var saveName = function(n) { store['dn'] = String(n).slice(0, 40); };
-  var loadName = function() { return store['dn'] || ''; };
-  var isPlaceholderName = function(n) {
-    var PLACEHOLDERS = ['guest','user','creator','placeholder'];
-    return !n || PLACEHOLDERS.indexOf(String(n).toLowerCase()) !== -1;
+// Models the FIXED soft-convert read at trip-planner.html:4555
+function softConvertRead(colState, utils) {
+  return colState.name || (utils && utils.loadName && utils.loadName()) || '';
+}
+
+// Models the auth-ux.js pattern AFTER Stage 21.1 fix:
+//   saveName(nm) — persists to localStorage
+//   (colState.name write REMOVED)
+function authUxPreHydration(nm, store) {
+  if (nm) {
+    store['dn'] = String(nm).slice(0, 40); // saveName
+  }
+  // colState.name is NOT set — hydrateIdentity gap-fills from localStorage
+}
+
+// Models hydrateIdentity's async gap-fill: DB has placeholder → localStorage
+function hydrateStep(colState, utils) {
+  // After RPC resolves: gap-fill from localStorage
+  var cachedName = utils.loadName();
+  if (cachedName && !utils.isPlaceholderName(cachedName)) {
+    colState.name = cachedName;
+  }
+  return true;
+}
+
+test('soft-convert: colState.name present → reads it directly', () => {
+  var colState = { name: 'Alice' };
+  var utils = {
+    loadName: function() { return 'Bob'; },
+    isPlaceholderName: function() { return false; }
   };
-
-  // auth-ux.js pre-hydration pattern (L145/L174):
-  //   saveName(nm); colState.name = nm;
-  var nm = 'Alice';
-  saveName(nm);
-  colState.name = nm;  // ← the synchronous bridge write under audit
-
-  // Simulate hydrateIdentity (async, first `await` yields before setting colState.name)
-  // L4540: hydrateIdentity(session) — fired but NOT awaited
-  // L4506: var pr = await API.ensureProfile(null) — first await yields
-  var hydrateDone = false;
-  var hydrateP = (async function() {
-    // Synchronous portion of hydrateIdentity runs here (L4496-L4505),
-    // then yields at the first await (L4506). colState.name is NOT set yet.
-    await new Promise(function(r) { setTimeout(r, 50); }); // simulate ensureProfile RPC
-    // After RPC: DB has placeholder → gap-fill from localStorage
-    if (loadName() && !isPlaceholderName(loadName())) {
-      colState.name = loadName(); // hydrateIdentity sets colState.name from localStorage
-    }
-    hydrateDone = true;
-  })();
-
-  // Simulate soft-convert at L4555 (runs synchronously after hydrateIdentity call,
-  // BEFORE hydrateIdentity's RPC resolves):
-  var softConvertNm = (colState.name) || '';
-
-  // The pre-hydration bridge write ensures soft-convert reads the correct name
-  assert.strictEqual(softConvertNm, 'Alice',
-    'Pre-hydration write is required for soft-convert before hydrateIdentity completes');
-
-  await hydrateP;
-  assert.strictEqual(hydrateDone, true);
-  assert.strictEqual(colState.name, 'Alice',
-    'hydrateIdentity should confirm the name via gap-fill');
+  assert.strictEqual(softConvertRead(colState, utils), 'Alice',
+    'soft-convert should prefer colState.name when present');
 });
 
-test('soft-convert reads wrong name WITHOUT pre-hydration write (demonstrates hazard)', async () => {
-  // Simulate: pre-hydration colState.name write is REMOVED (Stage 22 removal)
+test('soft-convert: colState.name absent, localStorage present → reads loadName()', () => {
+  var colState = { name: null };
+  var utils = {
+    loadName: function() { return 'Alice'; },
+    isPlaceholderName: function() { return false; }
+  };
+  assert.strictEqual(softConvertRead(colState, utils), 'Alice',
+    'soft-convert should fall back to loadName() when colState.name is absent');
+});
+
+test('soft-convert: both absent → returns empty string', () => {
+  var colState = { name: null };
+  var utils = {
+    loadName: function() { return ''; },
+    isPlaceholderName: function() { return false; }
+  };
+  assert.strictEqual(softConvertRead(colState, utils), '',
+    'soft-convert should return empty when no name is available');
+});
+
+test('guest→signup: name preserved without pre-hydration write', async () => {
+  // Scenario: user was previewing a guest trip (?gt=xyz), clicks Upgrade,
+  // signs up with name "Alice". SIGNED_IN fires, soft-convert runs BEFORE
+  // hydrateIdentity's async RPC completes.
   var colState = { uid: null, name: null };
   var store = {};
-  var saveName = function(n) { store['dn'] = String(n).slice(0, 40); };
-  var loadName = function() { return store['dn'] || ''; };
-  var isPlaceholderName = function(n) {
-    var PLACEHOLDERS = ['guest','user','creator','placeholder'];
-    return !n || PLACEHOLDERS.indexOf(String(n).toLowerCase()) !== -1;
+  var utils = {
+    loadName: function() { return store['dn'] || ''; },
+    isPlaceholderName: function(n) {
+      var PLACEHOLDERS = ['guest','user','creator','placeholder'];
+      return !n || PLACEHOLDERS.indexOf(String(n).toLowerCase()) !== -1;
+    }
   };
 
-  // Only saveName is called — colState.name is NOT set
+  // auth-ux.js _handleSignupFresh (AFTER Stage 21.1 fix):
+  // Only saveName(nm) is called — no colState.name = nm
   var nm = 'Alice';
-  saveName(nm);
-  // colState.name = nm;  ← REMOVED (simulating Stage 22 removal)
+  authUxPreHydration(nm, store);
 
-  // hydrateIdentity (async, RPC pending)
+  // SIGNED_IN fires → hydrateIdentity called (L4540, NOT awaited)
+  // Simulate async RPC pending (L4506: await ensureProfile(null))
   var hydrateP = (async function() {
-    await new Promise(function(r) { setTimeout(r, 50); });
-    if (loadName() && !isPlaceholderName(loadName())) {
-      colState.name = loadName();
-    }
+    await new Promise(function(r) { setTimeout(r, 50); }); // RPC
+    hydrateStep(colState, utils);
   })();
 
-  // Soft-convert reads colState.name BEFORE hydrateIdentity completes
-  var softConvertNm = (colState.name) || '';
+  // Soft-convert at L4555 runs synchronously after hydrateIdentity call,
+  // BEFORE the RPC resolves:
+  var softConvertNm = softConvertRead(colState, utils);
 
-  // Without the pre-hydration write, soft-convert gets empty name
-  assert.strictEqual(softConvertNm, '',
-    'Without pre-hydration write, soft-convert reads empty name before hydrateIdentity completes');
+  assert.strictEqual(softConvertNm, 'Alice',
+    'soft-convert must read name from localStorage fallback even without pre-hydration write');
 
   await hydrateP;
   assert.strictEqual(colState.name, 'Alice',
-    'hydrateIdentity eventually sets the correct name, but soft-convert already ran with wrong value');
+    'hydrateIdentity gap-fill should confirm colState.name from localStorage');
+});
+
+test('guest→anon-conversion: name preserved without pre-hydration write', async () => {
+  // Scenario: anon user on guest trip upgrades to registered email account
+  // with name "Bob". _handleAnonConvert calls saveName(nm) then getSession().then(
+  // hydrateIdentity). SIGNED_IN also fires → soft-convert reads colState.name
+  // BEFORE hydrateIdentity's RPC resolves.
+  var colState = { uid: null, name: null };
+  var store = {};
+  var utils = {
+    loadName: function() { return store['dn'] || ''; },
+    isPlaceholderName: function(n) {
+      var PLACEHOLDERS = ['guest','user','creator','placeholder'];
+      return !n || PLACEHOLDERS.indexOf(String(n).toLowerCase()) !== -1;
+    }
+  };
+
+  // auth-ux.js _handleAnonConvert (AFTER Stage 21.1 fix):
+  // Only saveName(nm) — no colState.name = nm
+  var nm = 'Bob';
+  authUxPreHydration(nm, store);
+
+  // hydrateIdentity from _handleAnonConvert L176 and from SIGNED_IN L4540
+  // both start async (first await yields before setting colState.name)
+  var hydrateP = (async function() {
+    await new Promise(function(r) { setTimeout(r, 50); }); // RPC
+    hydrateStep(colState, utils);
+  })();
+
+  // Soft-convert at L4555 (same synchronous window as signup path):
+  var softConvertNm = softConvertRead(colState, utils);
+
+  assert.strictEqual(softConvertNm, 'Bob',
+    'soft-convert must read name from localStorage fallback for anon→registered path');
+
+  await hydrateP;
+  assert.strictEqual(colState.name, 'Bob',
+    'hydrateIdentity gap-fill should confirm colState.name from localStorage');
 });
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed > 0) {

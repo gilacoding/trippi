@@ -142,7 +142,6 @@
     // email-prefix as display_name in the profiles table.
     if (nm && typeof saveName === 'function') {
       saveName(nm.slice(0, 40));
-      if (colState) colState.name = nm.slice(0, 40);
     }
     return API.signUpWithEmail(email, pw).then(function (s) {
       if (s.error) {
@@ -171,7 +170,6 @@
       }
       if (nm && typeof saveName === 'function') {
         saveName(nm.slice(0, 40));
-        if (colState) colState.name = nm.slice(0, 40);
       }
       var ensureP = API.getSession().then(function (sess) {
         var session = sess && sess.data && sess.data.session;

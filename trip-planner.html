@@ -4552,7 +4552,7 @@ $('useSavedTripBtn').onclick=useSavedTrip;$('deleteSavedTripBtn').onclick=delete
         (async()=>{ 
           try{ 
             const token = pendingGuestToken;
-            const nm = (colState.name)||''; 
+            const nm = colState.name || (window.utils && window.utils.loadName && window.utils.loadName()) || ''; 
             const r = await API.redeemInvitation(token, nm || null);
             pendingGuestToken = null;
             const groupId = r && r.data ? r.data.id : null;
